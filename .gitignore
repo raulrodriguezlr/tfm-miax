@@ -1,0 +1,29 @@
+# Datos cacheados: el historico de Binance NO va a git
+data/**
+!data/
+!data/*/
+!data/**/.gitkeep
+
+# Artefactos pesados
+*.parquet
+*.pt
+*.ckpt
+reports/figures/*
+!reports/figures/.gitkeep
+reports/tables/*
+!reports/tables/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Entorno local
+.env
+.DS_Store
