@@ -13,4 +13,21 @@ Resumen para agentes que no cargan `CLAUDE.md` automáticamente:
 - **Los datos no se commitean.**
 - Código y commits en inglés; docstrings, comentarios y documentación en castellano.
 
-Backlog: [docs/project/BACKLOG.md](docs/project/BACKLOG.md) · Proceso: [docs/project/WORKFLOW.md](docs/project/WORKFLOW.md)
+## Tablero
+
+**Trello:** https://trello.com/b/PBzf0gtT/tfm-miax-lead-lag-cripto
+
+Conecta tu cuenta de Trello al agente (en Claude: ajustes de conectores → Trello) para poder leer el tablero y mover tarjetas sin copiar nada a mano.
+
+Listas: `📚 Épicas` → `📥 Backlog` → `🎯 Sprint actual` → `🔨 In Progress` → `👀 Review` → `✅ Done`
+
+- Al coger un ticket, muévelo a *In Progress* y asígnatelo.
+- Al abrir el PR, muévelo a *Review* y pega la URL del PR en la tarjeta.
+- **Nunca muevas a *Done*.** Eso lo hace una persona tras aprobar y mergear.
+- Un ticket por persona en *In Progress*.
+
+**El backlog canónico es el fichero del repo, no Trello.** Si discrepan, manda el fichero.
+
+---
+
+Backlog: [docs/project/BACKLOG.md](docs/project/BACKLOG.md) · Proceso: [docs/project/WORKFLOW.md](docs/project/WORKFLOW.md) · Estado: [docs/project/ESTADO.md](docs/project/ESTADO.md)

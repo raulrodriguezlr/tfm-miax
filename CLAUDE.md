@@ -36,7 +36,7 @@ Si a un agente se le da una tarea acotada, la coge, la hace y se acaba ahí. No 
 Cada ticket recorre este camino. Sin atajos.
 
 ```
-   Backlog  →  In Progress  →  Review  →  Done
+   Backlog  →  Sprint actual  →  In Progress  →  Review  →  Done
 ```
 
 ### 2.1. Fases
@@ -244,17 +244,59 @@ Los notebooks exploran. **La lógica vive en `src/`.** Si un notebook tiene una 
 
 ---
 
-## 7. Tablero
+## 7. Tablero (Trello)
 
-El backlog completo está en [docs/project/BACKLOG.md](docs/project/BACKLOG.md), numerado en el orden en que hay que hacerlo.
+**Tablero:** https://trello.com/b/PBzf0gtT/tfm-miax-lead-lag-cripto
 
-Columnas: **Backlog → In Progress → Review → Done**
+Cada integrante conecta su cuenta de Trello a Claude (ajustes de conectores en claude.ai → Trello). Así su Claude lee el tablero, coge tickets y los mueve de columna sin que nadie copie nada a mano.
 
-- Solo un ticket por persona en *In Progress*. Si te bloqueas, lo dices; no abres otro.
-- De *In Progress* a *Review* se pasa abriendo el PR.
-- De *Review* a *Done* se pasa cuando otra persona aprueba y se mergea.
+### 7.1. Listas
 
-Reglas de proceso en [docs/project/WORKFLOW.md](docs/project/WORKFLOW.md).
+| Lista | Qué contiene |
+|---|---|
+| 📚 **Épicas (roadmap)** | Una tarjeta por épica. Contexto y riesgos. No se mueven. |
+| 📥 **Backlog** | Tickets definidos, sin empezar. |
+| 🎯 **Sprint actual** | Lo que el equipo se ha comprometido a hacer ahora. |
+| 🔨 **In Progress** | Alguien está trabajando en ello ahora mismo. |
+| 👀 **Review (PR abierto)** | PR abierto, esperando revisión humana. |
+| ✅ **Done** | Mergeado en `develop`. |
+
+### 7.2. Cómo se mueven las tarjetas
+
+El *Backlog* tiene los 196 tickets, ordenados por número. **Cada uno se sirve de ahí**: eliges el ticket más bajo disponible cuyas dependencias estén en *Done*, y lo arrastras a *Sprint actual*.
+
+```
+📥 Backlog  ──tú eliges──►  🎯 Sprint actual  ──►  🔨 In Progress  ──PR──►  👀 Review  ──merge──►  ✅ Done
+```
+
+- **Un ticket por persona en *In Progress*.** Si te bloqueas, lo devuelves a *Sprint actual* con una nota. No abres otro.
+- De *In Progress* a *Review* se pasa **abriendo el PR**.
+- De *Review* a *Done* se pasa cuando **otra persona** aprueba y se mergea.
+- Las tarjetas de *Épicas* nunca se mueven: son el mapa, no trabajo.
+- Cada tarjeta enlaza a su épica en la descripción, y lleva el prefijo `E0`–`E13` en el título. Buscando `E4` en Trello salen todos los tickets de esa épica.
+
+### 7.3. Reglas del sprint
+
+- El sprint se cierra y se repuebla **entre los tres**, no unilateralmente.
+- No se traen del Backlog tickets con dependencias abiertas, por muy apetecibles que parezcan.
+- Si un ticket se queda a medias al cerrar el sprint, se queda en *Sprint actual*; no vuelve al Backlog.
+
+### 7.4. Qué hace el agente con Trello
+
+Si tienes el conector activo:
+
+1. **Al empezar:** lee *Sprint actual*, comprueba dependencias y propone el ticket más bajo disponible.
+2. **Al arrancar el ticket:** mueve la tarjeta a *In Progress* y se asigna a tu usuario.
+3. **Al abrir el PR:** mueve la tarjeta a *Review* y pega la URL del PR como comentario en la tarjeta.
+4. **Nunca mueve a *Done* por su cuenta.** Eso lo hace una persona tras aprobar y mergear.
+
+### 7.5. Fuente de verdad
+
+**El backlog canónico es [docs/project/BACKLOG.md](docs/project/BACKLOG.md)**, con los 196 tickets, sus dependencias y su criterio de "hecho". Trello es la vista de estado, no el contenido.
+
+Si los dos discrepan, manda el fichero del repo. Si un ticket cambia de alcance, se cambia en el markdown y luego en la tarjeta.
+
+Reglas de proceso completas en [docs/project/WORKFLOW.md](docs/project/WORKFLOW.md).
 
 ---
 
