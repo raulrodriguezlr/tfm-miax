@@ -10,11 +10,11 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | MIAX-005 | `feature/MIAX-005` | 2026-09-21 | en review |
+| Raúl | MIAX-006 | `feature/MIAX-006` | 2026-09-21 | en review |
 | — | — | — | — | — |
 | — | — | — | — | — |
 
-**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** —
+**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.1`
 
 ---
 
@@ -31,6 +31,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-05 | El grafo se recalcula **dentro de cada fold** de entrenamiento. | Construirlo con la muestra completa contamina todos los resultados. | MIAX-137 |
 | D-06 | Python 3.12 para todo el equipo. | Todo el stack tiene ruedas para 3.12 en Windows, Linux y macOS, y es la versión que deja más margen para bajar torch si PyG Temporal falla. | MIAX-005 |
 | D-07 | Toda dependencia entra en `requirements.txt` con versión exacta (`==`), nunca con rango. | Un rango instala cosas distintas según el día. Lo vigila `tests/unit/test_requirements.py`. | MIAX-005 |
+| D-08 | Las dependencias solo se declaran en `requirements.txt`; `pyproject.toml` no lista ninguna. | Una sola fuente de verdad: dos listas acaban desincronizadas, y leerlas desde el pyproject rompería con las opciones de índice que traerá torch (MIAX-115). | MIAX-006 |
 
 ---
 
@@ -68,6 +69,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-09-21 · Raúl · MIAX-006
+- **Hecho:** `pyproject.toml` con setuptools; `miax` y sus 7 subpaquetes son paquetes Python, y con `pip install -e .` se importa `miax` desde cualquier directorio.
+- **Decisión:** las dependencias solo viven en `requirements.txt` (D-08). `requires-python = ">=3.12,<3.13"` hace cumplir D-06. La versión es estática, `0.1.0`.
+- **Ojo (MIAX-007/008):** la configuración de ruff (`[tool.ruff]`) y de pytest (`[tool.pytest.ini_options]`) va en este `pyproject.toml`.
+- **Ojo (MIAX-013):** el CI tiene que instalar con `pip install -r requirements.txt` y luego `pip install -e .`; sin lo segundo falla `tests/integration/test_package.py`.
+- **Pendiente:** la `version` de `pyproject.toml` se sube a mano en cada release (PR a `main`).
 
 ### 2026-09-21 · Raúl · MIAX-005
 - **Hecho:** `requirements.txt` con las 13 dependencias directas del stack base fijadas con `==` (datos, cálculo, grafos, configuración YAML, visualización y desarrollo), un test que falla si alguna entra con rango, y los pasos de instalación en `ONBOARDING.md`.

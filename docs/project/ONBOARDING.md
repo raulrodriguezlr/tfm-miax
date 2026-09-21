@@ -36,6 +36,7 @@ cd tfm-miax
 py -3.12 -m venv .venv          # Linux/macOS: python3.12 -m venv .venv
 .venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 python scripts/dev/check_setup.py
 ```
 
@@ -204,6 +205,7 @@ Si vas a contradecir una, se habla antes.
 | D-05 | El grafo se recalcula **dentro de cada fold** | Construirlo con la muestra completa contamina todo |
 | D-06 | Python 3.12 para todo el equipo | Todo el stack tiene ruedas para 3.12 y deja margen para bajar torch si PyG Temporal falla |
 | D-07 | Dependencias con versión exacta (`==`), nunca rangos | Un rango instala cosas distintas según el día |
+| D-08 | Dependencias solo en requirements.txt, no en pyproject.toml | Una sola fuente de verdad |
 
 ---
 

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools==84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "miax"
+version = "0.1.0"
+description = "Red de lead-lag entre criptoactivos: descubrimiento causal y GNN temporal (TFM MIAX)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+# Sin dependencias aqui: el entorno se fija en requirements.txt con versiones exactas (D-07, D-08).
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
