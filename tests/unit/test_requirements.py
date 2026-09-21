@@ -22,7 +22,7 @@ EXACT_PIN = re.compile(
 
 
 def read_requirement_lines(path: Path) -> list[str]:
-    """Lee un requirements.txt y devuelve solo las lineas de paquete, sin comentarios ni opciones de pip."""
+    """Devuelve las lineas de paquete del requirements.txt, sin comentarios ni opciones."""
     lines: list[str] = []
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.split(" #", 1)[0].strip()

@@ -166,7 +166,7 @@ Tres cosas, siempre, sin excepción:
 
 1. Actualizar [docs/project/ESTADO.md](docs/project/ESTADO.md) con lo que has hecho (§5).
 2. Añadir tu línea al [CHANGELOG.md](CHANGELOG.md) bajo `[Sin publicar]`.
-3. Pasar los tests.
+3. Pasar los tests y el lint: `pytest`, `ruff check .` y `ruff format --check .`.
 
 ---
 

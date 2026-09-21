@@ -23,7 +23,7 @@ SUBPACKAGES: tuple[str, ...] = (
 
 
 def test_import_miax_from_outside_repo(tmp_path: Path) -> None:
-    """import miax funciona desde un directorio fuera del repo tras pip install -e ."""
+    """El import de miax funciona desde fuera del repo tras pip install -e ."""
     result = subprocess.run(
         [sys.executable, "-c", "import miax; print(miax.__file__)"],
         cwd=tmp_path,

@@ -136,7 +136,7 @@ Están en `.claude/agents/`, versionados en el repo. No hay que configurar nada.
 
 1. Actualizar `docs/project/ESTADO.md`.
 2. Añadir tu línea al `CHANGELOG.md` bajo `[Sin publicar]`.
-3. Pasar los tests.
+3. Pasar los tests y el lint: `pytest`, `ruff check .` y `ruff format --check .`.
 
 ---
 
