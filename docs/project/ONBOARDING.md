@@ -64,6 +64,10 @@ El paso 3 es el importante. Con el conector activo, tu Claude lee el tablero, co
 
 **Tablero:** https://trello.com/b/PBzf0gtT/tfm-miax-lead-lag-cripto
 
+### 2.4. Instalar GitHub CLI y conectarla
+
+Sin ella no puedes abrir PR desde Claude. Tres pasos: `winget install --id GitHub.cli`, cerrar Claude del todo y volver a abrirlo, y `gh auth login`. Detalle en [CLAUDE.md §9.1](../../CLAUDE.md#91-github-cli-para-abrir-pr).
+
 ---
 
 ## 3. La regla que manda sobre todas

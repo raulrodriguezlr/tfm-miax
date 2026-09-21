@@ -333,6 +333,34 @@ Manualmente:
 python scripts/dev/check_setup.py
 ```
 
+### 9.1. GitHub CLI para abrir PR
+
+Los PR se abren con `gh`, la CLI de GitHub. La usan tu Claude y el botón **Crear PR** de la app. Se configura una vez por máquina, y además tienes que ser colaborador del repo (pídeselo a Raúl).
+
+1. Instálala:
+
+   ```bash
+   winget install --id GitHub.cli
+   ```
+
+   En macOS: `brew install gh`. En Linux: https://github.com/cli/cli#installation
+
+2. **Cierra Claude del todo**, también desde el icono de la bandeja del sistema, y vuelve a abrirlo. La app lee el `PATH` al arrancar: si no la reinicias, sigue diciendo "GitHub CLI no disponible".
+
+3. Inicia sesión desde una terminal nueva. Elige GitHub.com, HTTPS y *Login with a web browser*, y confirma el código en el navegador:
+
+   ```bash
+   gh auth login
+   ```
+
+4. Compruébalo. Tiene que decir `Logged in to github.com`:
+
+   ```bash
+   gh auth status
+   ```
+
+El login se hace siempre en el navegador. **Nunca pegues un token en el chat.**
+
 ---
 
 ## 10. Idioma
