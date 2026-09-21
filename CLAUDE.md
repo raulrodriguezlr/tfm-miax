@@ -283,12 +283,24 @@ El *Backlog* tiene los 196 tickets, ordenados por número. **Cada uno se sirve d
 
 ### 7.4. Qué hace el agente con Trello
 
+El conector de Trello **no puede asignar miembros ni escribir comentarios**. La asignación se hace con **etiquetas**, que sí puede poner. Cada persona tiene la suya:
+
+| Etiqueta | Persona |
+|---|---|
+| 🟢 `raul` | Raúl |
+| 🔵 `piettro` | Piettro |
+| 🟣 `alonso` | Alonso |
+
 Si tienes el conector activo:
 
 1. **Al empezar:** lee *Sprint actual*, comprueba dependencias y propone el ticket más bajo disponible.
-2. **Al arrancar el ticket:** mueve la tarjeta a *In Progress* y se asigna a tu usuario.
-3. **Al abrir el PR:** mueve la tarjeta a *Review* y pega la URL del PR como comentario en la tarjeta.
+2. **Al arrancar el ticket:** mueve la tarjeta a *In Progress* y le pone **tu etiqueta**. Para saber quién eres, lee tu perfil de Trello (`trelloReadMember` → `get_me`) y busca en el tablero la etiqueta con tu nombre (`trelloReadBoard` → `list_labels`). Si no la encuentra, para y avisa; no pone una al azar.
+3. **Al abrir el PR:** mueve la tarjeta a *Review* y añade al final de la descripción una línea `**PR:** <url>`. Antes lee la descripción actual (`trelloReadCard`), porque `update` la sustituye entera y no se puede perder lo que ya había.
 4. **Nunca mueve a *Done* por su cuenta.** Eso lo hace una persona tras aprobar y mergear.
+
+- **Una etiqueta de persona por tarjeta.** Si otro retoma un ticket, se quita la etiqueta anterior (`detach_label`) y se pone la suya.
+- **La etiqueta se queda** al pasar a *Review* y *Done*: así queda registro de quién hizo qué.
+- Si además quieres tu avatar en la tarjeta, arrástralo tú: es un clic y el agente no puede hacerlo.
 
 ### 7.5. Fuente de verdad
 
@@ -320,6 +332,34 @@ Manualmente:
 ```bash
 python scripts/dev/check_setup.py
 ```
+
+### 9.1. GitHub CLI para abrir PR
+
+Los PR se abren con `gh`, la CLI de GitHub. La usan tu Claude y el botón **Crear PR** de la app. Se configura una vez por máquina, y además tienes que ser colaborador del repo (pídeselo a Raúl).
+
+1. Instálala:
+
+   ```bash
+   winget install --id GitHub.cli
+   ```
+
+   En macOS: `brew install gh`. En Linux: https://github.com/cli/cli#installation
+
+2. **Cierra Claude del todo**, también desde el icono de la bandeja del sistema, y vuelve a abrirlo. La app lee el `PATH` al arrancar: si no la reinicias, sigue diciendo "GitHub CLI no disponible".
+
+3. Inicia sesión desde una terminal nueva. Elige GitHub.com, HTTPS y *Login with a web browser*, y confirma el código en el navegador:
+
+   ```bash
+   gh auth login
+   ```
+
+4. Compruébalo. Tiene que decir `Logged in to github.com`:
+
+   ```bash
+   gh auth status
+   ```
+
+El login se hace siempre en el navegador. **Nunca pegues un token en el chat.**
 
 ---
 

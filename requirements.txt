@@ -1,0 +1,31 @@
+# Entorno del TFM - Python 3.12 (decision D-06 en docs/project/ESTADO.md).
+# Versiones exactas (==), nunca rangos: tests/unit/test_requirements.py lo comprueba.
+# Solo dependencias directas. El congelado completo con transitivas es MIAX-173.
+# Fuera de aqui por ahora: torch y PyTorch Geometric Temporal (MIAX-115), tigramite (MIAX-077).
+#
+# Instalacion:  pip install -r requirements.txt
+
+# Datos: descarga de Binance y cache en Parquet
+requests==2.34.2
+pyarrow==25.0.1
+
+# Calculo y estadistica
+numpy==2.5.3
+pandas==3.0.6
+scipy==1.18.1
+statsmodels==0.15.0
+
+# Grafos
+networkx==3.6.1
+
+# Configuracion en YAML (configs/)
+pyyaml==6.0.3
+
+# Figuras de la memoria y graficos interactivos
+matplotlib==3.11.2
+plotly==7.1.0
+
+# Desarrollo: tests, lint y notebooks
+pytest==9.1.1
+ruff==0.16.8
+ipykernel==7.3.0

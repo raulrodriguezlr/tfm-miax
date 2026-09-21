@@ -16,7 +16,12 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 ## [Sin publicar]
 
 ### Añadido
-- Nada todavía.
+- Entorno fijado sobre Python 3.12: `pip install -r requirements.txt` instala las mismas versiones exactas de datos, cálculo, grafos, configuración, visualización y desarrollo en cualquier máquina (MIAX-005)
+- Test que falla si una dependencia entra en `requirements.txt` con rango en lugar de versión exacta (MIAX-005)
+- Guía para instalar GitHub CLI e iniciar sesión, necesaria para abrir PR desde Claude (MIAX-005)
+
+### Cambiado
+- Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
 
 ---
 

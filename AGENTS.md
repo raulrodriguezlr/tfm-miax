@@ -21,8 +21,8 @@ Conecta tu cuenta de Trello al agente (en Claude: ajustes de conectores → Trel
 
 Listas: `📚 Épicas` → `📥 Backlog` → `🎯 Sprint actual` → `🔨 In Progress` → `👀 Review` → `✅ Done`
 
-- Al coger un ticket, muévelo a *In Progress* y asígnatelo.
-- Al abrir el PR, muévelo a *Review* y pega la URL del PR en la tarjeta.
+- Al coger un ticket, muévelo a *In Progress* y ponle **la etiqueta con el nombre de tu humano** (🟢 `raul`, 🔵 `piettro`, 🟣 `alonso`). El conector no puede asignar miembros: la etiqueta es la asignación.
+- Al abrir el PR, muévelo a *Review* y añade `**PR:** <url>` al final de la descripción, leyéndola antes para no pisarla. El conector no puede comentar.
 - **Nunca muevas a *Done*.** Eso lo hace una persona tras aprobar y mergear.
 - Un ticket por persona en *In Progress*.
 
