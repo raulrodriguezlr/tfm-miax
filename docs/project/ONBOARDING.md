@@ -26,11 +26,16 @@ Contexto completo en el [README](../../README.md).
 
 ## 2. Qué tienes que hacer hoy
 
-### 2.1. Clonar y comprobar el entorno
+### 2.1. Clonar, instalar y comprobar el entorno
+
+El entorno es **Python 3.12** (D-06). Todas las dependencias van en `requirements.txt` con versión exacta (D-07): no instales nada suelto, y si necesitas una nueva, entra con `==` en tu PR.
 
 ```bash
 git clone https://github.com/raulrodriguezlr/tfm-miax.git
 cd tfm-miax
+py -3.12 -m venv .venv          # Linux/macOS: python3.12 -m venv .venv
+.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
 python scripts/dev/check_setup.py
 ```
 
@@ -193,6 +198,8 @@ Si vas a contradecir una, se habla antes.
 | D-03 | La residualización guarda betas y las **proyecta** sobre test | Recalcular el factor en test es fuga |
 | D-04 | Horizontes 1m, 5m, 15m y 60m, no solo 1m | Rebalancear cada minuto condena el test económico por construcción |
 | D-05 | El grafo se recalcula **dentro de cada fold** | Construirlo con la muestra completa contamina todo |
+| D-06 | Python 3.12 para todo el equipo | Todo el stack tiene ruedas para 3.12 y deja margen para bajar torch si PyG Temporal falla |
+| D-07 | Dependencias con versión exacta (`==`), nunca rangos | Un rango instala cosas distintas según el día |
 
 ---
 
