@@ -62,6 +62,7 @@ def current_branch() -> str:
             capture_output=True,
             text=True,
             timeout=5,
+            check=False,
         )
         return out.stdout.strip()
     except (subprocess.SubprocessError, OSError):
@@ -69,6 +70,7 @@ def current_branch() -> str:
 
 
 def main() -> int:
+    """Ejecuta las comprobaciones e imprime lo que falta. Devuelve 0 si todo esta listo."""
     problems: list[str] = []
 
     missing_pkgs = find_missing_packages()

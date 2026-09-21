@@ -10,11 +10,11 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | MIAX-006 | `feature/MIAX-006` | 2026-09-21 | en review |
+| Raúl | MIAX-007 | `feature/MIAX-007` | 2026-09-21 | en review |
 | — | — | — | — | — |
 | — | — | — | — | — |
 
-**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.1`
+**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.2`
 
 ---
 
@@ -32,6 +32,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-06 | Python 3.12 para todo el equipo. | Todo el stack tiene ruedas para 3.12 en Windows, Linux y macOS, y es la versión que deja más margen para bajar torch si PyG Temporal falla. | MIAX-005 |
 | D-07 | Toda dependencia entra en `requirements.txt` con versión exacta (`==`), nunca con rango. | Un rango instala cosas distintas según el día. Lo vigila `tests/unit/test_requirements.py`. | MIAX-005 |
 | D-08 | Las dependencias solo se declaran en `requirements.txt`; `pyproject.toml` no lista ninguna. | Una sola fuente de verdad: dos listas acaban desincronizadas, y leerlas desde el pyproject rompería con las opciones de índice que traerá torch (MIAX-115). | MIAX-006 |
+| D-09 | El estilo lo decide ruff: sus reglas por defecto más `ANN`, `D`, `NPY` y `E501` (100). `ruff check .` y `ruff format --check .` deben pasar en limpio antes de cada push. | Nadie discute estilo en los PR, y las normas del repo (tipos, docstrings, semillas, UTC) las vigila la máquina. | MIAX-007 |
 
 ---
 
@@ -69,6 +70,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-09-21 · Raúl · MIAX-007
+- **Hecho:** configuración de ruff en `pyproject.toml` y repo en limpio (`ruff check .` y `ruff format --check .`). Arreglados los 4 avisos que había, sin cambiar comportamiento.
+- **Decisión:** D-09. Ruff 0.16.8 ya trae unas 430 reglas por defecto (F, UP, B, SIM, DTZ, PT, RUF, PL*…), así que se amplían con `ANN`, `D`, `NPY` y `E501` en lugar de sustituirlas. Los notebooks no exigen tipos, docstrings ni longitud de línea.
+- **Ojo:** las reglas por defecto de ruff cambian entre versiones; al subir ruff en `requirements.txt` hay que volver a pasar `ruff check .`.
+- **Ojo (MIAX-013/179):** el CI tiene que ejecutar `ruff check .` y `ruff format --check .`.
+- **Pendiente:** prohibir `print` en `src/` (regla `T20`) se decide en MIAX-012, junto con el logging.
 
 ### 2026-09-21 · Raúl · MIAX-006
 - **Hecho:** `pyproject.toml` con setuptools; `miax` y sus 7 subpaquetes son paquetes Python, y con `pip install -e .` se importa `miax` desde cualquier directorio.

@@ -20,6 +20,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Test que falla si una dependencia entra en `requirements.txt` con rango en lugar de versión exacta (MIAX-005)
 - Guía para instalar GitHub CLI e iniciar sesión, necesaria para abrir PR desde Claude (MIAX-005)
 - Paquete `miax` instalable en modo editable: con `pip install -e .`, `import miax` funciona desde cualquier directorio (MIAX-006)
+- Lint y formato con ruff en todo el repo: exige type hints y docstrings en funciones públicas, semillas con `default_rng` y fechas con zona horaria (MIAX-007)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
