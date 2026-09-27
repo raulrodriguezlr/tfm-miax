@@ -71,6 +71,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-09-27 · Alonso · MIAX-010
+- **Hecho:** `src/miax/utils/seeds.py` con `set_global_seed(seed: int = 42)` (fija `random`, el estado global de `numpy` y, si está instalado, `torch` con CUDA) y `make_rng(seed: int = 42)` (devuelve `numpy.random.default_rng(seed)` para no depender del estado global). Exportadas desde `miax.utils`. Tests en `tests/unit/test_seeds.py`.
+- **Decisión:** `set_global_seed` fija además el estado global legacy de numpy (`np.random.seed`, con `noqa: NPY002` justificado en el propio comentario) porque librerías externas (sklearn, etc.) llaman a `np.random.*` directamente y no basta con el `Generator` de `make_rng`.
+- **Ojo:** torch no está en `requirements.txt` todavía (llega en MIAX-115); `set_global_seed` hace `import torch` dentro de un `try/except ImportError` y no falla si no está. El test de torch usa `pytest.importorskip("torch")` y se salta limpio en este entorno.
+- **Pendiente:** enganchar la semilla en el resto del pipeline es MIAX-174. `PYTHONHASHSEED` y el determinismo profundo de cuDNN quedan fuera de este ticket (MIAX-176 y posteriores).
+
 ### 2026-09-21 · Raúl · MIAX-007
 - **Hecho:** configuración de ruff en `pyproject.toml` y repo en limpio (`ruff check .` y `ruff format --check .`). Arreglados los 4 avisos que había, sin cambiar comportamiento.
 - **Decisión:** D-09. Ruff 0.16.8 ya trae unas 430 reglas por defecto (F, UP, B, SIM, DTZ, PT, RUF, PL*…), así que se amplían con `ANN`, `D`, `NPY` y `E501` en lugar de sustituirlas. Los notebooks no exigen tipos, docstrings ni longitud de línea.
