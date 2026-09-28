@@ -22,6 +22,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Paquete `miax` instalable en modo editable: con `pip install -e .`, `import miax` funciona desde cualquier directorio (MIAX-006)
 - Lint y formato con ruff en todo el repo: exige type hints y docstrings en funciones públicas, semillas con `default_rng` y fechas con zona horaria (MIAX-007)
 - Carga tipada de configuración desde YAML: `load_config` valida un fichero de `configs/` contra un dataclass y falla con un mensaje claro si falta un campo obligatorio, si un tipo no coincide o si hay un campo desconocido (MIAX-009)
+- `utils.seeds`: fija la misma semilla en `random`, `numpy` y `torch` (si está instalado), y crea generadores numpy independientes con `default_rng` (MIAX-010)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
