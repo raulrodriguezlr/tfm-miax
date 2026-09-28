@@ -76,6 +76,11 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 - **Decisión:** `set_global_seed` fija además el estado global legacy de numpy (`np.random.seed`, con `noqa: NPY002` justificado en el propio comentario) porque librerías externas (sklearn, etc.) llaman a `np.random.*` directamente y no basta con el `Generator` de `make_rng`.
 - **Ojo:** torch no está en `requirements.txt` todavía (llega en MIAX-115); `set_global_seed` hace `import torch` dentro de un `try/except ImportError` y no falla si no está. El test de torch usa `pytest.importorskip("torch")` y se salta limpio en este entorno.
 - **Pendiente:** enganchar la semilla en el resto del pipeline es MIAX-174. `PYTHONHASHSEED` y el determinismo profundo de cuDNN quedan fuera de este ticket (MIAX-176 y posteriores).
+### 2026-09-27 · Alonso · MIAX-009
+- **Hecho:** `miax.utils.config.load_config` lee un YAML tipado contra un dataclass, con `ConfigError` claro (nombra el campo) si falta un campo obligatorio, si un tipo no coincide o si hay un campo desconocido. YAML de ejemplo en `configs/example.yaml` con su `ExampleConfig`, y tests en `tests/unit/test_config.py`.
+- **Decisión:** validación con dataclasses de la librería estándar + pyyaml, sin pydantic ni otras deps nuevas (ya decidido por el humano). `load_config` acepta rutas absolutas (útil para tests con `tmp_path`), o si no relativas a la raíz del repo, o si no relativas a `configs/`, probando en ese orden.
+- **Ojo:** `_check_field_type` solo valida tipos simples (`str`, `int`, `float`, `bool`); con genéricos (`list[str]`, `dict[...]`) lanza `ConfigError` claro en vez de validarlos, sin profundizar en su contenido. Quien defina un esquema con esos tipos deberá ampliar la función.
+- **Pendiente:** los configs reales del pipeline (universo, horizontes, etc.) no se han tocado; quedan para sus tickets correspondientes.
 
 ### 2026-09-21 · Raúl · MIAX-007
 - **Hecho:** configuración de ruff en `pyproject.toml` y repo en limpio (`ruff check .` y `ruff format --check .`). Arreglados los 4 avisos que había, sin cambiar comportamiento.
