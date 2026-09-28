@@ -71,6 +71,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-09-27 · Alonso · MIAX-009
+- **Hecho:** `miax.utils.config.load_config` lee un YAML tipado contra un dataclass, con `ConfigError` claro (nombra el campo) si falta un campo obligatorio, si un tipo no coincide o si hay un campo desconocido. YAML de ejemplo en `configs/example.yaml` con su `ExampleConfig`, y tests en `tests/unit/test_config.py`.
+- **Decisión:** validación con dataclasses de la librería estándar + pyyaml, sin pydantic ni otras deps nuevas (ya decidido por el humano). `load_config` acepta rutas absolutas (útil para tests con `tmp_path`), o si no relativas a la raíz del repo, o si no relativas a `configs/`, probando en ese orden.
+- **Ojo:** `_check_field_type` solo valida tipos simples (`str`, `int`, `float`, `bool`); con genéricos (`list[str]`, `dict[...]`) lanza `ConfigError` claro en vez de validarlos, sin profundizar en su contenido. Quien defina un esquema con esos tipos deberá ampliar la función.
+- **Pendiente:** los configs reales del pipeline (universo, horizontes, etc.) no se han tocado; quedan para sus tickets correspondientes.
+
 ### 2026-09-21 · Raúl · MIAX-007
 - **Hecho:** configuración de ruff en `pyproject.toml` y repo en limpio (`ruff check .` y `ruff format --check .`). Arreglados los 4 avisos que había, sin cambiar comportamiento.
 - **Decisión:** D-09. Ruff 0.16.8 ya trae unas 430 reglas por defecto (F, UP, B, SIM, DTZ, PT, RUF, PL*…), así que se amplían con `ANN`, `D`, `NPY` y `E501` en lugar de sustituirlas. Los notebooks no exigen tipos, docstrings ni longitud de línea.
