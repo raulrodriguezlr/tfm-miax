@@ -10,11 +10,11 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | MIAX-007 | `feature/MIAX-007` | 2026-09-21 | en review |
-| — | — | — | — | — |
-| — | — | — | — | — |
+| Raúl | MIAX-011 | `feature/MIAX-011` | 2026-09-28 | en review |
+| Piettro | MIAX-008 | — | — | en curso (según Trello) |
+| Alonso | — | — | — | libre |
 
-**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.2`
+**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.5`
 
 ---
 
@@ -33,6 +33,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-07 | Toda dependencia entra en `requirements.txt` con versión exacta (`==`), nunca con rango. | Un rango instala cosas distintas según el día. Lo vigila `tests/unit/test_requirements.py`. | MIAX-005 |
 | D-08 | Las dependencias solo se declaran en `requirements.txt`; `pyproject.toml` no lista ninguna. | Una sola fuente de verdad: dos listas acaban desincronizadas, y leerlas desde el pyproject rompería con las opciones de índice que traerá torch (MIAX-115). | MIAX-006 |
 | D-09 | El estilo lo decide ruff: sus reglas por defecto más `ANN`, `D`, `NPY` y `E501` (100). `ruff check .` y `ruff format --check .` deben pasar en limpio antes de cada push. | Nadie discute estilo en los PR, y las normas del repo (tipos, docstrings, semillas, UTC) las vigila la máquina. | MIAX-007 |
+| D-10 | Todo Parquet se lee y escribe con `miax.utils.io` (`read_parquet` / `write_parquet`); la escritura es atómica. | Una sola forma de hacerlo; una descarga cortada no deja ficheros corruptos que la reanudación daría por buenos. | MIAX-011 |
 
 ---
 
@@ -70,6 +71,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-09-28 · Raúl · MIAX-011
+- **Hecho:** `miax.utils.io` con `resolve_repo_path`, `write_parquet` y `read_parquet`, exportadas desde `miax.utils`. Las rutas relativas se resuelven desde la raíz del repo y las absolutas se respetan. Releer devuelve el mismo DataFrame: tipos, índice UTC, categóricos, `Int64` con nulos y `MultiIndex` en filas o columnas.
+- **Decisión:** D-10. La escritura es atómica (`.tmp` + `os.replace`), para que una descarga cortada no deje un Parquet corrupto que la reanudación (MIAX-021) daría por bueno. Se reutiliza `REPO_ROOT` de `utils/config.py` en lugar de duplicarlo.
+- **Ojo:** `DatetimeIndex.freq` no se guarda en Parquet y vuelve como `None`. Si alguien la necesita, que la reasigne a mano; nunca inferida, porque con huecos (D-02) no hay frecuencia regular.
+- **Ojo (MIAX-020/043):** el particionado por mes o símbolo se añade en esos tickets, sobre estas funciones.
+- **Pendiente:** `config.py` e `io.py` resuelven rutas cada uno a su manera; unificarlo en un `paths.py` sería un ticket de limpieza.
 
 ### 2026-09-27 · Alonso · MIAX-010
 - **Hecho:** `src/miax/utils/seeds.py` con `set_global_seed(seed: int = 42)` (fija `random`, el estado global de `numpy` y, si está instalado, `torch` con CUDA) y `make_rng(seed: int = 42)` (devuelve `numpy.random.default_rng(seed)` para no depender del estado global). Exportadas desde `miax.utils`. Tests en `tests/unit/test_seeds.py`.
