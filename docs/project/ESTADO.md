@@ -76,6 +76,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-01 · Alonso · MIAX-013
+- **Hecho:** `.github/workflows/ci.yml`: en cada PR a `develop` o `main` instala `requirements.txt` y luego `pip install -e .` sobre Python 3.12 (ubuntu-latest, caché de pip), y ejecuta `ruff check .`, `ruff format --check .` y `pytest`. El job se llama `Lint y tests`. Añadido `.gitattributes` con `eol=lf`.
+- **Decisión:** `.gitattributes` fuerza LF para que `ruff format --check` dé el mismo resultado en el runner Linux aunque alguien suba CRLF desde Windows. No se ha renormalizado ningún fichero existente.
+- **Ojo:** en el CI `tests/unit/test_seeds.py` salta el test de torch (no está instalado hasta MIAX-115), es lo esperado. Cuando entren torch y tigramite (MIAX-115/077) irán en `requirements.txt` y el CI los instalará solo.
+- **Pendiente:** marcar el check `Lint y tests` como *required* en la protección de `develop` y `main` es MIAX-015. Hasta entonces el check aparece en el PR pero no bloquea el merge.
+
 ### 2026-10-01 · Piettro · MIAX-008
 - **Hecho:** `[tool.pytest.ini_options]` en `pyproject.toml` (`testpaths = ["tests"]`, `--strict-markers`, `--strict-config`, `--import-mode=importlib`, marcador `integration`); guardia de red `autouse` en `tests/conftest.py`; tests que comprueban ambas cosas. `pytest` recoge 22 tests de `tests/unit` y 8 de `tests/integration`, y pasa en verde con `ruff check .` y `ruff format --check .` limpios.
 - **Decisión:** D-12 (era D-11; se renumeró al integrar con `develop`, porque MIAX-012 ya había tomado D-11). La guardia bloquea solo `socket.socket.connect`/`connect_ex`, no la creación del socket entero, porque `test_package.py` y `test_ruff_config.py` ya lanzan subprocesos y eso tiene que seguir funcionando.
