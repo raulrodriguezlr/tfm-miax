@@ -30,3 +30,13 @@ convention = "pep257"
 [tool.ruff.lint.per-file-ignores]
 # Los notebooks exploran: sin exigir tipos, docstrings ni longitud de linea.
 "notebooks/**" = ["ANN", "D", "E501"]
+
+[tool.pytest.ini_options]
+# pytest solo recorre tests/ (unit e integration); nunca toca la red (ver tests/conftest.py).
+minversion = "9.1"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = ["integration: toca disco, subprocesos o el paquete instalado; nunca la red"]

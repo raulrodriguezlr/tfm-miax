@@ -11,7 +11,7 @@
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
 | Raúl | MIAX-011 | `feature/MIAX-011` | 2026-09-28 | en review |
-| Piettro | MIAX-008 | — | — | en curso (según Trello) |
+| Piettro | MIAX-008 | `feature/MIAX-008` | 2026-09-22 | en review |
 | Alonso | — | — | — | libre |
 
 **Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.5`
@@ -34,6 +34,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-08 | Las dependencias solo se declaran en `requirements.txt`; `pyproject.toml` no lista ninguna. | Una sola fuente de verdad: dos listas acaban desincronizadas, y leerlas desde el pyproject rompería con las opciones de índice que traerá torch (MIAX-115). | MIAX-006 |
 | D-09 | El estilo lo decide ruff: sus reglas por defecto más `ANN`, `D`, `NPY` y `E501` (100). `ruff check .` y `ruff format --check .` deben pasar en limpio antes de cada push. | Nadie discute estilo en los PR, y las normas del repo (tipos, docstrings, semillas, UTC) las vigila la máquina. | MIAX-007 |
 | D-10 | Todo Parquet se lee y escribe con `miax.utils.io` (`read_parquet` / `write_parquet`); la escritura es atómica. | Una sola forma de hacerlo; una descarga cortada no deja ficheros corruptos que la reanudación daría por buenos. | MIAX-011 |
+| D-11 | La prohibición de tocar la red en los tests la vigila una guardia autouse en `tests/conftest.py`, no la revisión humana. | Un `monkeypatch` sobre `socket.socket.connect`/`connect_ex` falla siempre y se restaura solo, aunque el test falle. | MIAX-008 |
 
 ---
 
@@ -71,6 +72,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-01 · Piettro · MIAX-008
+- **Hecho:** `[tool.pytest.ini_options]` en `pyproject.toml` (`testpaths = ["tests"]`, `--strict-markers`, `--strict-config`, `--import-mode=importlib`, marcador `integration`); guardia de red `autouse` en `tests/conftest.py`; tests que comprueban ambas cosas. `pytest` recoge 22 tests de `tests/unit` y 8 de `tests/integration`, y pasa en verde con `ruff check .` y `ruff format --check .` limpios.
+- **Decisión:** D-11. La guardia bloquea solo `socket.socket.connect`/`connect_ex`, no la creación del socket entero, porque `test_package.py` y `test_ruff_config.py` ya lanzan subprocesos y eso tiene que seguir funcionando.
+- **Ojo:** la guardia no protege dentro de subprocesos propios (otro proceso no hereda el `monkeypatch`); MIAX-032 tendrá que cuidarlo con sus propios fixtures al escribir los tests de ingesta.
+- **Ojo (entorno):** `pip install -e .` falla con Python 3.14; el `requires-python` exige 3.12 (D-06). Si tenéis otra versión por defecto, el `.venv` del repo hay que crearlo con `py -3.12 -m venv .venv`.
+- **Pendiente:** el workflow de CI que ejecuta `pytest` en cada PR es MIAX-013, que ya no está bloqueado por este ticket.
 
 ### 2026-09-28 · Raúl · MIAX-011
 - **Hecho:** `miax.utils.io` con `resolve_repo_path`, `write_parquet` y `read_parquet`, exportadas desde `miax.utils`. Las rutas relativas se resuelven desde la raíz del repo y las absolutas se respetan. Releer devuelve el mismo DataFrame: tipos, índice UTC, categóricos, `Int64` con nulos y `MultiIndex` en filas o columnas.
