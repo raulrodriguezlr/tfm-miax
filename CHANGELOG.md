@@ -27,6 +27,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - `utils.seeds`: fija la misma semilla en `random`, `numpy` y `torch` (si está instalado), y crea generadores numpy independientes con `default_rng` (MIAX-010)
 - Lectura y escritura de Parquet con rutas relativas a la raíz del repo: la escritura es atómica y releer devuelve el mismo DataFrame, tipos e índice incluidos (MIAX-011)
 - `get_logger`: todos los módulos loguean con el mismo formato (hora UTC, nivel, nombre, mensaje) y con nivel configurable; ruff prohíbe `print` en `src/` (MIAX-012)
+- Plantillas de GitHub: abrir un PR precarga qué hace, cómo se ha comprobado, qué queda fuera, riesgo de fuga de datos y checklist; los issues salen de plantillas de incidencia o tarea, no en blanco (MIAX-014)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)

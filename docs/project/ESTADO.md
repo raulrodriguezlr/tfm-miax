@@ -76,6 +76,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-01 · Alonso · MIAX-014
+- **Hecho:** `.github/pull_request_template.md` (qué hace, cómo se ha comprobado, qué queda fuera, riesgo de fuga de datos y checklist), plantillas de issue `incidencia.md` y `tarea.md` en `.github/ISSUE_TEMPLATE/`, y `config.yml` con los enlaces al tablero de Trello y al backlog.
+- **Decisión:** `blank_issues_enabled: false`: los issues salen siempre de una plantilla. La plantilla de tarea recuerda que el backlog canónico es `docs/project/BACKLOG.md` (CLAUDE.md §7.5) y que lo normal es añadir el ticket ahí. La sección de fuga de datos tiene preguntas guía para obligar a razonarla, no a escribir "ninguno".
+- **Ojo:** GitHub solo precarga la plantilla de PR cuando ya está en la rama base (`develop`), así que no se ve hasta el merge de este ticket. Las etiquetas de las plantillas de issue (`bug` en incidencia, `enhancement` en tarea) existen por defecto en GitHub, no hay que crear ninguna.
+- **Pendiente:** el CI (MIAX-013) y la protección de ramas (MIAX-015) quedan en sus tickets.
+
 ### 2026-10-01 · Piettro · MIAX-008
 - **Hecho:** `[tool.pytest.ini_options]` en `pyproject.toml` (`testpaths = ["tests"]`, `--strict-markers`, `--strict-config`, `--import-mode=importlib`, marcador `integration`); guardia de red `autouse` en `tests/conftest.py`; tests que comprueban ambas cosas. `pytest` recoge 22 tests de `tests/unit` y 8 de `tests/integration`, y pasa en verde con `ruff check .` y `ruff format --check .` limpios.
 - **Decisión:** D-12 (era D-11; se renumeró al integrar con `develop`, porque MIAX-012 ya había tomado D-11). La guardia bloquea solo `socket.socket.connect`/`connect_ex`, no la creación del socket entero, porque `test_package.py` y `test_ruff_config.py` ya lanzan subprocesos y eso tiene que seguir funcionando.
