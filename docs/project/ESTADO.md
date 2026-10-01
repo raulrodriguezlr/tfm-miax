@@ -22,6 +22,8 @@
 
 Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el equipo antes.
 
+**Numeración:** en tu rama apunta la decisión nueva como `D-??`. El número definitivo se pone al mergear, cogiendo el siguiente libre en `develop` en ese momento. Así dos ramas en paralelo no cogen el mismo número.
+
 | # | Decisión | Por qué | Ticket |
 |---|---|---|---|
 | D-01 | El plan se hace en Opus; la ejecución, con subagentes Sonnet. | Planificar es donde se decide bien o mal. Ejecutar es mecánico. | MIAX-003 |
