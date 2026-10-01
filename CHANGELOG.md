@@ -21,6 +21,8 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Guía para instalar GitHub CLI e iniciar sesión, necesaria para abrir PR desde Claude (MIAX-005)
 - Paquete `miax` instalable en modo editable: con `pip install -e .`, `import miax` funciona desde cualquier directorio (MIAX-006)
 - Lint y formato con ruff en todo el repo: exige type hints y docstrings en funciones públicas, semillas con `default_rng` y fechas con zona horaria (MIAX-007)
+- Configuración de pytest en `pyproject.toml`: recorre `tests/unit` y `tests/integration`, y falla ante marcadores o configuración desconocidos (MIAX-008)
+- Guardia de red `autouse` que hace fallar cualquier test que intente conectar por socket, con mensaje explicando qué regla se ha roto (MIAX-008)
 - Carga tipada de configuración desde YAML: `load_config` valida un fichero de `configs/` contra un dataclass y falla con un mensaje claro si falta un campo obligatorio, si un tipo no coincide o si hay un campo desconocido (MIAX-009)
 - `utils.seeds`: fija la misma semilla en `random`, `numpy` y `torch` (si está instalado), y crea generadores numpy independientes con `default_rng` (MIAX-010)
 - Lectura y escritura de Parquet con rutas relativas a la raíz del repo: la escritura es atómica y releer devuelve el mismo DataFrame, tipos e índice incluidos (MIAX-011)
