@@ -19,8 +19,9 @@ line-length = 100
 
 [tool.ruff.lint]
 # Reglas por defecto de ruff mas las que exigen las normas del repo (CLAUDE.md §6):
-# ANN = type hints, D = docstrings, NPY = semillas con default_rng, E501 = lineas cortas.
-extend-select = ["ANN", "D", "NPY", "E501"]
+# ANN = type hints, D = docstrings, NPY = semillas con default_rng, E501 = lineas cortas,
+# T20 = sin print (en src/ se usa miax.utils.get_logger; se exime abajo donde print es legitimo).
+extend-select = ["ANN", "D", "NPY", "E501", "T20"]
 # Los metodos magicos y __init__ se documentan en la docstring de la clase.
 ignore = ["D105", "D107"]
 
@@ -29,4 +30,7 @@ convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 # Los notebooks exploran: sin exigir tipos, docstrings ni longitud de linea.
-"notebooks/**" = ["ANN", "D", "E501"]
+"notebooks/**" = ["ANN", "D", "E501", "T20"]
+# Los scripts de desarrollo y los tests pueden imprimir; T20 solo se exige en src/.
+"scripts/**" = ["T20"]
+"tests/**" = ["T20"]

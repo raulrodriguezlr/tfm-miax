@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | MIAX-011 | `feature/MIAX-011` | 2026-09-28 | en review |
 | Piettro | MIAX-008 | — | — | en curso (según Trello) |
-| Alonso | — | — | — | libre |
+| Alonso | MIAX-012 | `feature/MIAX-012` | 2026-09-29 | en curso |
 
 **Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.5`
 
@@ -32,8 +32,9 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-06 | Python 3.12 para todo el equipo. | Todo el stack tiene ruedas para 3.12 en Windows, Linux y macOS, y es la versión que deja más margen para bajar torch si PyG Temporal falla. | MIAX-005 |
 | D-07 | Toda dependencia entra en `requirements.txt` con versión exacta (`==`), nunca con rango. | Un rango instala cosas distintas según el día. Lo vigila `tests/unit/test_requirements.py`. | MIAX-005 |
 | D-08 | Las dependencias solo se declaran en `requirements.txt`; `pyproject.toml` no lista ninguna. | Una sola fuente de verdad: dos listas acaban desincronizadas, y leerlas desde el pyproject rompería con las opciones de índice que traerá torch (MIAX-115). | MIAX-006 |
-| D-09 | El estilo lo decide ruff: sus reglas por defecto más `ANN`, `D`, `NPY` y `E501` (100). `ruff check .` y `ruff format --check .` deben pasar en limpio antes de cada push. | Nadie discute estilo en los PR, y las normas del repo (tipos, docstrings, semillas, UTC) las vigila la máquina. | MIAX-007 |
+| D-09 | El estilo lo decide ruff: sus reglas por defecto más `ANN`, `D`, `NPY` y `E501` (100); `T20` se añadió después (ver D-11). `ruff check .` y `ruff format --check .` deben pasar en limpio antes de cada push. | Nadie discute estilo en los PR, y las normas del repo (tipos, docstrings, semillas, UTC) las vigila la máquina. | MIAX-007 |
 | D-10 | Todo Parquet se lee y escribe con `miax.utils.io` (`read_parquet` / `write_parquet`); la escritura es atómica. | Una sola forma de hacerlo; una descarga cortada no deja ficheros corruptos que la reanudación daría por buenos. | MIAX-011 |
+| D-11 | En `src/` no se usa `print`: se loguea con `miax.utils.get_logger`. Ruff lo hace cumplir con `T20`, eximido en `notebooks/`, `scripts/` y `tests/`. | Un formato y un nivel comunes en producción; `print` no se filtra ni se puede silenciar. | MIAX-012 |
 
 ---
 
@@ -69,6 +70,14 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 - **Ojo:** qué tiene que saber el siguiente que toque esto.
 - **Pendiente:** qué queda sin hacer, y en qué ticket.
 ```
+
+---
+
+### 2026-09-29 · Alonso · MIAX-012
+- **Hecho:** `src/miax/utils/logging.py` con `get_logger(name, level="INFO")`, exportada desde `miax.utils`. Formato común `timestamp UTC | NIVEL | nombre | mensaje`, nivel configurable (texto o entero) e idempotente: llamarla otra vez sobre el mismo logger solo actualiza el nivel, no añade handlers. Tests en `tests/unit/test_logging.py`.
+- **Decisión:** D-11. `T20` activado en ruff y exigido solo en `src/` (eximido en `notebooks/**`, `scripts/**` y `tests/**` vía `per-file-ignores`). El número es D-11 y no D-10 porque D-10 ya lo tomó MIAX-011.
+- **Ojo:** el logger tiene `propagate = False` y escribe a stderr; `caplog` de pytest no lo ve, hay que leer `capsys` (ver los tests). El fichero se llama `logging.py` dentro de `miax.utils`: dentro del paquete se importa como `miax.utils.logging`, nunca con `import logging` desde un script ejecutado dentro de `src/miax/utils/`.
+- **Pendiente:** enganchar `get_logger` en el resto del pipeline; cada módulo lo usará cuando exista. Cierra el pendiente sobre `T20` de MIAX-007.
 
 ---
 
