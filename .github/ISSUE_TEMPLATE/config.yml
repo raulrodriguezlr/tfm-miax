@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Tablero de Trello
+    url: https://trello.com/b/PBzf0gtT/tfm-miax-lead-lag-cripto
+    about: Estado de los tickets (Backlog, Sprint actual, In Progress, Review, Done).
+  - name: Backlog canónico
+    url: https://github.com/raulrodriguezlr/tfm-miax/blob/develop/docs/project/BACKLOG.md
+    about: Los tickets viven aquí. Si falta uno, se añade a este fichero en vez de abrir un issue.

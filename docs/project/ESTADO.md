@@ -76,6 +76,11 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-01 · Alonso · MIAX-014
+- **Hecho:** `.github/pull_request_template.md` (qué hace, cómo se ha comprobado, qué queda fuera, riesgo de fuga de datos y checklist), plantillas de issue `incidencia.md` y `tarea.md` en `.github/ISSUE_TEMPLATE/`, y `config.yml` con los enlaces al tablero de Trello y al backlog.
+- **Decisión:** `blank_issues_enabled: false`: los issues salen siempre de una plantilla. La plantilla de tarea recuerda que el backlog canónico es `docs/project/BACKLOG.md` (CLAUDE.md §7.5) y que lo normal es añadir el ticket ahí. La sección de fuga de datos tiene preguntas guía para obligar a razonarla, no a escribir "ninguno".
+- **Ojo:** GitHub solo precarga la plantilla de PR cuando ya está en la rama base (`develop`), así que no se ve hasta el merge de este ticket. Las etiquetas de las plantillas de issue (`bug` en incidencia, `enhancement` en tarea) existen por defecto en GitHub, no hay que crear ninguna.
+- **Pendiente:** el CI (MIAX-013) y la protección de ramas (MIAX-015) quedan en sus tickets.
 ### 2026-10-01 · Alonso · MIAX-013
 - **Hecho:** `.github/workflows/ci.yml`: en cada PR a `develop` o `main` instala `requirements.txt` y luego `pip install -e .` sobre Python 3.12 (ubuntu-latest, caché de pip), y ejecuta `ruff check .`, `ruff format --check .` y `pytest`. El job se llama `Lint y tests`. Añadido `.gitattributes` con `eol=lf`.
 - **Decisión:** `.gitattributes` fuerza LF para que `ruff format --check` dé el mismo resultado en el runner Linux aunque alguien suba CRLF desde Windows. No se ha renormalizado ningún fichero existente.
