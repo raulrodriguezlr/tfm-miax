@@ -28,6 +28,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Lectura y escritura de Parquet con rutas relativas a la raíz del repo: la escritura es atómica y releer devuelve el mismo DataFrame, tipos e índice incluidos (MIAX-011)
 - `get_logger`: todos los módulos loguean con el mismo formato (hora UTC, nivel, nombre, mensaje) y con nivel configurable; ruff prohíbe `print` en `src/` (MIAX-012)
 - Plantillas de GitHub: abrir un PR precarga qué hace, cómo se ha comprobado, qué queda fuera, riesgo de fuga de datos y checklist; los issues salen de plantillas de incidencia o tarea, no en blanco (MIAX-014)
+- CI en GitHub Actions: cada PR a `develop` o `main` ejecuta `ruff check`, `ruff format --check` y `pytest` sobre Python 3.12, y fuerza finales de línea LF para que el formato no dependa del sistema operativo (MIAX-013)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
