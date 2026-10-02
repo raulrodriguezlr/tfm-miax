@@ -76,6 +76,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-02 · Alonso · MIAX-017
+- **Hecho:** `HttpClient.get` trata 429 y 418 como reintentables. Lee `Retry-After` (segundos enteros o fecha HTTP RFC 1123, vía el helper privado `_retry_after_seconds`) y espera ese tiempo; si falta o no se entiende, usa el backoff exponencial. Nuevo parámetro `max_retry_after` (300 s por defecto, debe ser > 0) que recorta la espera por `Retry-After`. Cada reintento se loguea con el código y los segundos. Tests en `tests/unit/test_http.py`, sin red y con `time.sleep` parcheado.
+- **Decisión:** 429 y 418 cuentan contra `max_retries`; al agotarse lanzan `RetriesExhaustedError`, igual que los transitorios. El tope solo recorta el valor de `Retry-After`, no el backoff de fallback. Una fecha HTTP ya pasada espera 0 s.
+- **Ojo:** el contrato de 418/429 cambió respecto a MIAX-016: ya no lanzan `ClientError`, se reintentan. El resto de 4xx (400, 404, 499...) sigue lanzando `ClientError` sin reintento. `test_4xx_is_not_retried` ya no incluye 418/429.
+- **Pendiente:** limitador proactivo por peso de IP para no llegar al 429 (MIAX-019); klines, paginación y exchangeInfo (MIAX-018 y siguientes).
+
 ### 2026-10-02 · Alonso · MIAX-016
 - **Hecho:** `src/miax/ingest/http.py` con `HttpClient.get(url, params)` sobre `requests.Session`: timeout configurable (10 s por defecto) y reintentos con backoff exponencial (`backoff_base * 2**(reintento-1)`, base 0.5 s, sin jitter) ante `ConnectionError`, `Timeout` y 5xx. Cada reintento se loguea con `get_logger`. Excepciones `HttpError`, `ClientError` (4xx, con `status_code`) y `RetriesExhaustedError`, exportadas desde `miax.ingest`. Tests en `tests/unit/test_http.py`, sin red.
 - **Decisión:** `max_retries=3` son reintentos tras el primer intento (4 intentos en total). Un 4xx lanza `ClientError` sin reintentar, 429 y 418 incluidos por ahora. Al agotar reintentos se lanza `RetriesExhaustedError` encadenada con la causa.

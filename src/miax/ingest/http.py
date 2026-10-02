@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 from collections.abc import Mapping
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, Self
 
 import requests
@@ -15,9 +17,13 @@ logger = get_logger(__name__)
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_BACKOFF_BASE = 0.5
+DEFAULT_MAX_RETRY_AFTER = 300.0
 
 # Fallos de red que merece la pena reintentar; el resto de excepciones se propagan.
 _TRANSIENT_EXCEPTIONS = (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
+
+# 429 = limite de peso excedido; 418 = IP baneada temporalmente. Ambos exigen esperar.
+_RATE_LIMIT_STATUSES = frozenset({429, 418})
 
 
 class HttpError(Exception):
@@ -38,6 +44,26 @@ class RetriesExhaustedError(HttpError):
     """Se agotaron los reintentos ante un fallo transitorio."""
 
 
+def _retry_after_seconds(response: requests.Response, now: datetime | None = None) -> float | None:
+    """Segundos de `Retry-After` (entero o fecha HTTP), o None si falta o no se entiende."""
+    value = response.headers.get("Retry-After")
+    if value is None:
+        return None
+    value = value.strip()
+    if value.isascii() and value.isdigit():
+        return float(value)
+    try:
+        target = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if target.tzinfo is None:
+        # Una fecha HTTP sin zona se interpreta como UTC, igual que GMT.
+        target = target.replace(tzinfo=UTC)
+    # Solo mira el reloj actual para esperar hacia delante; no usa datos de mercado.
+    reference = now if now is not None else datetime.now(tz=UTC)
+    return max(0.0, (target - reference).total_seconds())
+
+
 class HttpClient:
     """Cliente GET sobre `requests` con timeout y reintentos con backoff exponencial."""
 
@@ -46,17 +72,21 @@ class HttpClient:
         timeout: float = DEFAULT_TIMEOUT,
         max_retries: int = DEFAULT_MAX_RETRIES,
         backoff_base: float = DEFAULT_BACKOFF_BASE,
+        max_retry_after: float = DEFAULT_MAX_RETRY_AFTER,
     ) -> None:
-        """Configura timeout (s), reintentos tras el primer intento y base del backoff (s)."""
+        """Configura timeout, reintentos, base del backoff y tope de Retry-After (segundos)."""
         if timeout <= 0:
             raise ValueError(f"timeout debe ser > 0, recibido {timeout}")
         if max_retries < 0:
             raise ValueError(f"max_retries debe ser >= 0, recibido {max_retries}")
         if backoff_base < 0:
             raise ValueError(f"backoff_base debe ser >= 0, recibido {backoff_base}")
+        if max_retry_after <= 0:
+            raise ValueError(f"max_retry_after debe ser > 0, recibido {max_retry_after}")
         self.timeout = timeout
         self.max_retries = max_retries
         self.backoff_base = backoff_base
+        self.max_retry_after = max_retry_after
         self._session = requests.Session()
 
     def close(self) -> None:
@@ -77,10 +107,11 @@ class HttpClient:
         return self.backoff_base * 2 ** (retry - 1)
 
     def get(self, url: str, params: Mapping[str, Any] | None = None) -> requests.Response:
-        """Hace un GET y devuelve la respuesta; reintenta 5xx, timeouts y fallos de conexion."""
+        """Hace un GET y devuelve la respuesta; reintenta 5xx, 429/418, timeouts y fallos de red."""
         total_attempts = self.max_retries + 1
         last_failure = ""
         for attempt in range(1, total_attempts + 1):
+            retry_after: float | None = None
             try:
                 response = self._session.get(url, params=params, timeout=self.timeout)
             except _TRANSIENT_EXCEPTIONS as exc:
@@ -88,20 +119,28 @@ class HttpClient:
                 cause: Exception = exc
             else:
                 status = response.status_code
-                if 400 <= status < 500:
-                    # 429/418 con Retry-After se tratan aparte en MIAX-017.
+                if status in _RATE_LIMIT_STATUSES:
+                    # Respetar Retry-After es obligatorio: ignorarlo en un 418 alarga el baneo.
+                    retry_after = _retry_after_seconds(response)
+                    last_failure = f"HTTP {status}"
+                    cause = HttpError(last_failure)
+                elif 400 <= status < 500:
                     raise ClientError(status, url)
-                if status < 500:
+                elif status < 500:
                     return response
-                last_failure = f"HTTP {status}"
-                cause = HttpError(last_failure)
+                else:
+                    last_failure = f"HTTP {status}"
+                    cause = HttpError(last_failure)
 
             if attempt == total_attempts:
                 raise RetriesExhaustedError(
                     f"GET {url} fallo tras {total_attempts} intentos: {last_failure}"
                 ) from cause
 
-            delay = self.backoff_delay(attempt)
+            if retry_after is not None:
+                delay = min(retry_after, self.max_retry_after)
+            else:
+                delay = self.backoff_delay(attempt)
             logger.warning(
                 "GET %s fallo (%s); intento %d/%d, reintento en %.2fs",
                 url,
