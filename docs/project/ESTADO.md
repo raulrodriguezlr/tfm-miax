@@ -76,6 +76,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-02 · Alonso · MIAX-016
+- **Hecho:** `src/miax/ingest/http.py` con `HttpClient.get(url, params)` sobre `requests.Session`: timeout configurable (10 s por defecto) y reintentos con backoff exponencial (`backoff_base * 2**(reintento-1)`, base 0.5 s, sin jitter) ante `ConnectionError`, `Timeout` y 5xx. Cada reintento se loguea con `get_logger`. Excepciones `HttpError`, `ClientError` (4xx, con `status_code`) y `RetriesExhaustedError`, exportadas desde `miax.ingest`. Tests en `tests/unit/test_http.py`, sin red.
+- **Decisión:** `max_retries=3` son reintentos tras el primer intento (4 intentos en total). Un 4xx lanza `ClientError` sin reintentar, 429 y 418 incluidos por ahora. Al agotar reintentos se lanza `RetriesExhaustedError` encadenada con la causa.
+- **Ojo (MIAX-017):** el 429/418 con `Retry-After` se engancha en la rama 4xx de `HttpClient.get`, hoy un `ClientError`. Los tests parchean `requests.Session.get` y `miax.ingest.http.time.sleep`.
+- **Pendiente:** limitador por peso de IP (MIAX-019); klines, paginación y exchangeInfo (MIAX-018 y siguientes).
+
 ### 2026-10-01 · Alonso · MIAX-014
 - **Hecho:** `.github/pull_request_template.md` (qué hace, cómo se ha comprobado, qué queda fuera, riesgo de fuga de datos y checklist), plantillas de issue `incidencia.md` y `tarea.md` en `.github/ISSUE_TEMPLATE/`, y `config.yml` con los enlaces al tablero de Trello y al backlog.
 - **Decisión:** `blank_issues_enabled: false`: los issues salen siempre de una plantilla. La plantilla de tarea recuerda que el backlog canónico es `docs/project/BACKLOG.md` (CLAUDE.md §7.5) y que lo normal es añadir el ticket ahí. La sección de fuga de datos tiene preguntas guía para obligar a razonarla, no a escribir "ninguno".
