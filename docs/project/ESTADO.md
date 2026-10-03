@@ -76,6 +76,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-02 · Alonso · MIAX-018
+- **Hecho:** `miax.ingest.download_klines(symbol, interval, start_ms, end_ms, *, client, base_url, limit)` descarga un rango de `/api/v3/klines` paginando hacia delante: tras cada bloque el cursor pasa a `open_time` de la última vela + 1 ms. Devuelve un DataFrame con las columnas crudas de Binance (`open_time`, `open`, `high`, `low`, `close`, `volume`, `close_time`, `quote_asset_volume`, `num_trades`, `taker_buy_base`, `taker_buy_quote`, `ignore`) y sus dtypes; vacío con esas columnas si no hay datos. Usa `HttpClient`. Tests en `tests/unit/test_klines.py` con un Binance simulado, sin red.
+- **Decisión:** la paginación corta si el bloque viene vacío, si el cursor no avanza (ese bloque no se añade) o si el cursor supera `end_ms`; ya NO corta por bloque corto, a costa de una llamada extra (vacía) por símbolo. `endTime` es inclusivo en Binance, así que `end_ms` también. Si no se pasa cliente se crea un `HttpClient` y se cierra al terminar; uno inyectado no se cierra. `limit` fuera de 1..1000 lanza `ValueError`.
+- **Ojo:** devuelve datos crudos, sin ordenar ni deduplicar más allá de lo que da el cursor; sin retornos, alineación ni huecos (Épica 2). Los huecos de mercado se saltan y el bloque se rellena hasta `limit`, así que un bloque corto no indica fin de datos (por eso el corte ya no se basa en él); la validación de cobertura es de MIAX-029/030. Con `end_ms` futuro la última vela puede venir sin cerrar: a tratar en MIAX-020/029.
+- **Pendiente:** guardar en Parquet (MIAX-020), reanudación (MIAX-021), CLI (MIAX-022), descarga masiva de N símbolos (MIAX-023).
+
 ### 2026-10-02 · Alonso · MIAX-017
 - **Hecho:** `HttpClient.get` trata 429 y 418 como reintentables. Lee `Retry-After` (segundos enteros o fecha HTTP RFC 1123, vía el helper privado `_retry_after_seconds`) y espera ese tiempo; si falta o no se entiende, usa el backoff exponencial. Nuevo parámetro `max_retry_after` (300 s por defecto, debe ser > 0) que recorta la espera por `Retry-After`. Cada reintento se loguea con el código y los segundos. Tests en `tests/unit/test_http.py`, sin red y con `time.sleep` parcheado.
 - **Decisión:** 429 y 418 cuentan contra `max_retries`; al agotarse lanzan `RetriesExhaustedError`, igual que los transitorios. El tope solo recorta el valor de `Retry-After`, no el backoff de fallback. Una fecha HTTP ya pasada espera 0 s.
