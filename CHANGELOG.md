@@ -34,6 +34,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Descarga de klines con paginación hacia delante: un rango de más de 1000 velas se pide en bloques avanzando el cursor a la última `open_time` + 1 ms y se devuelve entero, con las columnas crudas de Binance tipadas (MIAX-018)
 - Cacheo local de klines en Parquet, un fichero por mes UTC (`data/klines/{símbolo}/{intervalo}/YYYY-MM.parquet`): `save_klines` guarda ordenado por `open_time` y `load_klines` relee, con rango opcional, exactamente lo guardado (MIAX-020)
 - Limitador de peso por ventana deslizante (`RateLimiter`): el cliente HTTP puede frenar antes de superar el presupuesto de peso de Binance y resincronizarse con la cabecera `X-MBX-USED-WEIGHT-1M`, para que una descarga larga no provoque 429 ni baneo de IP (MIAX-019)
+- Reanudación de la descarga de klines: `update_symbol` baja solo las velas posteriores a la última cacheada conservando las velas previas del mes parcial, y relanzar con el rango ya cubierto no hace ninguna llamada a Binance (MIAX-021)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
