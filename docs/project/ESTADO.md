@@ -76,6 +76,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-09 · Alonso · MIAX-021
+- **Hecho:** `src/miax/ingest/resume.py` con `cached_last_open_time(symbol, interval, *, base_dir) -> int | None` (el `open_time` máximo del mes cacheado más reciente, `None` sin cache) y `update_symbol(symbol, interval, start_ms, end_ms, *, client, base_dir, base_url, limit) -> int` (nº de velas nuevas), ambas exportadas desde `miax.ingest`. Relanzar con el rango ya cacheado no hace ninguna llamada al cliente. Tests en `tests/unit/test_resume.py` con un cliente espía, sin red y sobre `tmp_path`.
+- **Decisión:** punto de reanudación `max(última_cacheada + 1, start_ms)`; si supera `end_ms` se devuelve 0 sin descargar. Como `save_klines` sobrescribe el mes entero, antes de guardar se fusiona lo nuevo con lo cacheado desde el inicio del mes de reanudación (`load_klines`), se deduplica por `open_time` (gana lo nuevo) y se ordena; los meses anteriores no se reescriben. No se ha tocado `download_klines`, `save_klines` ni `load_klines`.
+- **Ojo:** es reanudación **hacia delante**: solo mira la última vela cacheada, no rellena huecos internos ni detecta ficheros mensuales ausentes en medio (MIAX-029). Si la última vela cacheada estaba sin cerrar, no se vuelve a pedir (`+1`); la validación de la vela abierta es de MIAX-029.
+- **Ojo:** tampoco se cubre el hueco **previo** a la primera vela cacheada (p. ej. cache desde marzo y se pide desde enero: enero y febrero no se piden); queda para MIAX-029, igual que los huecos internos.
+- **Pendiente:** CLI (MIAX-022), descarga masiva de N símbolos (MIAX-023), huecos e integridad (MIAX-029).
+
 ### 2026-10-09 · Alonso · MIAX-020
 - **Hecho:** `src/miax/ingest/store.py` con `save_klines(df, symbol, interval, *, base_dir="data/klines") -> list[Path]` y `load_klines(symbol, interval, *, base_dir="data/klines", start_ms=None, end_ms=None) -> DataFrame`, exportadas desde `miax.ingest`. Guarda un Parquet por mes con `miax.utils.io`; releer devuelve lo guardado con los mismos valores y dtypes (`assert_frame_equal`). Tests en `tests/unit/test_store.py` con `tmp_path`, sin red y sin tocar `data/`.
 - **Decisión:** layout `{base_dir}/{symbol}/{interval}/{YYYY-MM}.parquet`; el mes se deriva de `open_time` en UTC. Se ordena por `open_time` (orden estable) antes de escribir y el índice se resetea, de modo que guardar es determinista. En lectura el rango `[start_ms, end_ms]` es inclusivo: primero se saltan los ficheros de meses que no lo solapan y luego se filtran las filas. Sin datos, `load_klines` devuelve un DataFrame vacío con las columnas y dtypes de `KLINE_DTYPES`.
