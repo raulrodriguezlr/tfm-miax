@@ -9,7 +9,7 @@ from email.utils import format_datetime
 import pytest
 import requests
 
-from miax.ingest import ClientError, HttpClient, RetriesExhaustedError
+from miax.ingest import ClientError, HttpClient, RateLimiter, RetriesExhaustedError
 from miax.ingest.http import _retry_after_seconds
 
 URL = "https://example.invalid/api/v3/ping"
@@ -389,3 +389,146 @@ def test_context_manager_closes_session_when_body_raises(monkeypatch: pytest.Mon
     with pytest.raises(RuntimeError, match="fallo del cuerpo"), HttpClient():
         raise RuntimeError("fallo del cuerpo")
     assert closed == [True]
+
+
+class _SpyLimiter:
+    """Limitador falso que registra el orden de acquire y sync_used_weight."""
+
+    def __init__(self, events: list[tuple[str, int]]) -> None:
+        """Comparte la lista de eventos con el doble de Session.get."""
+        self.events = events
+
+    def acquire(self, weight: int = 1) -> None:
+        """Anota la reserva de peso."""
+        self.events.append(("acquire", weight))
+
+    def sync_used_weight(self, used: int) -> None:
+        """Anota la sincronizacion con el servidor."""
+        self.events.append(("sync", used))
+
+
+def _spy_client(
+    monkeypatch: pytest.MonkeyPatch, outcomes: list[requests.Response | Exception]
+) -> tuple[HttpClient, list[tuple[str, int]]]:
+    """Cliente con limitador espia; el GET falso anota su llamada en la misma lista."""
+    events: list[tuple[str, int]] = []
+    fake = _FakeGet(outcomes)
+
+    def recording_get(url: str, **kwargs: object) -> requests.Response:
+        events.append(("get", 0))
+        return fake(url, **kwargs)
+
+    monkeypatch.setattr(requests.Session, "get", staticmethod(recording_get))
+    client = HttpClient(rate_limiter=_SpyLimiter(events))  # type: ignore[arg-type]
+    return client, events
+
+
+def test_rate_limiter_acquires_before_get_and_syncs_header(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    """Con limitador: acquire(weight) antes del GET y sync con la cabecera despues."""
+    client, events = _spy_client(monkeypatch, [_response(200, {"X-MBX-USED-WEIGHT-1M": "42"})])
+    client.get(URL, weight=2)
+    assert events == [("acquire", 2), ("get", 0), ("sync", 42)]
+
+
+def test_rate_limiter_acquires_on_every_retry(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    """Cada reintento es una peticion nueva y reserva peso otra vez."""
+    client, events = _spy_client(
+        monkeypatch,
+        [_response(503, {"X-MBX-USED-WEIGHT-1M": "10"}), _response(200)],
+    )
+    client.get(URL)
+    assert events == [
+        ("acquire", 1),
+        ("get", 0),
+        ("sync", 10),
+        ("acquire", 1),
+        ("get", 0),
+    ]
+
+
+@pytest.mark.parametrize("header", [None, "abc", "-3", ""])
+def test_rate_limiter_ignores_missing_or_invalid_header(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float], header: str | None
+) -> None:
+    """Sin cabecera o con una no valida no se sincroniza, pero la peticion sigue."""
+    headers = {} if header is None else {"X-MBX-USED-WEIGHT-1M": header}
+    client, events = _spy_client(monkeypatch, [_response(200, headers)])
+    client.get(URL)
+    assert events == [("acquire", 1), ("get", 0)]
+
+
+class _FakeClock:
+    """Reloj falso que solo avanza cuando un sleep falso lo mueve."""
+
+    def __init__(self) -> None:
+        """Empieza en un instante arbitrario distinto de cero."""
+        self.now = 1000.0
+
+    def __call__(self) -> float:
+        """Devuelve el instante actual."""
+        return self.now
+
+
+def test_real_rate_limiter_makes_third_request_wait_one_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Con un RateLimiter real de presupuesto 2, la tercera peticion espera una ventana entera."""
+    clock = _FakeClock()
+    slept: list[float] = []
+
+    def fake_sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock.now += seconds
+
+    monkeypatch.setattr("miax.ingest.ratelimit.time.sleep", fake_sleep)
+    fake = _install(monkeypatch, [_response(200), _response(200), _response(200)])
+    limiter = RateLimiter(max_weight=2, window_seconds=60.0, clock=clock)
+    client = HttpClient(rate_limiter=limiter)
+
+    for _ in range(3):
+        assert client.get(URL, weight=1).status_code == 200
+
+    assert len(fake.calls) == 3
+    assert slept == [60.0]  # un unico sleep: el de la tercera peticion
+    assert limiter.used_weight == 1  # las dos primeras salieron de la ventana
+
+
+def test_real_rate_limiter_resyncs_from_header_and_delays_next_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Si la cabecera dice que el presupuesto esta agotado, la siguiente peticion espera."""
+    clock = _FakeClock()
+    slept: list[float] = []
+
+    def fake_sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock.now += seconds
+
+    monkeypatch.setattr("miax.ingest.ratelimit.time.sleep", fake_sleep)
+    fake = _install(monkeypatch, [_response(200, {"X-MBX-USED-WEIGHT-1M": "10"}), _response(200)])
+    limiter = RateLimiter(max_weight=10, window_seconds=60.0, clock=clock)
+    client = HttpClient(rate_limiter=limiter)
+
+    client.get(URL, weight=1)  # la cuenta propia seria 1, pero el servidor dice 10
+    assert slept == []
+    client.get(URL, weight=1)  # sin la resincronizacion no habria esperado
+
+    assert len(fake.calls) == 2
+    assert slept == [60.0]
+
+
+def test_without_rate_limiter_nothing_changes(
+    monkeypatch: pytest.MonkeyPatch, sleeps: list[float]
+) -> None:
+    """Sin limitador por defecto, la cabecera se ignora y no hay esperas ni llamadas extra."""
+    fake = _install(monkeypatch, [_response(200, {"X-MBX-USED-WEIGHT-1M": "99"})])
+    client = HttpClient()
+    assert client.rate_limiter is None
+    resp = client.get(URL, weight=5)
+    assert resp.status_code == 200
+    assert len(fake.calls) == 1
+    assert sleeps == []
