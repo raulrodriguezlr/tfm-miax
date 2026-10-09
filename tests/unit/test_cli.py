@@ -128,9 +128,8 @@ def test_summary_reports_new_candles(spy: _Spy, logs: _ListHandler) -> None:
     """El resumen final nombra el simbolo y cuantas velas nuevas se bajaron."""
     cli.main(["--symbol", "BTCUSDT"])
 
-    summary = logs.messages[-1]
-    assert "BTCUSDT" in summary
-    assert "7 velas nuevas" in summary
+    assert any("BTCUSDT" in m and "7 velas nuevas" in m for m in logs.messages)
+    assert "1 simbolos OK, 0 fallidos" in logs.messages[-1]
 
 
 @pytest.mark.parametrize("bad", ["no-es-fecha", "2026-13-01", "2026/01/01", ""])
