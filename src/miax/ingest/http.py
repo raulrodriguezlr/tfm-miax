@@ -10,6 +10,7 @@ from typing import Any, Self
 
 import requests
 
+from miax.ingest.ratelimit import RateLimiter
 from miax.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -24,6 +25,9 @@ _TRANSIENT_EXCEPTIONS = (requests.exceptions.ConnectionError, requests.exception
 
 # 429 = limite de peso excedido; 418 = IP baneada temporalmente. Ambos exigen esperar.
 _RATE_LIMIT_STATUSES = frozenset({429, 418})
+
+# Peso usado en el ultimo minuto segun Binance; sirve para resincronizar el limitador.
+_USED_WEIGHT_HEADER = "X-MBX-USED-WEIGHT-1M"
 
 
 class HttpError(Exception):
@@ -73,8 +77,9 @@ class HttpClient:
         max_retries: int = DEFAULT_MAX_RETRIES,
         backoff_base: float = DEFAULT_BACKOFF_BASE,
         max_retry_after: float = DEFAULT_MAX_RETRY_AFTER,
+        rate_limiter: RateLimiter | None = None,
     ) -> None:
-        """Configura timeout, reintentos, base del backoff y tope de Retry-After (segundos)."""
+        """Configura timeout, reintentos, backoff, tope de Retry-After y limitador opcional."""
         if timeout <= 0:
             raise ValueError(f"timeout debe ser > 0, recibido {timeout}")
         if max_retries < 0:
@@ -87,6 +92,7 @@ class HttpClient:
         self.max_retries = max_retries
         self.backoff_base = backoff_base
         self.max_retry_after = max_retry_after
+        self.rate_limiter = rate_limiter
         self._session = requests.Session()
 
     def close(self) -> None:
@@ -106,18 +112,38 @@ class HttpClient:
         # Determinista y sin jitter: depende solo del numero de reintento, no del reloj.
         return self.backoff_base * 2 ** (retry - 1)
 
-    def get(self, url: str, params: Mapping[str, Any] | None = None) -> requests.Response:
+    def _sync_rate_limiter(self, response: requests.Response) -> None:
+        """Pasa al limitador el peso usado que informa Binance, si la cabecera es valida."""
+        if self.rate_limiter is None:
+            return
+        value = response.headers.get(_USED_WEIGHT_HEADER)
+        if value is None:
+            return
+        try:
+            used = int(value)
+        except ValueError:
+            return
+        if used >= 0:
+            self.rate_limiter.sync_used_weight(used)
+
+    def get(
+        self, url: str, params: Mapping[str, Any] | None = None, weight: int = 1
+    ) -> requests.Response:
         """Hace un GET y devuelve la respuesta; reintenta 5xx, 429/418, timeouts y fallos de red."""
         total_attempts = self.max_retries + 1
         last_failure = ""
         for attempt in range(1, total_attempts + 1):
             retry_after: float | None = None
+            if self.rate_limiter is not None:
+                # Cada intento, reintentos incluidos, es una peticion que consume peso.
+                self.rate_limiter.acquire(weight)
             try:
                 response = self._session.get(url, params=params, timeout=self.timeout)
             except _TRANSIENT_EXCEPTIONS as exc:
                 last_failure = f"{type(exc).__name__}: {exc}"
                 cause: Exception = exc
             else:
+                self._sync_rate_limiter(response)
                 status = response.status_code
                 if status in _RATE_LIMIT_STATUSES:
                     # Respetar Retry-After es obligatorio: ignorarlo en un 418 alarga el baneo.
