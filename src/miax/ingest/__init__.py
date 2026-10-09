@@ -2,6 +2,7 @@
 
 from miax.ingest.http import ClientError, HttpClient, HttpError, RetriesExhaustedError
 from miax.ingest.klines import download_klines
+from miax.ingest.store import load_klines, save_klines
 from miax.ingest.ratelimit import RateLimiter
 
 __all__ = [
@@ -11,4 +12,6 @@ __all__ = [
     "RateLimiter",
     "RetriesExhaustedError",
     "download_klines",
+    "load_klines",
+    "save_klines",
 ]
