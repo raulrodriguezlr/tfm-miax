@@ -36,6 +36,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Limitador de peso por ventana deslizante (`RateLimiter`): el cliente HTTP puede frenar antes de superar el presupuesto de peso de Binance y resincronizarse con la cabecera `X-MBX-USED-WEIGHT-1M`, para que una descarga larga no provoque 429 ni baneo de IP (MIAX-019)
 - Reanudación de la descarga de klines: `update_symbol` baja solo las velas posteriores a la última cacheada conservando las velas previas del mes parcial, y relanzar con el rango ya cubierto no hace ninguna llamada a Binance (MIAX-021)
 - CLI de ingesta: `python -m miax.ingest --symbol BTCUSDT` descarga y cachea klines de un rango en UTC (por defecto, 1m y los últimos 30 días), reanudando lo ya bajado y frenando con el limitador de peso (MIAX-022)
+- Descarga masiva desde la CLI: `--symbol BTCUSDT,ETHUSDT,SOLUSDT` baja N símbolos en orden con un único limitador de peso compartido, muestra el progreso `[i/N]` y un resumen final, y un símbolo que falla no aborta el resto (MIAX-023)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
