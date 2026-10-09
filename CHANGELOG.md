@@ -32,6 +32,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Cliente HTTP base de la ingesta (`HttpClient`): GET con timeout y reintentos con backoff exponencial ante timeouts, fallos de conexión y 5xx; un 4xx falla al instante sin reintentar (MIAX-016)
 - El cliente HTTP trata 429 y 418 como reintentables: espera lo que indique `Retry-After` (segundos o fecha HTTP, con tope configurable) o, si no viene, el backoff exponencial, de modo que un rate limit no rompe la descarga (MIAX-017)
 - Descarga de klines con paginación hacia delante: un rango de más de 1000 velas se pide en bloques avanzando el cursor a la última `open_time` + 1 ms y se devuelve entero, con las columnas crudas de Binance tipadas (MIAX-018)
+- Cacheo local de klines en Parquet, un fichero por mes UTC (`data/klines/{símbolo}/{intervalo}/YYYY-MM.parquet`): `save_klines` guarda ordenado por `open_time` y `load_klines` relee, con rango opcional, exactamente lo guardado (MIAX-020)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
