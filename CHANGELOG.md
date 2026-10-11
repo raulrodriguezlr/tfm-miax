@@ -16,6 +16,26 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 ## [Sin publicar]
 
 ### Añadido
+- Nada todavía.
+
+---
+
+## [v0.1.0] — 2026-10-11
+
+Primera release. Cierra la Épica 0: entorno fijado, paquete instalable, lint, tests, CI, utilidades comunes y ramas protegidas. Incluye además el arranque de la Épica 1 (ingesta de Binance, MIAX-016 a MIAX-023), que ya estaba en `develop`.
+
+### Añadido · Épica 0 (fundación)
+- README que explica el TFM completo a alguien sin contexto previo: problema, espejismo de factor, pregunta de investigación, metodología, evaluación y riesgos (MIAX-001)
+- Tres diagramas vectoriales de la memoria: concepto de lead-lag, espejismo de factor y pipeline metodológico (MIAX-001)
+- Banner de portada del repositorio (MIAX-001)
+- Estructura de carpetas del proyecto con marcadores de posición (MIAX-001)
+- `CLAUDE.md` con las reglas que cargan automáticamente todos los Claude del equipo: flujo de trabajo, modelo de ramas, convenciones de código y qué no se hace (MIAX-002)
+- `AGENTS.md` para herramientas que no leen `CLAUDE.md` (MIAX-002)
+- Cuatro subagentes versionados que ejecutan el flujo `coder → auditor → fixer → tester` en Sonnet (MIAX-003)
+- Comprobación automática de entorno al arrancar sesión: avisa de paquetes, skills y subagentes que falten, y de estar en `main` (MIAX-004)
+- Backlog completo del proyecto, numerado y ordenado por dependencias, desde la fase semilla hasta la defensa (MIAX-002)
+- Proceso de equipo documentado: tablero, límite de trabajo en curso, definición de hecho y reparto por épicas (MIAX-002)
+- Bitácora compartida entre sesiones para que los tres Claude sepan qué están haciendo los demás (MIAX-002)
 - Entorno fijado sobre Python 3.12: `pip install -r requirements.txt` instala las mismas versiones exactas de datos, cálculo, grafos, configuración, visualización y desarrollo en cualquier máquina (MIAX-005)
 - Test que falla si una dependencia entra en `requirements.txt` con rango en lugar de versión exacta (MIAX-005)
 - Guía para instalar GitHub CLI e iniciar sesión, necesaria para abrir PR desde Claude (MIAX-005)
@@ -29,6 +49,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - `get_logger`: todos los módulos loguean con el mismo formato (hora UTC, nivel, nombre, mensaje) y con nivel configurable; ruff prohíbe `print` en `src/` (MIAX-012)
 - Plantillas de GitHub: abrir un PR precarga qué hace, cómo se ha comprobado, qué queda fuera, riesgo de fuga de datos y checklist; los issues salen de plantillas de incidencia o tarea, no en blanco (MIAX-014)
 - CI en GitHub Actions: cada PR a `develop` o `main` ejecuta `ruff check`, `ruff format --check` y `pytest` sobre Python 3.12, y fuerza finales de línea LF para que el formato no dependa del sistema operativo (MIAX-013)
+- Ramas `main` y `develop` protegidas: todo entra por PR, sin force-push ni borrado, y el check `Lint y tests` del CI tiene que estar en verde para mergear (MIAX-015)
+
+### Añadido · Épica 1 (ingesta, en curso)
 - Cliente HTTP base de la ingesta (`HttpClient`): GET con timeout y reintentos con backoff exponencial ante timeouts, fallos de conexión y 5xx; un 4xx falla al instante sin reintentar (MIAX-016)
 - El cliente HTTP trata 429 y 418 como reintentables: espera lo que indique `Retry-After` (segundos o fecha HTTP, con tope configurable) o, si no viene, el backoff exponencial, de modo que un rate limit no rompe la descarga (MIAX-017)
 - Descarga de klines con paginación hacia delante: un rango de más de 1000 velas se pide en bloques avanzando el cursor a la última `open_time` + 1 ms y se devuelve entero, con las columnas crudas de Binance tipadas (MIAX-018)
@@ -40,25 +63,6 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
-
----
-
-## [v0.1.0] — 2026-09-18
-
-Primera versión. El proyecto queda definido y el equipo tiene un método de trabajo común.
-
-### Añadido
-- README que explica el TFM completo a alguien sin contexto previo: problema, espejismo de factor, pregunta de investigación, metodología, evaluación y riesgos (MIAX-001)
-- Tres diagramas vectoriales de la memoria: concepto de lead-lag, espejismo de factor y pipeline metodológico (MIAX-001)
-- Banner de portada del repositorio (MIAX-001)
-- Estructura de carpetas del proyecto con marcadores de posición (MIAX-001)
-- `CLAUDE.md` con las reglas que cargan automáticamente todos los Claude del equipo: flujo de trabajo, modelo de ramas, convenciones de código y qué no se hace (MIAX-002)
-- `AGENTS.md` para herramientas que no leen `CLAUDE.md` (MIAX-002)
-- Cuatro subagentes versionados que ejecutan el flujo `coder → auditor → fixer → tester` en Sonnet (MIAX-003)
-- Comprobación automática de entorno al arrancar sesión: avisa de paquetes, skills y subagentes que falten, y de estar en `main` (MIAX-004)
-- Backlog completo del proyecto, numerado y ordenado por dependencias, desde la fase semilla hasta la defensa (MIAX-002)
-- Proceso de equipo documentado: tablero, límite de trabajo en curso, definición de hecho y reparto por épicas (MIAX-002)
-- Bitácora compartida entre sesiones para que los tres Claude sepan qué están haciendo los demás (MIAX-002)
 
 [Sin publicar]: https://github.com/raulrodriguezlr/tfm-miax/compare/v0.1.0...develop
 [v0.1.0]: https://github.com/raulrodriguezlr/tfm-miax/releases/tag/v0.1.0

@@ -11,10 +11,10 @@
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
 | Raúl | — | — | — | libre |
-| Piettro | MIAX-008 | `feature/MIAX-008` | 2026-09-22 | en review |
+| Piettro | — | — | — | libre |
 | Alonso | — | — | — | libre |
 
-**Versión actual:** `v0.1.0` · **Snapshot de `develop`:** `v0.1.0-snapshot.7`
+**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** — (el próximo merge abre `v0.2.0-snapshot.1`)
 
 ---
 
@@ -81,6 +81,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 - **Decisión:** `main` crea **un único** `HttpClient(rate_limiter=RateLimiter())` para toda la tanda y lo pasa a `download_symbols`: el presupuesto de peso es por IP, así que un limitador compartido evita el baneo colectivo. Es secuencial, sin concurrencia. **Aislamiento de errores por símbolo:** `HttpError`/`ValueError`/`OSError` de uno se loguean y la tanda sigue; el resultado de ese símbolo es `None`. `main` devuelve 0 si todos OK, 1 si alguno falló (tras procesarlos todos) y 2 para fechas/rango inválidos o lista de símbolos vacía. Se descartan espacios, vacíos y repetidos manteniendo el orden.
 - **Ojo:** `download_symbols` vive en `__main__.py` (los tests de la CLI parchean `cli.update_symbol`). El último mensaje del log ya no es el resumen por símbolo de MIAX-022, sino `Resumen: N simbolos OK, M fallidos`; el test de resumen de `test_cli.py` se adaptó. Un 429/418 o una red caída persistente (`RetriesExhaustedError`) puede repetirse en todos los símbolos siguientes, y con un 418 (IP baneada) seguir golpeando alarga el baneo. Por eso hay un **cortacircuitos**: `download_symbols(..., max_consecutive_failures=3)` cuenta los `RetriesExhaustedError` consecutivos (un éxito o un fallo propio del símbolo —`ClientError`, `ValueError`, `OSError`, cualquier `requests.exceptions.RequestException`— lo resetea) y al llegar al límite corta la tanda: los símbolos restantes quedan con el valor `NOT_PROCESSED` (-1, distinto de `None` = fallido), se loguea el motivo y `main` devuelve 1. `_parse_symbols` normaliza a **mayúsculas** y deduplica después (`btcusdt` y `BTCUSDT` son el mismo).
 - **Pendiente:** universo y `exchangeInfo` (MIAX-024 y siguientes), huecos e integridad (MIAX-029).
+
+### 2026-10-11 · Raúl · Release v0.1.0
+- **Hecho:** release `v0.1.0`, que cierra la Épica 0: CHANGELOG versionado, merge `develop` → `main` y tag. La regla de ramas exige ahora el check `Lint y tests` del CI para mergear en `main` y `develop`, que era lo que le faltaba a MIAX-015. Orden: tarjetas 019–023 a Done, ramas `feature/*` ya mergeadas borradas y tabla "Ahora mismo" al día.
+- **Decisión:** la release se llama `v0.1.0` aunque el CHANGELOG ya tenía una entrada `v0.1.0` del 18-09, porque esa nunca llegó a `main` ni tuvo tag; se fusiona en esta. Incluye MIAX-016 a MIAX-023 de la Épica 1 porque ya estaban en `develop`. La siguiente MINOR, `v0.2.0`, sale al cerrar la Épica 1.
+- **Ojo:** desde hoy no se puede mergear con el CI en rojo. Los PR mergeados con *squash* (#10, #15, #18) dejan una rama que git no ve contenida en `develop`; se puede borrar igual tras comprobar que su PR está mergeado.
+- **Pendiente:** un test que falle si en ESTADO hay dos decisiones con el mismo número o queda un `D-??` (propuesto, sin ticket).
 
 ### 2026-10-09 · Alonso · MIAX-022
 - **Hecho:** `src/miax/ingest/__main__.py`: `python -m miax.ingest --symbol BTCUSDT [--interval] [--start] [--end] [--base-url] [--base-dir]`. `main(argv) -> int` construye `HttpClient(rate_limiter=RateLimiter())` (se cierra con `with`), llama a `update_symbol` y loguea un resumen con las velas nuevas. Tests en `tests/unit/test_cli.py` con `update_symbol` y el reloj parcheados: sin red ni disco.
