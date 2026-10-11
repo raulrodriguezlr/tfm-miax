@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-y-tests:
+    name: Lint y tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Instalar el paquete miax en modo editable
+        run: pip install -e .
+
+      - name: Lint (ruff check)
+        run: ruff check .
+
+      - name: Formato (ruff format --check)
+        run: ruff format --check .
+
+      - name: Tests (pytest)
+        run: pytest

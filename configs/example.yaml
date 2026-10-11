@@ -1,0 +1,5 @@
+# Ejemplo minimo para comprobar la carga tipada de configs/ (ver miax.utils.config.ExampleConfig).
+name: "ejemplo"
+max_iterations: 100
+tolerance: 0.001
+verbose: true
