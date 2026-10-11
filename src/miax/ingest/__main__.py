@@ -6,7 +6,9 @@ import argparse
 import re
 from datetime import UTC, datetime, timedelta
 
-from miax.ingest.http import HttpClient, HttpError
+import requests
+
+from miax.ingest.http import HttpClient, HttpError, RetriesExhaustedError
 from miax.ingest.klines import DEFAULT_BASE_URL
 from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import update_symbol
@@ -17,6 +19,9 @@ logger = get_logger(__name__)
 
 DEFAULT_INTERVAL = "1m"
 DEFAULT_LOOKBACK_DAYS = 30
+DEFAULT_MAX_CONSECUTIVE_FAILURES = 3
+# Marca de un simbolo no intentado porque el cortacircuitos corto la tanda (distinta de None).
+NOT_PROCESSED = -1
 _DATE_FORMAT = "%Y-%m-%d"
 _DAY_MS = 24 * 60 * 60 * 1000
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
@@ -68,7 +73,11 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="python -m miax.ingest",
         description="Descarga klines de Binance y los cachea en Parquet, reanudando lo ya bajado.",
     )
-    parser.add_argument("--symbol", required=True, help="Simbolo de Binance, p. ej. BTCUSDT.")
+    parser.add_argument(
+        "--symbol",
+        required=True,
+        help="Simbolo de Binance, o varios separados por comas: BTCUSDT,ETHUSDT,SOLUSDT.",
+    )
     parser.add_argument(
         "--interval", default=DEFAULT_INTERVAL, help="Intervalo de las velas (por defecto 1m)."
     )
@@ -93,9 +102,87 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _parse_symbols(text: str) -> list[str]:
+    """Separa simbolos por comas, en mayusculas, sin espacios ni vacios ni repetidos, en orden."""
+    return list(dict.fromkeys(item.strip().upper() for item in text.split(",") if item.strip()))
+
+
+def download_symbols(
+    symbols: list[str],
+    interval: str,
+    start_ms: int,
+    end_ms: int,
+    *,
+    client: HttpClient,
+    base_dir: str = DEFAULT_BASE_DIR,
+    base_url: str = DEFAULT_BASE_URL,
+    max_consecutive_failures: int = DEFAULT_MAX_CONSECUTIVE_FAILURES,
+) -> dict[str, int | None]:
+    """Baja los simbolos en orden con un mismo cliente; None si falla, NOT_PROCESSED si se corta."""
+    results: dict[str, int | None] = {}
+    total = len(symbols)
+    systemic_failures = 0
+    for position, symbol in enumerate(symbols, start=1):
+        if systemic_failures >= max_consecutive_failures:
+            # Cortacircuitos: tras N fallos sistemicos seguidos (429/418 o red caida) seguir
+            # golpeando la API solo alargaria un posible baneo de la IP.
+            logger.error(
+                "Tanda cortada: %d fallos sistemicos consecutivos (reintentos agotados); "
+                "quedan sin procesar %d simbolos",
+                systemic_failures,
+                total - position + 1,
+            )
+            for pending in symbols[position - 1 :]:
+                results[pending] = NOT_PROCESSED
+            break
+        logger.info("[%d/%d] %s: descargando %s", position, total, symbol, interval)
+        # Un unico cliente (y su limitador) para todos: el presupuesto de peso es por IP.
+        try:
+            new = update_symbol(
+                symbol,
+                interval,
+                start_ms,
+                end_ms,
+                client=client,
+                base_dir=base_dir,
+                base_url=base_url,
+            )
+        except RetriesExhaustedError as exc:
+            # Fallo sistemico: cuenta para el cortacircuitos (solo si son consecutivos).
+            systemic_failures += 1
+            logger.error(
+                "[%d/%d] Fallo la descarga de %s %s: %s", position, total, symbol, interval, exc
+            )
+            results[symbol] = None
+            continue
+        except (HttpError, ValueError, OSError, requests.exceptions.RequestException) as exc:
+            # Fallo propio del simbolo: no aborta la tanda y resetea el contador sistemico.
+            systemic_failures = 0
+            logger.error(
+                "[%d/%d] Fallo la descarga de %s %s: %s", position, total, symbol, interval, exc
+            )
+            results[symbol] = None
+            continue
+        systemic_failures = 0
+        logger.info("[%d/%d] %s: %d velas nuevas", position, total, symbol, new)
+        results[symbol] = new
+
+    failed = [symbol for symbol, new in results.items() if new is None]
+    skipped = [symbol for symbol, new in results.items() if new == NOT_PROCESSED]
+    logger.info(
+        "Resumen: %d simbolos OK, %d fallidos%s%s",
+        total - len(failed) - len(skipped),
+        len(failed),
+        f" ({', '.join(failed)})" if failed else "",
+        f", {len(skipped)} sin procesar ({', '.join(skipped)})" if skipped else "",
+    )
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     """Ejecuta la CLI y devuelve el codigo de salida: 0 si todo va bien, distinto de 0 si no."""
     args = _build_parser().parse_args(argv)
+    symbols = _parse_symbols(args.symbol)
 
     now = _utc_now()
     try:
@@ -132,30 +219,26 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
-    try:
-        with HttpClient(rate_limiter=RateLimiter()) as client:
-            new = update_symbol(
-                args.symbol,
-                args.interval,
-                start_ms,
-                end_ms,
-                client=client,
-                base_dir=args.base_dir,
-                base_url=args.base_url,
-            )
-    except (HttpError, ValueError, OSError) as exc:
-        logger.error("Fallo la descarga de %s %s: %s", args.symbol, args.interval, exc)
-        return 1
+    if not symbols:
+        logger.error("--symbol no contiene ningun simbolo")
+        return 2
 
     logger.info(
-        "Resumen: %s %s en [%d, %d] ms UTC, %d velas nuevas",
-        args.symbol,
-        args.interval,
-        start_ms,
-        end_ms,
-        new,
+        "Rango %s en [%d, %d] ms UTC, %d simbolos", args.interval, start_ms, end_ms, len(symbols)
     )
-    return 0
+    # Un solo cliente con su limitador para toda la tanda; se cierra al terminar.
+    with HttpClient(rate_limiter=RateLimiter()) as client:
+        results = download_symbols(
+            symbols,
+            args.interval,
+            start_ms,
+            end_ms,
+            client=client,
+            base_dir=args.base_dir,
+            base_url=args.base_url,
+        )
+    ok = all(new is not None and new != NOT_PROCESSED for new in results.values())
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
