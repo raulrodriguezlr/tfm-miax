@@ -10,11 +10,11 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | — | — | — | libre |
+| Raúl | MIAX-024 | `feature/MIAX-024` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
 | Alonso | — | — | — | libre |
 
-**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** — (el próximo merge abre `v0.2.0-snapshot.1`)
+**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** — (este PR será `v0.2.0-snapshot.1`)
 
 ---
 
@@ -38,6 +38,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-10 | Todo Parquet se lee y escribe con `miax.utils.io` (`read_parquet` / `write_parquet`); la escritura es atómica. | Una sola forma de hacerlo; una descarga cortada no deja ficheros corruptos que la reanudación daría por buenos. | MIAX-011 |
 | D-11 | En `src/` no se usa `print`: se loguea con `miax.utils.get_logger`. Ruff lo hace cumplir con `T20`, eximido en `notebooks/`, `scripts/` y `tests/`. | Un formato y un nivel comunes en producción; `print` no se filtra ni se puede silenciar. | MIAX-012 |
 | D-12 | La prohibición de tocar la red en los tests la vigila una guardia autouse en `tests/conftest.py`, no la revisión humana. | Un `monkeypatch` sobre `socket.socket.connect`/`connect_ex` falla siempre y se restaura solo, aunque el test falle. | MIAX-008 |
+| D-?? | El catálogo de pares se consulta completo, incluidos los pares en `BREAK` (parados o deslistados); filtrar por estado es decisión del universo (MIAX-025 a 028), no de la consulta. | Sin los pares en `BREAK` no se puede medir el sesgo de supervivencia (MIAX-031). | MIAX-024 |
 
 ---
 
@@ -81,6 +82,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 - **Decisión:** `main` crea **un único** `HttpClient(rate_limiter=RateLimiter())` para toda la tanda y lo pasa a `download_symbols`: el presupuesto de peso es por IP, así que un limitador compartido evita el baneo colectivo. Es secuencial, sin concurrencia. **Aislamiento de errores por símbolo:** `HttpError`/`ValueError`/`OSError` de uno se loguean y la tanda sigue; el resultado de ese símbolo es `None`. `main` devuelve 0 si todos OK, 1 si alguno falló (tras procesarlos todos) y 2 para fechas/rango inválidos o lista de símbolos vacía. Se descartan espacios, vacíos y repetidos manteniendo el orden.
 - **Ojo:** `download_symbols` vive en `__main__.py` (los tests de la CLI parchean `cli.update_symbol`). El último mensaje del log ya no es el resumen por símbolo de MIAX-022, sino `Resumen: N simbolos OK, M fallidos`; el test de resumen de `test_cli.py` se adaptó. Un 429/418 o una red caída persistente (`RetriesExhaustedError`) puede repetirse en todos los símbolos siguientes, y con un 418 (IP baneada) seguir golpeando alarga el baneo. Por eso hay un **cortacircuitos**: `download_symbols(..., max_consecutive_failures=3)` cuenta los `RetriesExhaustedError` consecutivos (un éxito o un fallo propio del símbolo —`ClientError`, `ValueError`, `OSError`, cualquier `requests.exceptions.RequestException`— lo resetea) y al llegar al límite corta la tanda: los símbolos restantes quedan con el valor `NOT_PROCESSED` (-1, distinto de `None` = fallido), se loguea el motivo y `main` devuelve 1. `_parse_symbols` normaliza a **mayúsculas** y deduplica después (`btcusdt` y `BTCUSDT` son el mismo).
 - **Pendiente:** universo y `exchangeInfo` (MIAX-024 y siguientes), huecos e integridad (MIAX-029).
+
+### 2026-10-12 · Raúl · MIAX-024
+- **Hecho:** `miax.ingest.exchange_info` con `fetch_exchange_info` (GET crudo, peso 20), `pairs_from_exchange_info` (pares a DataFrame) y `list_pairs` (catálogo completo con filtros opcionales por `quote_asset` y `status`), exportadas desde `miax.ingest`.
+- **Decisión:** D-??: los pares en `BREAK` se conservan; filtrar es cosa del universo. El peso 20 se pasa al limitador. Sin modo listado en la CLI: se usa como función.
+- **Ojo (MIAX-031):** `exchangeInfo` trae 2.349 pares en `BREAK` (254 contra USDT) de 3.724: el catálogo sí deja ver pares parados o deslistados, aunque el README diga que la API no sirve su histórico. Hay que comprobar si sus klines siguen disponibles.
+- **Ojo:** la respuesta pesa unos 17 MB; no conviene pedirla en bucle.
+- **Pendiente:** modo listado en la CLI, si se quiere, en un ticket aparte.
 
 ### 2026-10-11 · Raúl · Release v0.1.0
 - **Hecho:** release `v0.1.0`, que cierra la Épica 0: CHANGELOG versionado, merge `develop` → `main` y tag. La regla de ramas exige ahora el check `Lint y tests` del CI para mergear en `main` y `develop`, que era lo que le faltaba a MIAX-015. Orden: tarjetas 019–023 a Done, ramas `feature/*` ya mergeadas borradas y tabla "Ahora mismo" al día.

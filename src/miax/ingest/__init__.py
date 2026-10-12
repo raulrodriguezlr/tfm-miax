@@ -1,5 +1,6 @@
 """Descarga y cacheo de datos desde Binance."""
 
+from miax.ingest.exchange_info import fetch_exchange_info, list_pairs, pairs_from_exchange_info
 from miax.ingest.http import ClientError, HttpClient, HttpError, RetriesExhaustedError
 from miax.ingest.klines import download_klines
 from miax.ingest.ratelimit import RateLimiter
@@ -14,7 +15,10 @@ __all__ = [
     "RetriesExhaustedError",
     "cached_last_open_time",
     "download_klines",
+    "fetch_exchange_info",
+    "list_pairs",
     "load_klines",
+    "pairs_from_exchange_info",
     "save_klines",
     "update_symbol",
 ]
