@@ -83,7 +83,7 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
   - **Refactorizar sí, a lo loco no** (§1 y §6.5): el código de tickets cerrados se refactoriza antes que duplicarlo o hacer una chapuza, con el mismo comportamiento y diciéndolo en el PR; nunca el de un ticket en curso; nada de mil líneas por ticket.
   - **Sin atribución a Claude** en commits ni en PR (§4.4 y §4.5).
   - **Prueba de humo real antes del PR** si el código toca Binance o datos reales (§6.4).
-  - **Al mergear** (§4.7): merge commit (no squash), la tarjeta a Done y la rama borrada.
+  - **Al mergear** (§4.7): squash, con un mensaje que reúne todos los commits de la rama (el repo ya lo hace por defecto), la tarjeta a Done y la rama borrada tras comprobar con `gh pr view` que está mergeada.
   - **Decisiones `D-??`** también en §5.
   - **Patrón de CLI con subcomandos** (§6.6).
 - **Arreglo:** las tres líneas del CHANGELOG de MIAX-029 habían caído dentro de la sección ya publicada `v0.1.0`. Ahora están en `[Sin publicar]`, y `v0.1.0` queda idéntica a la de `main`. **Ojo al añadir líneas:** van siempre bajo `[Sin publicar]`.

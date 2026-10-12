@@ -179,7 +179,8 @@ Tres cosas, siempre, sin excepción:
 
 Quien mergea cierra el ticket. Siempre, sin dejar nada colgando:
 
-1. Mergear con **merge commit**, no con *squash*. El *squash* hace que git no reconozca la rama como mergeada y complica limpiarla.
+1. Mergear con **squash**: un commit por PR en `develop`. El repo ya está configurado para que el mensaje del squash reúna los mensajes de todos los commits de la rama, así que los commits de la rama tienen que estar bien escritos (§4.4). Si el mensaje sale pobre, se edita en el botón antes de confirmar.
+   - Tras un squash, git no reconoce la rama como contenida en `develop`. Para borrarla, comprueba antes con `gh pr view <n>` que el PR está `MERGED`.
 2. Mover la tarjeta a ✅ **Done** (§7.4).
 3. Borrar la rama, en GitHub y en local.
 4. Si hay una decisión `D-??` en ESTADO, ponerle su número en el siguiente PR que toque ESTADO (§5).

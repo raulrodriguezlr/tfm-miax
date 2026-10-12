@@ -102,7 +102,7 @@ Cada ticket recorre esto. Sin atajos.
  6. Revisas el diff TÚ        no delegues esto
  7. Actualizas ESTADO.md      y CHANGELOG.md, antes del push
  8. Abres el PR               base develop, con la prueba de humo real si toca datos
- 9. Un compañero aprueba      merge commit (no squash) → snapshot
+ 9. Un compañero aprueba      squash, con el mensaje de todos los commits → snapshot
 10. Quien mergea cierra       tarjeta a Done y rama borrada (CLAUDE.md §4.7)
 ```
 

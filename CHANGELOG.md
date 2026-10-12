@@ -25,7 +25,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Las descargas de `/klines` cuentan con su peso real de 2 en el limitador, en lugar de 1 (MIAX-029)
 
 ### Cambiado
-- Reglas de equipo ampliadas en `CLAUDE.md` y `AGENTS.md`: se refactoriza código de tickets cerrados antes que duplicarlo (sin cambios masivos), sin atribución a Claude en commits y PR, prueba de humo real antes del PR, cierre al mergear con merge commit y CLI con subcomandos
+- Reglas de equipo ampliadas en `CLAUDE.md` y `AGENTS.md`: se refactoriza código de tickets cerrados antes que duplicarlo (sin cambios masivos), sin atribución a Claude en commits y PR, prueba de humo real antes del PR, cierre al mergear con squash (con el mensaje de todos los commits) y CLI con subcomandos
 
 ---
 
