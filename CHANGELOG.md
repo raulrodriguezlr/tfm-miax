@@ -63,6 +63,9 @@ Primera release. Cierra la Épica 0: entorno fijado, paquete instalable, lint, t
 - Reanudación de la descarga de klines: `update_symbol` baja solo las velas posteriores a la última cacheada conservando las velas previas del mes parcial, y relanzar con el rango ya cubierto no hace ninguna llamada a Binance (MIAX-021)
 - CLI de ingesta: `python -m miax.ingest --symbol BTCUSDT` descarga y cachea klines de un rango en UTC (por defecto, 1m y los últimos 30 días), reanudando lo ya bajado y frenando con el limitador de peso (MIAX-022)
 - Descarga masiva desde la CLI: `--symbol BTCUSDT,ETHUSDT,SOLUSDT` baja N símbolos en orden con un único limitador de peso compartido, muestra el progreso `[i/N]` y un resumen final, y un símbolo que falla no aborta el resto (MIAX-023)
+- Validador de integridad de la caché de klines: `validate_klines` revisa cada Parquet por separado y reporta ficheros ilegibles, esquema incorrecto, duplicados, desorden, velas desalineadas o en el mes equivocado, `close_time` u OHLC incoherentes (errores) y huecos (avisos), sin modificar nada (MIAX-029)
+- Subcomandos de la CLI de ingesta: `python -m miax.ingest validate` revisa la integridad de la caché (sale con código 1 si hay errores o si un símbolo no tiene caché) y `python -m miax.ingest pairs` lista el catálogo de pares completo, con `--quote` y `--status` opcionales para filtrar, ambos con `--output` para guardar el resultado en Parquet; `download` sigue siendo el comando por defecto (MIAX-029)
+- Las descargas de `/klines` cuentan con su peso real de 2 en el limitador, en lugar de 1 (MIAX-029)
 
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
