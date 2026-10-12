@@ -10,11 +10,11 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | MIAX-029 | `feature/MIAX-029` | 2026-10-12 | en review |
+| Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
 | Alonso | MIAX-028 | `feature/MIAX-028` | 2026-10-12 | en curso |
 
-**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.4` (este PR será `.5`)
+**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
 
 ---
 
@@ -77,6 +77,18 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-12 · Raúl · Reglas de equipo
+- **Hecho:** `CLAUDE.md`, `AGENTS.md` y `ONBOARDING.md` recogen las prácticas acordadas durante MIAX-024 a 029. Son reglas nuevas que **leen ya los Claude de los tres**:
+  - **Refactorizar sí, a lo loco no** (§1 y §6.5): el código de tickets cerrados se refactoriza antes que duplicarlo o hacer una chapuza, con el mismo comportamiento y diciéndolo en el PR; nunca el de un ticket en curso; nada de mil líneas por ticket.
+  - **Sin atribución a Claude** en commits ni en PR (§4.4 y §4.5).
+  - **Prueba de humo real antes del PR** si el código toca Binance o datos reales (§6.4).
+  - **Al mergear** (§4.7): merge commit (no squash), la tarjeta a Done y la rama borrada.
+  - **Decisiones `D-??`** también en §5.
+  - **Patrón de CLI con subcomandos** (§6.6).
+- **Arreglo:** las tres líneas del CHANGELOG de MIAX-029 habían caído dentro de la sección ya publicada `v0.1.0`. Ahora están en `[Sin publicar]`, y `v0.1.0` queda idéntica a la de `main`. **Ojo al añadir líneas:** van siempre bajo `[Sin publicar]`.
+- **Decisión:** cambio de proceso pedido por Raúl. No es un ticket del backlog, así que va en una rama `docs/` y no `feature/MIAX-XXX`.
+- **Ojo (Piettro y Alonso):** la regla nº 1 queda matizada. "No aprovechar para refactorizar" significa no refactorizar a lo loco, no prohibir el refactor que el ticket necesita.
 
 ### 2026-10-12 · Raúl · MIAX-029
 - **Hecho:** `miax.ingest.integrity` con `validate_klines(symbol, interval, *, base_dir) -> pd.DataFrame` (revisa la caché fichero a fichero y devuelve una tabla de incidencias `file`, `check`, `severity`, `count`, `detail`; vacía si todo está bien), más las funciones puras `check_klines_frame` (un fichero) y `find_gaps` (huecos de un conjunto de `open_time`). Comprobaciones: `unreadable`, `schema`, `duplicates` (dentro de un fichero y entre ficheros), `unordered`, `misaligned`, `close_time`, `wrong_month`, `ohlc` (errores) y `gaps` (aviso). Exportadas desde `miax.ingest`.
