@@ -17,6 +17,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ### Añadido
 - Catálogo de pares de Binance: `list_pairs` consulta `/exchangeInfo` y devuelve cada par con su estado (`TRADING` o `BREAK`), activos base y cotizado y si admite spot y margen, con filtros opcionales por activo cotizado y estado (MIAX-024)
+- Filtro de universo por volumen: `median_daily_quote_volume` mide la mediana del volumen diario en USDT en una ventana dada y `filter_by_volume` descarta los pares por debajo de un umbral explícito (10 M USDT/día por defecto) o sin velas en la ventana (MIAX-025)
 
 ---
 
