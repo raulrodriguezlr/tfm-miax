@@ -10,11 +10,11 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | MIAX-024 | `feature/MIAX-024` | 2026-10-12 | en review |
+| Raúl | MIAX-025 | `feature/MIAX-025` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
 | Alonso | — | — | — | libre |
 
-**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** — (este PR será `v0.2.0-snapshot.1`)
+**Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.1` (este PR será `.2`)
 
 ---
 
@@ -38,7 +38,8 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-10 | Todo Parquet se lee y escribe con `miax.utils.io` (`read_parquet` / `write_parquet`); la escritura es atómica. | Una sola forma de hacerlo; una descarga cortada no deja ficheros corruptos que la reanudación daría por buenos. | MIAX-011 |
 | D-11 | En `src/` no se usa `print`: se loguea con `miax.utils.get_logger`. Ruff lo hace cumplir con `T20`, eximido en `notebooks/`, `scripts/` y `tests/`. | Un formato y un nivel comunes en producción; `print` no se filtra ni se puede silenciar. | MIAX-012 |
 | D-12 | La prohibición de tocar la red en los tests la vigila una guardia autouse en `tests/conftest.py`, no la revisión humana. | Un `monkeypatch` sobre `socket.socket.connect`/`connect_ex` falla siempre y se restaura solo, aunque el test falle. | MIAX-008 |
-| D-?? | El catálogo de pares se consulta completo, incluidos los pares en `BREAK` (parados o deslistados); filtrar por estado es decisión del universo (MIAX-025 a 028), no de la consulta. | Sin los pares en `BREAK` no se puede medir el sesgo de supervivencia (MIAX-031). | MIAX-024 |
+| D-13 | El catálogo de pares se consulta completo, incluidos los pares en `BREAK` (parados o deslistados); filtrar por estado es decisión del universo (MIAX-025 a 028), no de la consulta. | Sin los pares en `BREAK` no se puede medir el sesgo de supervivencia (MIAX-031). | MIAX-024 |
+| D-?? | El universo se elige con el volumen de una ventana anterior al periodo de estudio, nunca con el del propio periodo: así la selección no usa información del futuro, y los pares que entonces eran líquidos entran aunque hoy estén deslistados. | Elegir por el volumen de hoy o del test es sesgo de selección y de supervivencia. | MIAX-025 |
 
 ---
 
@@ -83,9 +84,17 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 - **Ojo:** `download_symbols` vive en `__main__.py` (los tests de la CLI parchean `cli.update_symbol`). El último mensaje del log ya no es el resumen por símbolo de MIAX-022, sino `Resumen: N simbolos OK, M fallidos`; el test de resumen de `test_cli.py` se adaptó. Un 429/418 o una red caída persistente (`RetriesExhaustedError`) puede repetirse en todos los símbolos siguientes, y con un 418 (IP baneada) seguir golpeando alarga el baneo. Por eso hay un **cortacircuitos**: `download_symbols(..., max_consecutive_failures=3)` cuenta los `RetriesExhaustedError` consecutivos (un éxito o un fallo propio del símbolo —`ClientError`, `ValueError`, `OSError`, cualquier `requests.exceptions.RequestException`— lo resetea) y al llegar al límite corta la tanda: los símbolos restantes quedan con el valor `NOT_PROCESSED` (-1, distinto de `None` = fallido), se loguea el motivo y `main` devuelve 1. `_parse_symbols` normaliza a **mayúsculas** y deduplica después (`btcusdt` y `BTCUSDT` son el mismo).
 - **Pendiente:** universo y `exchangeInfo` (MIAX-024 y siguientes), huecos e integridad (MIAX-029).
 
+### 2026-10-12 · Raúl · MIAX-025
+- **Hecho:** `miax.ingest.universe` con `median_daily_quote_volume` (mediana del volumen diario en USDT, `quote_asset_volume` de las velas `1d`, de cada símbolo en una ventana `start_ms`–`end_ms`) y `filter_by_volume` (función pura que une el volumen a `pairs` en la columna `median_quote_volume`, deja los de volumen `>=` umbral y los ordena de mayor a menor). Ambas exportadas desde `miax.ingest`.
+- **Decisión:** D-??: la ventana es obligatoria y debe ser anterior al periodo de estudio. Se usa la mediana, que no se deja arrastrar por un día de *pump*. Umbral por defecto de 10 M USDT/día (el valor definitivo irá a `universe.yaml`). Un par sin velas en la ventana da `NaN` y se descarta, y el log cuenta cuántos. Los pares en `BREAK` se evalúan igual que los demás (D-13). Sin cliente inyectado, se crea uno con `RateLimiter()` y se cierra al terminar.
+- **Ojo (MIAX-031, importante):** los pares deslistados SÍ conservan su histórico de velas. Comprobado en vivo con FTTUSDT, SRMUSDT y 1INCHUPUSDT: devuelven velas de cuando cotizaban (FTT, junio de 2022: mediana diaria de 11,6 M) y 0 velas fuera de su periodo de vida. El riesgo 8 del README ("la API no sirve histórico de pares deslistados") es falso para los pares que siguen en `exchangeInfo` como `BREAK`; el sesgo de supervivencia se puede corregir en buena parte, y MIAX-031 debe corregir el README.
+- **Ojo (MIAX-018):** `download_klines` llama a `get` con el peso por defecto (1), pero en Binance `/klines` pesa 2. El limitador se resincroniza con la cabecera `X-MBX-USED-WEIGHT-1M`, así que no es grave. Queda anotado sin tocar.
+- **Ojo (MIAX-026):** un par listado dentro de la ventana se mide con pocos días, normalmente de euforia de lanzamiento (ARBUSDT en el primer trimestre de 2023: solo 9 días y una mediana de 328 M). La antigüedad mínima debe exigir días suficientes dentro de la ventana.
+- **Pendiente:** ventana y umbral reales en `configs/universe.yaml` (MIAX-028). El código no puede impedir que alguien pase una ventana que solape el estudio; eso lo vigila MIAX-028, donde se fijan las fechas.
+
 ### 2026-10-12 · Raúl · MIAX-024
 - **Hecho:** `miax.ingest.exchange_info` con `fetch_exchange_info` (GET crudo, peso 20), `pairs_from_exchange_info` (pares a DataFrame) y `list_pairs` (catálogo completo con filtros opcionales por `quote_asset` y `status`), exportadas desde `miax.ingest`.
-- **Decisión:** D-??: los pares en `BREAK` se conservan; filtrar es cosa del universo. El peso 20 se pasa al limitador. Sin modo listado en la CLI: se usa como función.
+- **Decisión:** D-13: los pares en `BREAK` se conservan; filtrar es cosa del universo. El peso 20 se pasa al limitador. Sin modo listado en la CLI: se usa como función.
 - **Ojo (MIAX-031):** `exchangeInfo` trae 2.349 pares en `BREAK` (254 contra USDT) de 3.724: el catálogo sí deja ver pares parados o deslistados, aunque el README diga que la API no sirve su histórico. Hay que comprobar si sus klines siguen disponibles.
 - **Ojo:** la respuesta pesa unos 17 MB; no conviene pedirla en bucle.
 - **Pendiente:** modo listado en la CLI, si se quiere, en un ticket aparte.
