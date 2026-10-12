@@ -2,7 +2,8 @@
 
 from miax.ingest.exchange_info import fetch_exchange_info, list_pairs, pairs_from_exchange_info
 from miax.ingest.http import ClientError, HttpClient, HttpError, RetriesExhaustedError
-from miax.ingest.klines import download_klines
+from miax.ingest.integrity import check_klines_frame, find_gaps, validate_klines
+from miax.ingest.klines import candle_offset_ms, download_klines, interval_ms
 from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import cached_last_open_time, update_symbol
 from miax.ingest.store import load_klines, save_klines
@@ -22,12 +23,16 @@ __all__ = [
     "RateLimiter",
     "RetriesExhaustedError",
     "cached_last_open_time",
+    "candle_offset_ms",
+    "check_klines_frame",
     "diversify_universe",
     "download_klines",
     "fetch_exchange_info",
     "filter_by_listing_age",
     "filter_by_volume",
+    "find_gaps",
     "first_candle_time",
+    "interval_ms",
     "list_pairs",
     "load_categories",
     "load_klines",
@@ -35,4 +40,5 @@ __all__ = [
     "pairs_from_exchange_info",
     "save_klines",
     "update_symbol",
+    "validate_klines",
 ]
