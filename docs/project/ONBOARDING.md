@@ -75,7 +75,9 @@ Sin ella no puedes abrir PR desde Claude. Tres pasos: `winget install --id GitHu
 
 > **Una IA no hace el proyecto. Una IA hace *una tarea*.**
 
-Si le das una tarea acotada, la coge, la hace y para. No sigue con la siguiente. No "aprovecha para" refactorizar otra cosa.
+Si le das una tarea acotada, la coge, la hace y para. No sigue con la siguiente.
+
+**Refactorizar sí, a lo loco no.** Si el ticket necesita tocar código de un ticket ya cerrado, se refactoriza antes que hacer una chapuza o duplicar. Lo que no vale es cambiar mil líneas por ticket. Detalle en `CLAUDE.md` §6.5.
 
 **Prohibido:**
 - Pedir "implementa el pipeline entero".
@@ -99,8 +101,9 @@ Cada ticket recorre esto. Sin atajos.
  5. Ejecutas CON SONNET       coder → auditor → fixer → tester
  6. Revisas el diff TÚ        no delegues esto
  7. Actualizas ESTADO.md      y CHANGELOG.md, antes del push
- 8. Abres el PR               base develop
- 9. Un compañero aprueba      merge → snapshot
+ 8. Abres el PR               base develop, con la prueba de humo real si toca datos
+ 9. Un compañero aprueba      squash, con el mensaje de todos los commits → snapshot
+10. Quien mergea cierra       tarjeta a Done y rama borrada (CLAUDE.md §4.7)
 ```
 
 ### Los cuatro subagentes
@@ -128,7 +131,7 @@ Están en `.claude/agents/`, versionados en el repo. No hay que configurar nada.
 
 - **Nunca se escribe directo en `main` ni en `develop`.** Todo por PR.
 - Rama = el ticket: `feature/MIAX-014`. Sin descripción, el ticket ya la tiene.
-- Commit: `MIAX-014: qué hace, en imperativo`.
+- Commit: `MIAX-014: qué hace, en imperativo`. Sin `Co-Authored-By` de Claude, y los PR sin el pie "Generated with Claude Code".
 - Cada merge a `develop` = snapshot. Cada merge a `main` = release con tag.
 - `MINOR` sube al cerrar una épica. `v1.0.0` = entrega al tribunal.
 
