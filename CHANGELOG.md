@@ -16,7 +16,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 ## [Sin publicar]
 
 ### Añadido
-- Nada todavía.
+- Catálogo de pares de Binance: `list_pairs` consulta `/exchangeInfo` y devuelve cada par con su estado (`TRADING` o `BREAK`), activos base y cotizado y si admite spot y margen, con filtros opcionales por activo cotizado y estado (MIAX-024)
 
 ---
 
