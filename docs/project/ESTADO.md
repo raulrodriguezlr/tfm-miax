@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | MIAX-025 | `feature/MIAX-025` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
-| Alonso | MIAX-026 | `feature/MIAX-026` | 2026-10-12 | en curso |
+| Alonso | MIAX-027 | `feature/MIAX-027` | 2026-10-12 | en curso |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.1` (este PR será `.2`)
 
@@ -77,6 +77,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-12 · Alonso · MIAX-027
+- **Hecho:** `configs/categories.yaml` (mapa categoría → activos base, a mano: `l1`, `l2`, `defi`, `meme`, `exchange`, `infra`, `ai`, `stablecoin`, `pegged`) y, en `miax.ingest.universe`, `load_categories(path="categories.yaml") -> dict[str, str]` (mapa activo → categoría; ruta relativa contra `configs/`; `ConfigError` si falta el fichero, no es un mapeo de listas o un activo está en dos categorías) y `diversify_universe(pairs, categories, *, max_per_category=10, max_pairs=50, min_categories=4, excluded_categories=("stablecoin", "pegged")) -> pd.DataFrame` (función pura que añade la columna `category`, descarta activos sin categoría y de categorías excluidas, aplica el tope por categoría y luego el total respetando el orden de entrada, y lanza `ValueError` si quedan menos de `min_categories` categorías). Ambas exportadas desde `miax.ingest`.
+- **Decisión:** un activo sin categoría se **descarta** (con log que lista sus `base_asset` para añadirlos al YAML), no se agrupa en "otros". `diversify_universe` no reordena por volumen: se queda con los primeros de cada categoría en el orden que recibe, así que hay que pasarle la salida de `filter_by_volume`. `stablecoin` y `pegged` (envueltos como WBTC/WBETH, oro como PAXG y fiat como EUR) se excluyen por defecto: su precio es plano o replica otro activo y darían *lead-lag* trivial. El YAML incluye ticker antiguo y nuevo de los renombrados (MATIC/POL, FTM/S, RNDR/RENDER).
+- **Ojo (uso previsto, MIAX-028):** `list_pairs(quote_asset="USDT")` → `filter_by_listing_age` → `filter_by_volume` (ordena por volumen) → `diversify_universe(pairs, load_categories())`. El resultado lo congela MIAX-028 en `configs/universe.yaml`. No hay CLI.
+- **Ojo:** las categorías están hechas a mano con el conocimiento de hoy (sesgo menor: un activo se clasifica como lo vemos ahora, no como cuando empezó el periodo). Conviene revisar el YAML en el PR.
+- **Pendiente:** los valores por defecto (10 por categoría, 50 en total, mínimo 4 categorías) son provisionales; los definitivos se fijan en MIAX-028.
 
 ### 2026-10-12 · Alonso · MIAX-026
 - **Hecho:** en `miax.ingest.universe`, `first_candle_time(symbols, reference_ms, *, client, base_url) -> pd.Series` (una llamada por símbolo a `/klines` con `interval=1d`, `startTime=0`, `endTime=reference_ms`, `limit=1` y peso 2; devuelve el `open_time` de la primera vela, `NA` si no hay ninguna no posterior a la referencia, dtype `Int64`) y `filter_by_listing_age(pairs, first_candles, reference_ms, min_listing_days=90) -> pd.DataFrame` (función pura que añade la columna `first_candle_ms` y conserva los pares con primera vela `<=` `reference_ms - min_listing_days` días, límite inclusivo). Ambas exportadas desde `miax.ingest`. Tests en `tests/unit/test_universe.py` (19 nuevos, sin red), con los límites de fuga comprobados a ±1 ms.

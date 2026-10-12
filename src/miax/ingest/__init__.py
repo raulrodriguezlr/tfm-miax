@@ -7,9 +7,11 @@ from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import cached_last_open_time, update_symbol
 from miax.ingest.store import load_klines, save_klines
 from miax.ingest.universe import (
+    diversify_universe,
     filter_by_listing_age,
     filter_by_volume,
     first_candle_time,
+    load_categories,
     median_daily_quote_volume,
 )
 
@@ -20,12 +22,14 @@ __all__ = [
     "RateLimiter",
     "RetriesExhaustedError",
     "cached_last_open_time",
+    "diversify_universe",
     "download_klines",
     "fetch_exchange_info",
     "filter_by_listing_age",
     "filter_by_volume",
     "first_candle_time",
     "list_pairs",
+    "load_categories",
     "load_klines",
     "median_daily_quote_volume",
     "pairs_from_exchange_info",
