@@ -10,7 +10,12 @@ import pandas as pd
 import pytest
 
 from miax.ingest import universe
-from miax.ingest.universe import filter_by_volume, median_daily_quote_volume
+from miax.ingest.universe import (
+    filter_by_listing_age,
+    filter_by_volume,
+    first_candle_time,
+    median_daily_quote_volume,
+)
 
 DAY_MS = 86_400_000
 DAY0 = 1_700_000_000_000 - (1_700_000_000_000 % DAY_MS)  # medianoche UTC
@@ -49,19 +54,26 @@ class _FakeResponse:
 class _FakeBinance:
     """Cliente falso: velas diarias por simbolo respetando startTime, endTime y limit."""
 
-    def __init__(self, volumes: Mapping[str, Sequence[float]]) -> None:
-        """Cada simbolo tiene una vela por dia desde DAY0 con los volumenes dados."""
+    def __init__(
+        self,
+        volumes: Mapping[str, Sequence[float]],
+        start_days: Mapping[str, int] | None = None,
+    ) -> None:
+        """Una vela por dia con los volumenes dados, desde DAY0 + start_days[simbolo] dias."""
+        offsets = start_days or {}
         self.candles = {
-            sym: [_candle(DAY0 + i * DAY_MS, v) for i, v in enumerate(vols)]
+            sym: [_candle(DAY0 + (offsets.get(sym, 0) + i) * DAY_MS, v) for i, v in enumerate(vols)]
             for sym, vols in volumes.items()
         }
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.weights: list[int] = []
         self.closed = False
 
     def get(self, url: str, params: dict[str, Any] | None = None, weight: int = 1) -> _FakeResponse:
         """Registra la llamada y devuelve el bloque que Binance serviria."""
         assert params is not None
         self.calls.append((url, dict(params)))
+        self.weights.append(weight)
         rows = self.candles.get(params["symbol"], [])
         selected = [c for c in rows if params["startTime"] <= c[0] <= params["endTime"]]
         return _FakeResponse(selected[: params["limit"]])
@@ -252,3 +264,208 @@ def test_filter_does_not_mutate_input() -> None:
     pairs = _pairs()
     filter_by_volume(pairs, pd.Series({"AAA": 1.0}), min_quote_volume=0.0)
     assert list(pairs.columns) == ["symbol", "base_asset"]
+
+
+# --- MIAX-026: filtro por antiguedad de listado ---
+
+REFERENCE_MS = DAY0 + 200 * DAY_MS
+CUTOFF_MS = REFERENCE_MS - 90 * DAY_MS  # corte con los 90 dias por defecto
+
+
+def test_first_candle_returns_first_open_time() -> None:
+    """Devuelve la apertura de la primera vela de cada simbolo, no la ultima."""
+    fake = _FakeBinance({"AAA": [1.0, 2.0, 3.0], "BBB": [1.0, 2.0]}, start_days={"BBB": 5})
+    result = first_candle_time(["AAA", "BBB"], DAY0 + 50 * DAY_MS, client=fake)  # type: ignore[arg-type]
+    assert result["AAA"] == DAY0
+    assert result["BBB"] == DAY0 + 5 * DAY_MS
+
+
+def test_first_candle_na_when_unknown_or_listed_after_reference() -> None:
+    """Un simbolo inexistente o listado tras la referencia da NA, sin romper el resto."""
+    fake = _FakeBinance({"AAA": [1.0], "LATE": [1.0]}, start_days={"LATE": 20})
+    result = first_candle_time(["AAA", "ZZZ", "LATE"], DAY0 + 10 * DAY_MS, client=fake)  # type: ignore[arg-type]
+    assert result["AAA"] == DAY0
+    assert pd.isna(result["ZZZ"])
+    assert pd.isna(result["LATE"])
+
+
+def test_first_candle_series_shape_name_and_dtype() -> None:
+    """Serie indexada por simbolo, con nombre first_candle_ms y dtype Int64."""
+    fake = _FakeBinance({"AAA": [1.0], "BBB": [1.0]})
+    result = first_candle_time(["AAA", "BBB", "ZZZ"], DAY0 + DAY_MS, client=fake)  # type: ignore[arg-type]
+    assert isinstance(result, pd.Series)
+    assert list(result.index) == ["AAA", "BBB", "ZZZ"]
+    assert result.name == "first_candle_ms"
+    assert result.dtype == "Int64"
+
+
+def test_first_candle_single_call_with_expected_params_and_weight() -> None:
+    """ANTIFUGA: una llamada por simbolo con startTime=0, endTime=referencia, limit=1 y peso 2."""
+    fake = _FakeBinance({"AAA": [1.0, 2.0], "BBB": [1.0]})
+    reference = DAY0 + 30 * DAY_MS
+    first_candle_time(["AAA", "BBB"], reference, client=fake)  # type: ignore[arg-type]
+    assert [p["symbol"] for _, p in fake.calls] == ["AAA", "BBB"]
+    for url, params in fake.calls:
+        assert url.endswith("/api/v3/klines")
+        assert params == {
+            "symbol": params["symbol"],
+            "interval": "1d",
+            "startTime": 0,
+            "endTime": reference,
+            "limit": 1,
+        }
+    assert fake.weights == [2, 2]
+
+
+def test_first_candle_never_requests_beyond_reference() -> None:
+    """ANTIFUGA: una vela que abre un ms despues de la referencia no se ve; en la referencia si."""
+    reference = DAY0 + 3 * DAY_MS
+    on_reference = _FakeBinance({"AAA": [1.0]}, start_days={"AAA": 3})
+    after_reference = _FakeBinance({"AAA": [1.0]}, start_days={"AAA": 3})
+    assert first_candle_time(["AAA"], reference, client=on_reference)["AAA"] == reference  # type: ignore[arg-type]
+    assert pd.isna(first_candle_time(["AAA"], reference - 1, client=after_reference)["AAA"])  # type: ignore[arg-type]
+    assert all(p["endTime"] <= reference for _, p in on_reference.calls)
+    assert all(p["endTime"] <= reference for _, p in after_reference.calls)
+
+
+def test_first_candle_duplicates_one_call_and_order_kept() -> None:
+    """Simbolos repetidos hacen una sola llamada y se conserva el orden de primera aparicion."""
+    fake = _FakeBinance({"AAA": [1.0], "BBB": [1.0]})
+    result = first_candle_time(["BBB", "AAA", "BBB", "AAA"], DAY0 + DAY_MS, client=fake)  # type: ignore[arg-type]
+    assert list(result.index) == ["BBB", "AAA"]
+    assert [p["symbol"] for _, p in fake.calls] == ["BBB", "AAA"]
+
+
+def test_first_candle_injected_client_is_not_closed() -> None:
+    """Un cliente inyectado lo cierra quien lo creo, no la funcion."""
+    fake = _FakeBinance({"AAA": [1.0]})
+    first_candle_time(["AAA"], DAY0 + DAY_MS, client=fake)  # type: ignore[arg-type]
+    assert fake.closed is False
+
+
+def test_first_candle_own_client_is_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Un cliente creado por la funcion se cierra siempre."""
+    created: list[_FakeBinance] = []
+
+    def factory(*args: object, **kwargs: object) -> _FakeBinance:
+        fake = _FakeBinance({"AAA": [1.0]})
+        created.append(fake)
+        return fake
+
+    monkeypatch.setattr(universe, "HttpClient", factory)
+    result = first_candle_time(["AAA"], DAY0 + DAY_MS)
+    assert len(created) == 1
+    assert created[0].closed is True
+    assert result["AAA"] == DAY0
+
+
+def test_first_candle_own_client_is_closed_on_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Si la peticion falla, el error se propaga y el cliente propio tambien se cierra."""
+    fake = _FakeBinance({"AAA": [1.0]})
+
+    def boom(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("fallo simulado")
+
+    monkeypatch.setattr(universe, "HttpClient", lambda *a, **k: fake)
+    monkeypatch.setattr(fake, "get", boom)
+    with pytest.raises(RuntimeError):
+        first_candle_time(["AAA"], DAY0 + DAY_MS)
+    assert fake.closed is True
+
+
+def test_first_candle_negative_reference_raises() -> None:
+    """Una referencia negativa es un error y no hace ninguna llamada."""
+    fake = _FakeBinance({"AAA": [1.0]})
+    with pytest.raises(ValueError, match="reference_ms"):
+        first_candle_time(["AAA"], -1, client=fake)  # type: ignore[arg-type]
+    assert fake.calls == []
+
+
+def test_age_filter_cutoff_is_inclusive_and_one_ms_later_is_out() -> None:
+    """ANTIFUGA: primera vela == corte entra; un ms despues queda fuera."""
+    first = pd.Series({"AAA": CUTOFF_MS, "BBB": CUTOFF_MS + 1, "CCC": CUTOFF_MS - 1}, dtype="Int64")
+    out = filter_by_listing_age(_pairs(), first, REFERENCE_MS)
+    assert list(out["symbol"]) == ["AAA", "CCC"]
+
+
+def test_age_filter_drops_na_and_missing_symbols() -> None:
+    """Las primeras velas NA y los simbolos ausentes de first_candles se descartan."""
+    first = pd.Series({"AAA": pd.NA, "BBB": DAY0}, dtype="Int64")  # CCC y DDD ausentes
+    out = filter_by_listing_age(_pairs(), first, REFERENCE_MS)
+    assert list(out["symbol"]) == ["BBB"]
+
+
+def test_age_filter_keeps_input_order_columns_and_dtype() -> None:
+    """Conserva el orden de entrada, indice 0..n-1, columnas de pairs y first_candle_ms Int64."""
+    pairs = _pairs().iloc[::-1].reset_index(drop=True)  # DDD, CCC, BBB, AAA
+    first = pd.Series({"AAA": DAY0, "BBB": DAY0, "CCC": DAY0, "DDD": DAY0}, dtype="Int64")
+    out = filter_by_listing_age(pairs, first, REFERENCE_MS)
+    assert list(out["symbol"]) == ["DDD", "CCC", "BBB", "AAA"]
+    assert list(out.index) == [0, 1, 2, 3]
+    assert list(out.columns) == ["symbol", "base_asset", "first_candle_ms"]
+    assert out["first_candle_ms"].dtype == "Int64"
+
+
+def test_age_filter_zero_days_lets_everything_listed_by_reference_through() -> None:
+    """Con min_listing_days=0 pasa todo lo listado hasta la referencia (incluida)."""
+    first = pd.Series(
+        {"AAA": DAY0, "BBB": REFERENCE_MS, "CCC": REFERENCE_MS + 1, "DDD": pd.NA}, dtype="Int64"
+    )
+    out = filter_by_listing_age(_pairs(), first, REFERENCE_MS, min_listing_days=0)
+    assert list(out["symbol"]) == ["AAA", "BBB"]
+
+
+def test_age_filter_negative_days_raises() -> None:
+    """Un minimo de dias negativo es un error."""
+    with pytest.raises(ValueError, match="min_listing_days"):
+        filter_by_listing_age(_pairs(), pd.Series({"AAA": DAY0}, dtype="Int64"), REFERENCE_MS, -1)
+
+
+def test_age_filter_without_symbol_column_raises() -> None:
+    """Sin columna symbol no se puede cruzar."""
+    with pytest.raises(ValueError, match="symbol"):
+        filter_by_listing_age(
+            pd.DataFrame({"x": [1]}), pd.Series({"AAA": DAY0}, dtype="Int64"), REFERENCE_MS
+        )
+
+
+def test_age_filter_duplicate_index_in_first_candles_raises() -> None:
+    """Un indice repetido en first_candles es un error en vez de resolverse en silencio."""
+    first = pd.Series([DAY0, DAY0 + DAY_MS], index=["AAA", "AAA"], dtype="Int64")
+    with pytest.raises(ValueError, match="repetidos"):
+        filter_by_listing_age(_pairs(), first, REFERENCE_MS)
+
+
+def test_age_filter_does_not_mutate_input() -> None:
+    """La entrada no se modifica."""
+    pairs = _pairs()
+    first = pd.Series({"AAA": DAY0}, dtype="Int64")
+    filter_by_listing_age(pairs, first, REFERENCE_MS)
+    assert list(pairs.columns) == ["symbol", "base_asset"]
+
+
+def test_age_and_volume_filters_commute_on_symbol_set() -> None:
+    """Aplicar antiguedad y volumen en cualquier orden da el mismo conjunto de simbolos."""
+    first = pd.Series({"AAA": DAY0, "BBB": CUTOFF_MS + 1, "CCC": DAY0, "DDD": pd.NA}, dtype="Int64")
+    volumes = pd.Series({"AAA": 500.0, "BBB": 900.0, "CCC": 1.0, "DDD": 900.0})
+    age_first = filter_by_volume(
+        filter_by_listing_age(_pairs(), first, REFERENCE_MS), volumes, min_quote_volume=100.0
+    )
+    volume_first = filter_by_listing_age(
+        filter_by_volume(_pairs(), volumes, min_quote_volume=100.0), first, REFERENCE_MS
+    )
+    assert set(age_first["symbol"]) == set(volume_first["symbol"]) == {"AAA"}
+
+
+def test_arb_like_token_listed_inside_volume_window_is_dropped() -> None:
+    """Un token listado dentro de la ventana de volumen (caso ARB) se descarta de punta a punta."""
+    window_start = DAY0 + 200 * DAY_MS  # inicio de la ventana de volumen = referencia
+    fake = _FakeBinance(
+        {"OLD": [1.0], "ARB": [1.0], "NEW": [1.0]},
+        start_days={"OLD": 80, "ARB": 205, "NEW": 150},  # OLD: 120 dias antes; NEW: 50 dias antes
+    )
+    pairs = pd.DataFrame({"symbol": ["OLD", "ARB", "NEW"], "base_asset": ["O", "A", "N"]})
+    first = first_candle_time(list(pairs["symbol"]), window_start, client=fake)  # type: ignore[arg-type]
+    assert pd.isna(first["ARB"])  # abre tras la referencia: ni se ve
+    out = filter_by_listing_age(pairs, first, window_start)
+    assert list(out["symbol"]) == ["OLD"]

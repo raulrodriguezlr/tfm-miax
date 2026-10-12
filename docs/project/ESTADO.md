@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | MIAX-025 | `feature/MIAX-025` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
-| Alonso | — | — | — | libre |
+| Alonso | MIAX-026 | `feature/MIAX-026` | 2026-10-12 | en curso |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.1` (este PR será `.2`)
 
@@ -77,6 +77,14 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-12 · Alonso · MIAX-026
+- **Hecho:** en `miax.ingest.universe`, `first_candle_time(symbols, reference_ms, *, client, base_url) -> pd.Series` (una llamada por símbolo a `/klines` con `interval=1d`, `startTime=0`, `endTime=reference_ms`, `limit=1` y peso 2; devuelve el `open_time` de la primera vela, `NA` si no hay ninguna no posterior a la referencia, dtype `Int64`) y `filter_by_listing_age(pairs, first_candles, reference_ms, min_listing_days=90) -> pd.DataFrame` (función pura que añade la columna `first_candle_ms` y conserva los pares con primera vela `<=` `reference_ms - min_listing_days` días, límite inclusivo). Ambas exportadas desde `miax.ingest`. Tests en `tests/unit/test_universe.py` (19 nuevos, sin red), con los límites de fuga comprobados a ±1 ms.
+- **Decisión:** `first_candle_time` no usa `download_klines`, que pagina hasta `end_ms` y con `limit=1` pediría día a día. Los pares sin velas hasta la referencia (`endTime` es inclusivo) se descartan y el log cuenta cuántos por recientes y cuántos por no tener velas. `filter_by_listing_age` lanza `ValueError` si `first_candles` trae símbolos repetidos. A diferencia de `filter_by_volume`, `filter_by_listing_age` no reordena: conserva el orden de entrada, así que se puede combinar con el filtro de volumen en cualquier orden.
+- **Ojo (uso previsto, MIAX-028):** `reference_ms` debe ser el inicio de la ventana de volumen de MIAX-025. Así la mediana de volumen nunca incluye la euforia de lanzamiento: el caso ARBUSDT que anotó Raúl queda fuera por construcción.
+- **Ojo:** el valor de 90 días es provisional; el definitivo irá a `configs/universe.yaml` (MIAX-028). No hay CLI.
+- **Ojo (MIAX-027/028, acordado con Alonso):** el universo es solo pares **contra USDT** (README), sin cruces entre criptos (ETHBTC ≈ ETHUSDT/BTCUSDT da *lead-lag* mecánico, y el volumen de MIAX-025 solo está en USDT si el par cotiza contra USDT). Y **no se descargan stablecoins contra USDT** (USDCUSDT, FDUSDUSDT, TUSDUSDT…): pasan el filtro de volumen de sobra, pero su precio es plano y solo meten ruido. Ninguno de los dos filtros está forzado aún en el código (`first_candle_time`/`filter_by_listing_age` aceptan cualquier par; `list_pairs` tiene `quote_asset` opcional): hay que aplicarlos al construir y congelar el universo.
+- **Pendiente:** exigir días con velas dentro de la ventana para pares parados o deslistados a mitad (MIAX-030).
 
 ### 2026-10-09 · Alonso · MIAX-023
 - **Hecho:** `--symbol` acepta una lista separada por comas (`BTCUSDT,ETHUSDT,SOLUSDT`); un solo símbolo sigue valiendo. `download_symbols(symbols, interval, start_ms, end_ms, *, client, base_dir, base_url) -> dict[str, int | None]` en `src/miax/ingest/__main__.py` recorre los símbolos en orden con `update_symbol`, loguea `[i/N] SÍMBOLO: K velas nuevas` y un resumen final (OK, fallidos y cuáles). Tests en `tests/unit/test_batch.py` con `update_symbol` parcheado: sin red ni disco.
