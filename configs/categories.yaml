@@ -1,0 +1,18 @@
+# Categorias de activos para diversificar el universo (MIAX-027).
+#
+# Mapa categoria -> lista de activos base (el `base_asset` de exchangeInfo, en mayusculas).
+# Se edita a mano: no hay red ni fuentes externas, asi el universo es reproducible.
+# Un activo no puede estar en dos categorias; `load_categories` falla si ocurre.
+# `stablecoin` y `pegged` se excluyen por defecto del universo (precio plano o replica de otro
+# activo, lo que daria lead-lag trivial). Un activo que no aparezca aqui se descarta con un log.
+# Se incluyen el ticker antiguo y el nuevo de los renombrados (MATIC/POL, FTM/S, RNDR/RENDER).
+
+l1: [BTC, ETH, SOL, ADA, AVAX, DOT, ATOM, NEAR, APT, SUI, TRX, XRP, LTC, BCH, ETC, XLM, ALGO, HBAR, ICP, TON, SEI, INJ, FTM, S, EGLD]
+l2: [ARB, OP, MATIC, POL, IMX, STRK, ZK, MANTA, METIS, LRC]
+defi: [UNI, AAVE, MKR, CRV, COMP, SNX, LDO, PENDLE, DYDX, 1INCH, SUSHI, CAKE, JUP, GMX, RUNE, ENA, JTO, YFI, BAL]
+meme: [DOGE, SHIB, PEPE, FLOKI, BONK, WIF, BOME, MEME, PEOPLE, TURBO, NEIRO]
+exchange: [BNB]
+infra: [LINK, FIL, GRT, AR, PYTH, TIA]
+ai: [FET, TAO, WLD, RNDR, RENDER]
+stablecoin: [USDC, FDUSD, TUSD, BUSD, DAI, USDP, USDE]
+pegged: [WBTC, WBETH, PAXG, EUR, AEUR, EURI]  # envueltos, oro y fiat: replican otro activo

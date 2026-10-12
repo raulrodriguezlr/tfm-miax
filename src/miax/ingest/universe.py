@@ -1,17 +1,21 @@
 """Filtros de universo por liquidez (volumen diario en USDT) y por antiguedad de listado.
 
-La antiguedad se mide con la primera vela diaria de cada par.
+La antiguedad se mide con la primera vela diaria de cada par. Tambien reparte el universo
+entre categorias de activos (L1, L2, DeFi, memecoins...) con un tope por categoria.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import pandas as pd
+import yaml
 
 from miax.ingest.http import HttpClient
 from miax.ingest.klines import DEFAULT_BASE_URL, KLINES_PATH, download_klines
 from miax.ingest.ratelimit import RateLimiter
+from miax.utils.config import CONFIGS_DIR, ConfigError
 from miax.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -25,6 +29,14 @@ DEFAULT_MIN_LISTING_DAYS = 90  # dias de cotizacion exigidos antes de la referen
 LISTING_INTERVAL = "1d"
 LISTING_KLINES_WEIGHT = 2  # peso de /klines en Binance spot
 LISTING_COLUMN = "first_candle_ms"
+
+CATEGORY_COLUMN = "category"
+DEFAULT_CATEGORIES_FILE = "categories.yaml"
+DEFAULT_MAX_PER_CATEGORY = 10
+DEFAULT_MAX_PAIRS = 50
+DEFAULT_MIN_CATEGORIES = 4
+DEFAULT_EXCLUDED_CATEGORIES = ("stablecoin", "pegged")  # precio plano o replica de otro activo
+MAX_LOGGED_UNCATEGORIZED = 20  # activos sin categoria que se listan en el log
 
 
 def median_daily_quote_volume(
@@ -146,4 +158,103 @@ def filter_by_listing_age(
         int(too_new.sum()),
         int(no_candles.sum()),
     )
+    return kept
+
+
+def load_categories(path: str | Path = DEFAULT_CATEGORIES_FILE) -> dict[str, str]:
+    """Lee el YAML de categorias y devuelve el mapa activo base -> categoria."""
+    candidate = Path(path)
+    resolved = candidate if candidate.is_absolute() else CONFIGS_DIR / candidate
+    if not resolved.is_file():
+        raise ConfigError(
+            f"No se encuentra el fichero de categorias '{path}' (probado: {resolved})."
+        )
+    raw = yaml.safe_load(resolved.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ConfigError(f"El YAML '{resolved}' debe ser un mapeo categoria -> lista de activos.")
+
+    asset_to_category: dict[str, str] = {}
+    for category, assets in raw.items():
+        if not isinstance(category, str):
+            raise ConfigError(f"La categoria {category!r} de '{resolved}' debe ser texto.")
+        if not isinstance(assets, list):
+            raise ConfigError(
+                f"La categoria '{category}' de '{resolved}' debe ser una lista de activos, "
+                f"no {type(assets).__name__}."
+            )
+        for asset in assets:
+            if not isinstance(asset, str) or not asset.strip():
+                raise ConfigError(
+                    f"La categoria '{category}' de '{resolved}' tiene un activo invalido: "
+                    f"{asset!r}."
+                )
+            normalized = asset.strip().upper()
+            previous = asset_to_category.setdefault(normalized, category)
+            if previous != category:
+                raise ConfigError(
+                    f"El activo '{normalized}' esta en dos categorias: '{previous}' y '{category}'."
+                )
+    return asset_to_category
+
+
+def diversify_universe(
+    pairs: pd.DataFrame,
+    categories: Mapping[str, str],
+    *,
+    max_per_category: int = DEFAULT_MAX_PER_CATEGORY,
+    max_pairs: int = DEFAULT_MAX_PAIRS,
+    min_categories: int = DEFAULT_MIN_CATEGORIES,
+    excluded_categories: Sequence[str] = DEFAULT_EXCLUDED_CATEGORIES,
+) -> pd.DataFrame:
+    """Reparte el universo entre categorias con tope por categoria y total, en orden de entrada."""
+    if max_per_category < 1:
+        raise ValueError(f"max_per_category debe ser >= 1, recibido {max_per_category}")
+    if max_pairs < 1:
+        raise ValueError(f"max_pairs debe ser >= 1, recibido {max_pairs}")
+    if min_categories < 1:
+        raise ValueError(f"min_categories debe ser >= 1, recibido {min_categories}")
+    if "base_asset" not in pairs.columns:
+        raise ValueError(f"pairs necesita la columna 'base_asset'; columnas: {list(pairs.columns)}")
+
+    # La categoria es una clasificacion estatica por activo: no usa precios, no hay fuga temporal.
+    labelled = pairs.copy()
+    normalized_categories = {str(k).strip().upper(): v for k, v in categories.items()}
+    labelled[CATEGORY_COLUMN] = (
+        labelled["base_asset"].astype(str).str.upper().map(normalized_categories)
+    )
+    no_category = labelled[CATEGORY_COLUMN].isna()
+    excluded = ~no_category & labelled[CATEGORY_COLUMN].isin(list(excluded_categories))
+    candidates = labelled[~no_category & ~excluded]
+
+    # pairs llega ordenado por prioridad (volumen): head() conserva ese orden en cada grupo.
+    capped = candidates.groupby(CATEGORY_COLUMN, sort=False).head(max_per_category)
+    kept = capped.head(max_pairs).reset_index(drop=True)
+
+    counts = kept[CATEGORY_COLUMN].value_counts().to_dict()
+    uncategorized = list(dict.fromkeys(labelled.loc[no_category, "base_asset"]))
+    shown = uncategorized[:MAX_LOGGED_UNCATEGORIZED]
+    if len(uncategorized) > MAX_LOGGED_UNCATEGORIZED:
+        shown_text = f"{shown} y {len(uncategorized) - MAX_LOGGED_UNCATEGORIZED} mas"
+    else:
+        shown_text = str(shown)
+    logger.info(
+        "Universo diversificado: %d pares entran en %d categorias %s; %d descartados por "
+        "categoria excluida, %d sin categoria %s, %d por tope de categoria (%d), %d por tope "
+        "total (%d)",
+        len(kept),
+        len(counts),
+        counts,
+        int(excluded.sum()),
+        int(no_category.sum()),
+        shown_text,
+        len(candidates) - len(capped),
+        max_per_category,
+        len(capped) - len(kept),
+        max_pairs,
+    )
+    if len(counts) < min_categories:
+        raise ValueError(
+            f"El universo tiene {len(counts)} categorias ({sorted(counts)}), "
+            f"menos del minimo exigido ({min_categories})"
+        )
     return kept
