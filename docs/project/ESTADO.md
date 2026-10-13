@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
-| Alonso | MIAX-028 | `feature/MIAX-028` | 2026-10-12 | en review |
+| Alonso | MIAX-031 (y MIAX-030) | `feature/MIAX-031` | 2026-10-13 | en review |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
 
@@ -77,6 +77,11 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-13 · Alonso · MIAX-031
+- **Hecho:** `docs/datos/sesgo-supervivencia.md` (qué es el riesgo, lo medido, qué está corregido, qué pares faltan y por qué, cómo reproducir las cifras) y corrección de la fila del riesgo 8 del README. Ticket solo de documentación, sin código.
+- **Ojo:** la premisa original (la API no sirve deslistados) era falsa. El sesgo de supervivencia dentro de Binance está corregido en lo esencial: el 2026-10-13 se consultó la primera vela de los 254 pares USDT en `BREAK` y los 254 devuelven velas (medido, 0 sin velas), solo `NBTUSDT` falta en `exchangeInfo`, y 12 de los 104 símbolos del universo están hoy en `BREAK`. Lo residual (activos sin par USDT en 2017-2018, sesgo de exchange, renombrados, series cortadas, categorías con la visión de hoy) está listado en el documento. Cifras del 2026-10-13.
+- **Pendiente:** (a) MIAX-186 (capítulo de datos) parte de este documento; (b) el tratamiento de `LUNAUSDT` y de las series cortadas, en MIAX-034; (c) **propuesta para el equipo:** un ticket nuevo para obtener los datos desde los volcados mensuales de `data.binance.vision` (reproducible con un comando, mucho más rápido que la API y sin límite de peticiones), en lugar de que cada uno descargue unas 4 h por la API; mientras tanto, la caché se comparte por Google Drive.
 
 ### 2026-10-13 · Alonso · MIAX-028
 - **Hecho:** universo **por periodos** congelado en un fichero. `configs/universe_params.yaml` (parámetros) y, en `miax.ingest.universe`: `UniverseParams`, `UniversePeriod`, `load_universe_params(path="universe_params.yaml")` (valida y lanza `ConfigError`), `universe_periods(params) -> list[UniversePeriod]`, `select_period_universe(pairs, first_candles, volumes, categories, period, params) -> pd.DataFrame` (pura: antigüedad, volumen, diversificación), `write_universe(universes, params, path="universe.yaml", *, generated_at=None) -> Path` (YAML atómico, tipos nativos) y `load_universe(path="universe.yaml") -> pd.DataFrame` (una fila por par y periodo). `build_universe(params, categories, *, client, now_ms, base_url=...) -> list[tuple[UniversePeriod, pd.DataFrame]]` orquesta la descarga (catálogo, primeras velas, volúmenes por ventana) sin escribir. Todo exportado desde `miax.ingest`. El subcomando `python -m miax.ingest universe [--params] [--out] [--base-url]` (con red) llama a `build_universe` y escribe `configs/universe.yaml`.
