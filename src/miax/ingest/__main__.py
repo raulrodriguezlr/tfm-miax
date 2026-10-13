@@ -1,4 +1,4 @@
-"""CLI de la ingesta: `python -m miax.ingest [download|validate|pairs|universe]` (def. download)."""
+"""CLI de la ingesta: `python -m miax.ingest [download|validate|coverage|pairs|universe]`."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 import yaml
 
+from miax.ingest.coverage import coverage_report, universe_coverage
 from miax.ingest.exchange_info import list_pairs
 from miax.ingest.http import HttpClient, HttpError, RetriesExhaustedError
 from miax.ingest.integrity import ERROR, count_month_files, validate_klines
@@ -23,6 +24,7 @@ from miax.ingest.universe import (
     DEFAULT_UNIVERSE_PARAMS_FILE,
     build_universe,
     load_categories,
+    load_universe,
     load_universe_params,
     write_universe,
 )
@@ -37,6 +39,7 @@ DEFAULT_LOOKBACK_DAYS = 30
 DEFAULT_MAX_CONSECUTIVE_FAILURES = 3
 # Marca de un simbolo no intentado porque el cortacircuitos corto la tanda (distinta de None).
 NOT_PROCESSED = -1
+_MAX_UNCACHED_EXAMPLES = 10
 _DATE_FORMAT = "%Y-%m-%d"
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 _MS = timedelta(milliseconds=1)
@@ -73,8 +76,8 @@ def _add_download_parser(subparsers: argparse._SubParsersAction) -> None:
         "download",
         description=(
             "Descarga klines de Binance y los cachea en Parquet, reanudando lo ya bajado. "
-            "Otros subcomandos: validate (integridad de la cache), pairs (catalogo de pares), "
-            "universe (congela el universo por periodos)."
+            "Otros subcomandos: validate (integridad de la cache), coverage (cobertura temporal), "
+            "pairs (catalogo de pares), universe (congela el universo por periodos)."
         ),
     )
     parser.add_argument(
@@ -122,6 +125,48 @@ def _add_validate_parser(subparsers: argparse._SubParsersAction) -> None:
     )
 
 
+def _add_coverage_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Anade el subcomando `coverage`."""
+    parser = subparsers.add_parser(
+        "coverage",
+        description=(
+            "Informe de cobertura temporal de la cache de klines: fechas, % de velas presentes "
+            "y % de minutos con operaciones (solo lectura)."
+        ),
+    )
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument(
+        "--symbol", default=None, help="Simbolo de Binance, o varios separados por comas."
+    )
+    target.add_argument(
+        "--universe",
+        action="store_true",
+        help="Mide cada par en cada periodo del universo congelado.",
+    )
+    parser.add_argument(
+        "--universe-file",
+        default=DEFAULT_UNIVERSE_FILE,
+        help="YAML del universo (relativo a configs/); solo con --universe.",
+    )
+    parser.add_argument(
+        "--interval", default=DEFAULT_INTERVAL, help="Intervalo de las velas (por defecto 1m)."
+    )
+    parser.add_argument("--base-dir", default=DEFAULT_BASE_DIR, help="Carpeta de la cache.")
+    parser.add_argument(
+        "--start",
+        default=None,
+        help="Inicio del rango, YYYY-MM-DD en UTC; solo con --symbol y junto a --end.",
+    )
+    parser.add_argument(
+        "--end",
+        default=None,
+        help="Fin del rango, YYYY-MM-DD en UTC, inclusivo; solo con --symbol y junto a --start.",
+    )
+    parser.add_argument(
+        "--output", default=None, help="Ruta de un Parquet donde guardar el informe."
+    )
+
+
 def _add_pairs_parser(subparsers: argparse._SubParsersAction) -> None:
     """Anade el subcomando `pairs`."""
     parser = subparsers.add_parser("pairs", description="Lista el catalogo de pares de Binance.")
@@ -163,6 +208,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     _add_download_parser(subparsers)
     _add_validate_parser(subparsers)
+    _add_coverage_parser(subparsers)
     _add_pairs_parser(subparsers)
     _add_universe_parser(subparsers)
     return parser
@@ -342,6 +388,128 @@ def _run_validate(args: argparse.Namespace) -> int:
     return 1 if (has_errors or uncached) else 0
 
 
+def _log_symbol_coverage(report: pd.DataFrame, interval: str) -> None:
+    """Loguea una linea por simbolo con su % de velas presentes y de minutos con operaciones."""
+    for row in report.itertuples(index=False):
+        logger.info(
+            "%s %s: %.2f %% presente, %.2f %% con operaciones, %d huecos (%s a %s)",
+            row.symbol,
+            interval,
+            row.coverage_pct,
+            row.traded_pct,
+            row.n_gaps,
+            row.first_open,
+            row.last_open,
+        )
+
+
+def _log_period_coverage(report: pd.DataFrame, interval: str) -> None:
+    """Loguea una linea por periodo del universo con la mediana y el minimo de cobertura."""
+    for period_start, group in report.groupby("period_start", sort=True):
+        weakest = (
+            group.loc[group["traded_pct"].idxmin()] if group["traded_pct"].notna().any() else None
+        )
+        logger.info(
+            "Periodo %s %s: %d pares, presente mediana %.2f %% (min %.2f %%), "
+            "con operaciones mediana %.2f %% (min %.2f %%%s)",
+            period_start.date(),
+            interval,
+            len(group),
+            group["coverage_pct"].median(),
+            group["coverage_pct"].min(),
+            group["traded_pct"].median(),
+            group["traded_pct"].min(),
+            "" if weakest is None else f", {weakest['symbol']}",
+        )
+
+
+def _run_coverage(args: argparse.Namespace) -> int:
+    """Subcomando `coverage`: informe; 2 si los argumentos no valen, 1 si faltan velas."""
+    # Fin exclusivo (ultimo ms cerrado + 1): la vela en curso no cuenta como esperada.
+    last_closed = _last_closed_ms(args.interval, _to_ms(_utc_now()))
+    if last_closed is None:
+        logger.error("El intervalo %s no tiene duracion fija: no hay cobertura", args.interval)
+        return 2
+    closed_end_ms = last_closed + 1
+    if args.universe and (args.start is not None or args.end is not None):
+        logger.error("--start y --end solo se usan con --symbol")
+        return 2
+    if not args.universe and args.universe_file != DEFAULT_UNIVERSE_FILE:
+        logger.error("--universe-file solo se usa con --universe")
+        return 2
+
+    start_ms = end_ms = None
+    if not args.universe:
+        symbols = _parse_symbols(args.symbol)
+        if not symbols:
+            logger.error("--symbol no contiene ningun simbolo")
+            return 2
+        if (args.start is None) != (args.end is None):
+            logger.error("--start y --end se dan juntos o ninguno")
+            return 2
+        if args.start is not None:
+            try:
+                start_ms = _day_start_ms(args.start)
+                # Fin exclusivo: inicio del dia siguiente al de --end, que es inclusivo.
+                end_ms = _day_start_ms(args.end) + DAY_MS
+            except ValueError as exc:
+                logger.error("Fecha invalida, se espera YYYY-MM-DD: %s", exc)
+                return 2
+            # Un fin en el futuro se recorta a la ultima vela cerrada.
+            end_ms = min(end_ms, closed_end_ms)
+            if start_ms >= end_ms:
+                logger.error("El inicio es posterior al fin (o a la ultima vela cerrada): vacio")
+                return 2
+
+    try:
+        if args.universe:
+            universe = load_universe(args.universe_file)
+            # "Ahora" solo recorta periodos en curso; el informe describe, no selecciona pares.
+            report = universe_coverage(
+                universe, args.interval, base_dir=args.base_dir, now_ms=closed_end_ms
+            )
+            if report.empty:
+                logger.error("El informe del universo no tiene filas: periodos futuros o vacio")
+                return 1
+            _log_period_coverage(report, args.interval)
+        else:
+            report = coverage_report(
+                symbols, args.interval, base_dir=args.base_dir, start_ms=start_ms, end_ms=end_ms
+            )
+            _log_symbol_coverage(report, args.interval)
+    except (ConfigError, yaml.YAMLError) as exc:
+        logger.error("Universo no valido: %s", exc)
+        return 2
+    except ValueError as exc:
+        logger.error("Simbolo, intervalo o rango no valido: %s", exc)
+        return 2
+
+    uncached = report.loc[report["present"] == 0]
+    if not uncached.empty:
+        if args.universe:
+            examples = [
+                f"{row.period_start.date()}:{row.symbol}"
+                for row in uncached.head(_MAX_UNCACHED_EXAMPLES).itertuples(index=False)
+            ]
+            extra = len(uncached) - len(examples)
+            logger.error(
+                "%d pares-periodo sin velas: %s%s",
+                len(uncached),
+                ", ".join(examples),
+                f" y {extra} mas" if extra > 0 else "",
+            )
+        else:
+            logger.error("Sin velas en el rango: %s", ", ".join(dict.fromkeys(uncached["symbol"])))
+    if args.output is not None:
+        try:
+            write_parquet(report, args.output)
+        except OSError as exc:
+            logger.error("No se pudo escribir %s: %s", args.output, exc)
+            return 1
+        logger.info("Informe guardado en %s", args.output)
+    return 1 if not uncached.empty else 0
+
+
 def _run_pairs(args: argparse.Namespace) -> int:
     """Subcomando `pairs`: lista el catalogo de pares; devuelve 1 si falla la llamada HTTP."""
     try:
@@ -394,6 +562,7 @@ def _run_universe(args: argparse.Namespace) -> int:
 _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "download": _run_download,
     "validate": _run_validate,
+    "coverage": _run_coverage,
     "pairs": _run_pairs,
     "universe": _run_universe,
 }

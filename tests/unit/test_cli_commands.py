@@ -1,4 +1,4 @@
-"""Tests de los subcomandos de la CLI de ingesta (`download`, `validate`, `pairs`, `universe`)."""
+"""Tests de los subcomandos de la CLI de ingesta (download, validate, coverage, pairs, universe)."""
 
 from __future__ import annotations
 
@@ -578,3 +578,467 @@ def test_universe_failure_paths_print_nothing_to_stdout(
     monkeypatch.setattr(cli, "build_universe", boom)
     assert cli.main(_universe_argv(good, out)) == 1
     assert capsys.readouterr().out == ""
+
+
+# --- coverage ---
+
+COVERAGE_NOW = datetime(2026, 1, 1, 10, 30, 0, tzinfo=UTC)  # la vela de las 10:00 sigue en curso
+
+
+@pytest.fixture
+def coverage_clock(monkeypatch: pytest.MonkeyPatch) -> datetime:
+    """Fija el reloj de la CLI en `COVERAGE_NOW` para que la vela en curso sea reproducible."""
+    monkeypatch.setattr(cli, "_utc_now", lambda: COVERAGE_NOW)
+    return COVERAGE_NOW
+
+
+def _coverage(root: Path, *extra: str, symbol: str = SYMBOL) -> int:
+    """Ejecuta `coverage --symbol` sobre la cache horaria de `root`."""
+    argv = ["coverage", "--symbol", symbol, "--interval", "1h", "--base-dir", str(root), *extra]
+    return cli.main(argv)
+
+
+def _universe_yaml(path: Path, periods: list[tuple[str, str, list[str]]]) -> Path:
+    """Escribe un universo congelado minimo con (inicio, fin, simbolos) por periodo."""
+    document = {
+        "periods": [
+            {
+                "period_start": start,
+                "period_end": end,
+                "pairs": [
+                    {
+                        "symbol": symbol,
+                        "category": "l1",
+                        "median_quote_volume": 5e7,
+                        "first_candle": "2020-01-01",
+                    }
+                    for symbol in symbols
+                ],
+            }
+            for start, end, symbols in periods
+        ]
+    }
+    path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    return path
+
+
+def _coverage_universe(root: Path, universe_file: Path, *extra: str, interval: str = "1h") -> int:
+    """Ejecuta `coverage --universe` con el YAML y la cache indicados."""
+    argv = [
+        "coverage",
+        "--universe",
+        "--universe-file",
+        str(universe_file),
+        "--interval",
+        interval,
+        "--base-dir",
+        str(root),
+        *extra,
+    ]
+    return cli.main(argv)
+
+
+def _info_messages(logs: _ListHandler) -> list[str]:
+    """Mensajes de nivel INFO guardados por el handler."""
+    return [m for level, m in logs.records if level == logging.INFO]
+
+
+def test_coverage_healthy_cache_returns_zero_and_logs_percentages(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Una cache completa da 0 y el log lleva el % presente y el % con operaciones."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path) == 0
+    summary = [m for m in _info_messages(logs) if m.startswith(SYMBOL)]
+    assert len(summary) == 1
+    assert "100.00 % presente" in summary[0]
+    assert "100.00 % con operaciones" in summary[0]
+    assert not logs.errors
+
+
+def test_coverage_symbol_without_cache_returns_one_and_logs_error(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Un simbolo sin cache da codigo 1 y un error con su nombre."""
+    assert _coverage(tmp_path, symbol="ETHUSDT") == 1
+    assert any("ETHUSDT" in m for m in logs.errors)
+
+
+def test_coverage_multiple_symbols_one_without_cache_returns_one(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Con varios simbolos, uno sin cache basta para devolver 1, y solo se nombra ese."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path, symbol="BTCUSDT,ETHUSDT") == 1
+    assert any("ETHUSDT" in m for m in logs.errors)
+    assert not any("BTCUSDT" in m for m in logs.errors)
+
+
+def test_coverage_prints_nothing_to_stdout(
+    tmp_path: Path, coverage_clock: datetime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Ni el caso feliz ni los errores escriben en stdout."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path) == 0
+    assert _coverage(tmp_path, symbol="ETHUSDT") == 1
+    assert _coverage(tmp_path, "--start", "2026-01-01") == 2
+    assert capsys.readouterr().out == ""
+
+
+def test_coverage_symbol_list_is_uppercased_and_deduplicated(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """La lista de simbolos se normaliza como en validate: mayusculas y sin repetidos."""
+    _cache(tmp_path, _frame(_times(5)))
+    out = tmp_path / "cov.parquet"
+    assert _coverage(tmp_path, "--output", str(out), symbol="btcusdt, BTCUSDT") == 0
+    assert list(read_parquet(out)["symbol"]) == ["BTCUSDT"]
+
+
+def test_coverage_output_writes_readable_parquet(tmp_path: Path, coverage_clock: datetime) -> None:
+    """`--output` guarda el informe con las columnas de cobertura."""
+    frame = _frame(_times(5))
+    frame.loc[1, "num_trades"] = 0
+    frame.loc[3, "num_trades"] = 0
+    _cache(tmp_path, frame)
+    out = tmp_path / "salida" / "cov.parquet"
+    assert _coverage(tmp_path, "--output", str(out)) == 0
+    result = read_parquet(out)
+    assert list(result["symbol"]) == [SYMBOL]
+    assert result.loc[0, "expected"] == 5
+    assert result.loc[0, "present"] == 5
+    assert result.loc[0, "traded_pct"] == pytest.approx(60.0)
+    assert result.loc[0, "coverage_pct"] == pytest.approx(100.0)
+
+
+def test_coverage_output_is_written_even_when_returning_one(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """Con un simbolo sin cache el codigo es 1 pero el Parquet se escribe igualmente."""
+    _cache(tmp_path, _frame(_times(5)))
+    out = tmp_path / "cov.parquet"
+    assert _coverage(tmp_path, "--output", str(out), symbol="BTCUSDT,ETHUSDT") == 1
+    result = read_parquet(out)
+    assert list(result["symbol"]) == ["BTCUSDT", "ETHUSDT"]
+    assert list(result["present"]) == [5, 0]
+
+
+def test_coverage_output_write_failure_returns_one(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Si `--output` cuelga de un fichero, la escritura falla con codigo 1 y un error."""
+    _cache(tmp_path, _frame(_times(5)))
+    blocker = tmp_path / "es_un_fichero"
+    blocker.write_text("x", encoding="utf-8")
+    assert _coverage(tmp_path, "--output", str(blocker / "cov.parquet")) == 1
+    assert logs.errors
+
+
+def test_coverage_range_measures_borders(tmp_path: Path, coverage_clock: datetime) -> None:
+    """Con `--start/--end` se miden los bordes: 5 velas de las 10 cerradas el 1-ene."""
+    _cache(tmp_path, _frame(_times(5)))
+    out = tmp_path / "cov.parquet"
+    code = _coverage(tmp_path, "--start", "2026-01-01", "--end", "2026-01-01", "--output", str(out))
+    assert code == 0
+    row = read_parquet(out).iloc[0]
+    # El dia entero acaba tras la ultima vela cerrada (10:00): quedan 10 ranuras, no 24.
+    assert row["expected"] == 10
+    assert row["present"] == 5
+    assert row["missing_before"] == 0
+    assert row["missing_after"] == 5
+
+
+def test_coverage_future_end_is_clipped_to_last_closed_candle(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """Un `--end` en el futuro no cuenta velas futuras como ausentes."""
+    _cache(tmp_path, _frame(_times(10)))
+    out = tmp_path / "cov.parquet"
+    code = _coverage(tmp_path, "--start", "2026-01-01", "--end", "2030-01-01", "--output", str(out))
+    assert code == 0
+    row = read_parquet(out).iloc[0]
+    assert row["expected"] == 10
+    assert row["present"] == 10
+    assert row["missing_after"] == 0
+    assert row["coverage_pct"] == pytest.approx(100.0)
+
+
+def test_coverage_open_candle_is_neither_expected_nor_present(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """Con rango, la vela en curso (10:00) esta en cache pero no es presente ni esperada."""
+    _cache(tmp_path, _frame(_times(11)))  # 00:00 a 10:00, la ultima aun sin cerrar
+    out = tmp_path / "cov.parquet"
+    code = _coverage(tmp_path, "--start", "2026-01-01", "--end", "2026-01-01", "--output", str(out))
+    assert code == 0
+    row = read_parquet(out).iloc[0]
+    assert row["expected"] == 10
+    assert row["present"] == 10
+
+
+def test_coverage_range_in_the_future_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Si el rango queda vacio tras recortar a la ultima vela cerrada, codigo 2."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path, "--start", "2026-01-02", "--end", "2026-01-03") == 2
+    assert logs.errors
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("--start", "2026-01-01"),
+        ("--end", "2026-01-01"),
+        ("--start", "01/01/2026", "--end", "2026-01-02"),
+        ("--start", "2026-01-01", "--end", "manana"),
+        ("--start", "2026-01-03", "--end", "2026-01-02"),
+    ],
+)
+def test_coverage_invalid_dates_return_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler, extra: tuple[str, ...]
+) -> None:
+    """Un solo extremo, una fecha mal escrita o un rango invertido dan 2 con error en el log."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path, *extra) == 2
+    assert logs.errors
+
+
+def test_coverage_monthly_interval_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """`1M` no tiene duracion fija: codigo 2 y error en el log."""
+    argv = ["coverage", "--symbol", SYMBOL, "--interval", "1M", "--base-dir", str(tmp_path)]
+    assert cli.main(argv) == 2
+    assert logs.errors
+
+
+def test_coverage_monthly_interval_with_universe_returns_two(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """`1M` tambien se rechaza con `--universe`."""
+    universe_file = _universe_yaml(tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", ["AUSDT"])])
+    assert _coverage_universe(tmp_path, universe_file, interval="1M") == 2
+
+
+@pytest.mark.parametrize("symbol", [",", " , ", ""])
+def test_coverage_empty_symbol_list_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler, symbol: str
+) -> None:
+    """Una lista de simbolos sin ningun simbolo da 2."""
+    assert _coverage(tmp_path, symbol=symbol) == 2
+    assert logs.errors
+
+
+@pytest.mark.parametrize("symbol", ["../x", "a/b", "BTC USDT"])
+def test_coverage_invalid_symbol_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler, symbol: str
+) -> None:
+    """Un simbolo con caracteres no validos da 2 y un error en el log, sin traceback."""
+    assert _coverage(tmp_path, symbol=symbol) == 2
+    assert logs.errors
+
+
+def test_coverage_requires_symbol_or_universe() -> None:
+    """Sin `--symbol` ni `--universe` argparse sale con 2."""
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["coverage"])
+    assert exit_info.value.code == 2
+
+
+def test_coverage_symbol_and_universe_are_mutually_exclusive() -> None:
+    """`--symbol` y `--universe` a la vez: argparse sale con 2."""
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["coverage", "--symbol", SYMBOL, "--universe"])
+    assert exit_info.value.code == 2
+
+
+def test_coverage_universe_file_without_universe_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Un `--universe-file` distinto del de por defecto sin `--universe` da 2."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path, "--universe-file", str(tmp_path / "otro.yaml")) == 2
+    assert logs.errors
+
+
+def test_coverage_default_universe_file_is_accepted_with_symbol(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """Pasar explicitamente el fichero de universo por defecto con `--symbol` no es un error."""
+    _cache(tmp_path, _frame(_times(5)))
+    assert _coverage(tmp_path, "--universe-file", "universe.yaml") == 0
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("--start", "2026-01-01", "--end", "2026-01-01"),
+        ("--start", "2026-01-01"),
+        ("--end", "2026-01-01"),
+    ],
+)
+def test_coverage_range_with_universe_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler, extra: tuple[str, ...]
+) -> None:
+    """`--start` y/o `--end` junto a `--universe` dan 2."""
+    universe_file = _universe_yaml(tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", ["AUSDT"])])
+    assert _coverage_universe(tmp_path, universe_file, *extra) == 2
+    assert logs.errors
+
+
+def test_coverage_universe_reports_each_pair_and_period(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """`--universe` mide cada par en su periodo, con la vela en curso fuera de lo esperado."""
+    # Periodo 1 en curso (hasta 2026-01-02); periodo 2 futuro: no entra en el informe.
+    universe_file = _universe_yaml(
+        tmp_path / "u.yaml",
+        [("2026-01-01", "2026-01-02", ["AUSDT", "BUSDT"]), ("2026-01-02", "2026-01-03", ["AUSDT"])],
+    )
+    save_klines(_frame(_times(11)), "AUSDT", "1h", base_dir=tmp_path)  # incluye la vela en curso
+    save_klines(_frame(_times(6)), "BUSDT", "1h", base_dir=tmp_path)
+    out = tmp_path / "cov.parquet"
+    assert _coverage_universe(tmp_path, universe_file, "--output", str(out)) == 0
+    result = read_parquet(out)
+    assert list(result["symbol"]) == ["AUSDT", "BUSDT"]
+    assert list(result["expected"]) == [10, 10]
+    assert list(result["present"]) == [10, 6]
+    assert list(result["missing_after"]) == [0, 4]
+    assert {"period_start", "period_end", "category"} <= set(result.columns)
+    assert any(m.startswith("Periodo 2026-01-01") for m in _info_messages(logs))
+    assert not any(m.startswith("Periodo 2026-01-02") for m in _info_messages(logs))
+
+
+def test_coverage_universe_default_file_is_universe_yaml(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """Sin `--universe-file` se lee `universe.yaml` (relativo a configs/)."""
+    seen: list[object] = []
+
+    def fake_load(path: object) -> pd.DataFrame:
+        seen.append(path)
+        return pd.DataFrame(columns=["period_start", "period_end", "symbol", "category"])
+
+    monkeypatch.setattr(cli, "load_universe", fake_load)
+    cli.main(["coverage", "--universe", "--interval", "1h", "--base-dir", str(tmp_path)])
+    assert seen == ["universe.yaml"]
+
+
+def test_coverage_universe_with_only_future_periods_returns_one(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Si todos los periodos son futuros el informe queda vacio: codigo 1 y error en el log."""
+    universe_file = _universe_yaml(tmp_path / "u.yaml", [("2026-01-02", "2026-01-03", ["AUSDT"])])
+    assert _coverage_universe(tmp_path, universe_file) == 1
+    assert logs.errors
+
+
+def test_coverage_universe_without_pairs_returns_one(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Un universo sin pares (periodos con `pairs: []`) tambien da un informe vacio: codigo 1."""
+    universe_file = _universe_yaml(tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", [])])
+    assert _coverage_universe(tmp_path, universe_file) == 1
+    assert logs.errors
+
+
+def test_coverage_universe_pairs_without_candles_warn_with_at_most_ten_examples(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Con 12 pares-periodo sin velas el aviso da 10 ejemplos `periodo:simbolo` y 'y 2 mas'."""
+    symbols = [f"S{i:02d}USDT" for i in range(12)]
+    universe_file = _universe_yaml(tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", symbols)])
+    assert _coverage_universe(tmp_path, universe_file) == 1
+    messages = [m for m in logs.errors if "sin velas" in m]
+    assert len(messages) == 1
+    message = messages[0]
+    assert "12 pares-periodo sin velas" in message
+    assert message.count("2026-01-01:S") == 10
+    assert "2026-01-01:S09USDT" in message
+    assert "S10USDT" not in message
+    assert message.endswith("y 2 mas")
+
+
+def test_coverage_universe_few_pairs_without_candles_have_no_and_more_suffix(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Con 3 pares sin velas se listan los tres y no aparece 'y N mas'."""
+    universe_file = _universe_yaml(
+        tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", ["AUSDT", "BUSDT", "CUSDT"])]
+    )
+    assert _coverage_universe(tmp_path, universe_file) == 1
+    message = next(m for m in logs.errors if "sin velas" in m)
+    assert "3 pares-periodo sin velas" in message
+    for symbol in ("AUSDT", "BUSDT", "CUSDT"):
+        assert f"2026-01-01:{symbol}" in message
+    assert " mas" not in message
+
+
+def test_coverage_universe_partial_missing_returns_one_and_writes_output(
+    tmp_path: Path, coverage_clock: datetime
+) -> None:
+    """Con un par con velas y otro sin ellas el codigo es 1 y el Parquet se escribe."""
+    universe_file = _universe_yaml(
+        tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", ["AUSDT", "BUSDT"])]
+    )
+    save_klines(_frame(_times(10)), "AUSDT", "1h", base_dir=tmp_path)
+    out = tmp_path / "cov.parquet"
+    assert _coverage_universe(tmp_path, universe_file, "--output", str(out)) == 1
+    assert list(read_parquet(out)["present"]) == [10, 0]
+
+
+def test_coverage_universe_missing_file_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Un YAML de universo inexistente es ConfigError: codigo 2."""
+    assert _coverage_universe(tmp_path, tmp_path / "nope.yaml") == 2
+    assert logs.errors
+
+
+def test_coverage_universe_broken_yaml_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Un YAML de universo con sintaxis rota da 2, sin traceback."""
+    broken = tmp_path / "roto.yaml"
+    broken.write_text("periods: [unclosed\n", encoding="utf-8")
+    assert _coverage_universe(tmp_path, broken) == 2
+    assert logs.errors
+
+
+def test_coverage_universe_malformed_yaml_returns_two(
+    tmp_path: Path, coverage_clock: datetime, logs: _ListHandler
+) -> None:
+    """Un YAML valido pero sin la lista `periods` da 2."""
+    malformed = tmp_path / "mal.yaml"
+    malformed.write_text("foo: bar\n", encoding="utf-8")
+    assert _coverage_universe(tmp_path, malformed) == 2
+    assert logs.errors
+
+
+def test_coverage_universe_prints_nothing_to_stdout(
+    tmp_path: Path, coverage_clock: datetime, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Ni el informe del universo ni sus errores escriben en stdout."""
+    universe_file = _universe_yaml(tmp_path / "u.yaml", [("2026-01-01", "2026-01-02", ["AUSDT"])])
+    save_klines(_frame(_times(10)), "AUSDT", "1h", base_dir=tmp_path)
+    assert _coverage_universe(tmp_path, universe_file) == 0
+    assert _coverage_universe(tmp_path, tmp_path / "nope.yaml") == 2
+    assert capsys.readouterr().out == ""
+
+
+def test_coverage_help_lists_its_options(capsys: pytest.CaptureFixture[str]) -> None:
+    """`coverage --help` lista sus opciones y sale con 0."""
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["coverage", "--help"])
+    assert exit_info.value.code == 0
+    help_text = capsys.readouterr().out
+    for option in ("--symbol", "--universe", "--universe-file", "--start", "--end", "--output"):
+        assert option in help_text
+
+
+def test_download_help_mentions_coverage(capsys: pytest.CaptureFixture[str]) -> None:
+    """La descripcion de `download` cita el subcomando `coverage`."""
+    with pytest.raises(SystemExit):
+        cli.main(["download", "--help"])
+    assert "coverage" in capsys.readouterr().out
