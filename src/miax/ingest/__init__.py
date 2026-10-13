@@ -1,5 +1,6 @@
 """Descarga y cacheo de datos desde Binance."""
 
+from miax.ingest.coverage import coverage_from_frame, coverage_report, universe_coverage
 from miax.ingest.exchange_info import fetch_exchange_info, list_pairs, pairs_from_exchange_info
 from miax.ingest.http import ClientError, HttpClient, HttpError, RetriesExhaustedError
 from miax.ingest.integrity import check_klines_frame, find_gaps, validate_klines
@@ -38,6 +39,8 @@ __all__ = [
     "cached_last_open_time",
     "candle_offset_ms",
     "check_klines_frame",
+    "coverage_from_frame",
+    "coverage_report",
     "diversify_universe",
     "download_klines",
     "fetch_exchange_info",
@@ -57,6 +60,7 @@ __all__ = [
     "prefilter_by_category",
     "save_klines",
     "select_period_universe",
+    "universe_coverage",
     "universe_periods",
     "update_symbol",
     "validate_klines",

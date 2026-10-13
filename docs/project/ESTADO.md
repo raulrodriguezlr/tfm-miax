@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
-| Alonso | MIAX-028 | `feature/MIAX-028` | 2026-10-12 | en review |
+| Alonso | MIAX-030 | `feature/MIAX-030` | 2026-10-13 | en review |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
 
@@ -77,6 +77,14 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-13 · Alonso · MIAX-030
+- **Hecho:** `miax.ingest.coverage` con `coverage_from_frame(candles, interval, start_ms=None, end_ms=None) -> dict` (pura), `coverage_report(symbols, interval, *, base_dir, start_ms=None, end_ms=None) -> pd.DataFrame` (una fila por símbolo, también si no hay caché) y `universe_coverage(universe, interval, *, base_dir, now_ms=None) -> pd.DataFrame` (cada par en cada periodo de `load_universe()`). Columnas (`COVERAGE_COLUMNS`): `symbol`, `first_open`, `last_open`, `expected`, `present`, `coverage_pct`, `traded_pct` (% de minutos con `num_trades > 0` sobre los esperados), `n_gaps`, `max_gap_candles`, `missing_before`, `missing_after`. Exportadas desde `miax.ingest`. Subcomando `python -m miax.ingest coverage (--symbol A,B | --universe) [--universe-file] [--interval] [--base-dir] [--start --end] [--output]`: sale con 2 si los argumentos no valen, 1 si algún símbolo no tiene velas en el rango (o falla `--output`), 0 si no.
+- **Decisión:** con rango, la cobertura se mide sobre la rejilla del intervalo en `[start, end)` (esperadas = ranuras de la rejilla), y `missing_before`/`missing_after` cuentan las ranuras vacías antes de la primera y después de la última vela: así una serie cortada (BCC 2019, BCHABC 2020, LUNA 2022) sale con `missing_after` alto aunque no tenga huecos internos. Sin rango, el rango es de la primera a la última vela y los extremos valen 0. Los huecos internos reutilizan `find_gaps` de `integrity.py`. `1M` y otros intervalos sin paso fijo dan `ValueError` (código 2 en la CLI).
+- **Ojo:** `universe_coverage` es un informe **descriptivo**: mide el propio periodo, así que no debe usarse para elegir los pares de ese mismo periodo (sería mirar al futuro, D-14). `now_ms` recorta el periodo en curso y omite los futuros.
+- **Ojo (suelo de 5 M):** `traded_pct` es la medida pedida en la nota de MIAX-028 para validar el suelo de liquidez (efecto Epps). Aún no hay velas descargadas, así que el informe del universo real no se ha podido ejecutar; hace falta la descarga del universo (fuera de este ticket).
+- **Prueba de humo real (2026-10-13):** velas de 1m descargadas de Binance a una carpeta temporal y `python -m miax.ingest coverage` sobre ellas. `LUNAUSDT` abr–jun 2022: 104.800 de 131.040 velas (80 %), **un hueco de 26.240 velas (~18 días) a mediados de mayo**, tras el que la serie vuelve ya como Terra 2.0 con el mismo símbolo: el informe lo detecta. `BTCUSDT` (una semana de 2024): 100 % presente y 100 % con operaciones. `ARUSDT` ene-2023 (el par más débil del universo de 2023, 5,1 M): 100 % presente pero **solo 95,07 % de minutos con operaciones**, justo en el límite del criterio del 95 % propuesto para el suelo de 5 M. `--universe` sobre esa caché parcial: 241 de 244 pares-periodo sin velas, código 1 (correcto).
+- **Pendiente:** ejecutar `coverage --universe` cuando haya caché y decidir con `traded_pct` si el suelo de 5 M se mantiene o se cambia el criterio.
 
 ### 2026-10-13 · Alonso · MIAX-028
 - **Hecho:** universo **por periodos** congelado en un fichero. `configs/universe_params.yaml` (parámetros) y, en `miax.ingest.universe`: `UniverseParams`, `UniversePeriod`, `load_universe_params(path="universe_params.yaml")` (valida y lanza `ConfigError`), `universe_periods(params) -> list[UniversePeriod]`, `select_period_universe(pairs, first_candles, volumes, categories, period, params) -> pd.DataFrame` (pura: antigüedad, volumen, diversificación), `write_universe(universes, params, path="universe.yaml", *, generated_at=None) -> Path` (YAML atómico, tipos nativos) y `load_universe(path="universe.yaml") -> pd.DataFrame` (una fila por par y periodo). `build_universe(params, categories, *, client, now_ms, base_url=...) -> list[tuple[UniversePeriod, pd.DataFrame]]` orquesta la descarga (catálogo, primeras velas, volúmenes por ventana) sin escribir. Todo exportado desde `miax.ingest`. El subcomando `python -m miax.ingest universe [--params] [--out] [--base-url]` (con red) llama a `build_universe` y escribe `configs/universe.yaml`.
