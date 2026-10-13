@@ -12,6 +12,7 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
+| Alonso | MIAX-032 (y MIAX-030, MIAX-031) | `feature/MIAX-032` | 2026-10-13 | en review |
 | Alonso | MIAX-031 (y MIAX-030) | `feature/MIAX-031` | 2026-10-13 | en review |
 | Alonso | MIAX-030 | `feature/MIAX-030` | 2026-10-13 | en review |
 
@@ -79,6 +80,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-13 · Alonso · MIAX-032
+- **Hecho:** los tests de ingesta corren sin red. `scripts/dev/record_fixtures.py` graba (una vez, con red) cuatro fixtures crudos en `tests/fixtures/binance/` (BTCUSDT 1m de 2024-03-01, los bordes del hueco de LUNAUSDT de mayo de 2022, velas 1d de 7 símbolos con su primera vela y oct-dic de 2023, y `exchangeInfo` recortado a 15 símbolos); su README dice de dónde sale cada uno y cómo regenerarlos. `tests/fakes/binance.py` (`FakeBinance`) los sirve como la API real (`/klines` filtra por símbolo, intervalo, rango inclusivo y `limit`; `/exchangeInfo`), con la cabecera `X-MBX-USED-WEIGHT-1M`, registro de peticiones y errores programables (`schedule_error`); se engancha parcheando `requests.Session.get`, sin tocar el código de producción. `tests/integration/test_ingest_offline.py` prueba la CLI real (`download`, `validate`, `pairs`, `universe`): día completo de BTC, reanudación, validación limpia, aviso de hueco de LUNAUSDT, filtro de pares en BREAK, 429 con `Retry-After` y universo de 2024 con EOS (BREAK) evaluado como los demás (D-13) y USDC fuera.
+- **Decisión:** el falso vive en `tests/fakes/` (reutilizable por otros tests de integración) y el test lo carga por su ruta, porque el modo `importlib` de pytest no mete `tests/` en `sys.path`. Un símbolo sin fixture responde 400 `Invalid symbol` en vez de una lista vacía, para que un test mal montado falle en lugar de pasar en vacío.
+- **Decisión:** `tests/conftest.py` apunta `HTTP_PROXY`/`HTTPS_PROXY` (y minúsculas) a `http://127.0.0.1:9` y quita `NO_PROXY`, para tapar el agujero de los subprocesos: uno con `requests` falla al instante en local. No cubre sockets crudos en subprocesos (queda dicho en el comentario).
+- **Ojo:** los fixtures son una foto del 2026-10-13: `exchange_info.json` cambia con el tiempo (estados de los pares) y los tests se apoyan en su contenido, no en nombres concretos de extras; si se regeneran, revisar el diff. El falso no inventa velas: en 1d solo sirve la primera vela y oct-dic de 2023, así que una consulta fuera de esa ventana devuelve menos de lo que daría Binance.
+- **Ojo:** relanzar una descarga cuyo último minuto es el final del rango hace una petición de `/klines` que vuelve vacía (la reanudación pide desde `last + 1 ms`, que sigue dentro del rango). No baja velas ni repite lo ya cacheado, pero no es «ninguna llamada»; el test lo comprueba así. Mejorable en `update_symbol`, fuera de este ticket.
+- **Pendiente:** con esto la Épica 1 queda completa a falta de mergear MIAX-030, 031 y 032; la release v0.2.0 la hace quien mergee el último.
 ### 2026-10-13 · Alonso · MIAX-031
 - **Hecho:** `docs/datos/sesgo-supervivencia.md` (qué es el riesgo, lo medido, qué está corregido, qué pares faltan y por qué, cómo reproducir las cifras) y corrección de la fila del riesgo 8 del README. Ticket solo de documentación, sin código.
 - **Ojo:** la premisa original (la API no sirve deslistados) era falsa. El sesgo de supervivencia dentro de Binance está corregido en lo esencial: el 2026-10-13 se consultó la primera vela de los 254 pares USDT en `BREAK` y los 254 devuelven velas (medido, 0 sin velas), solo `NBTUSDT` falta en `exchangeInfo`, y 12 de los 104 símbolos del universo están hoy en `BREAK`. Lo residual (activos sin par USDT en 2017-2018, sesgo de exchange, renombrados, series cortadas, categorías con la visión de hoy) está listado en el documento. Cifras del 2026-10-13.
