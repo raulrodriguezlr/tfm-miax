@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 from collections.abc import Iterator, Mapping, Sequence
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -15,12 +17,22 @@ import yaml
 from miax.ingest import universe
 from miax.ingest.universe import (
     MAX_LOGGED_UNCATEGORIZED,
+    UNIVERSE_HEADER,
+    UniverseParams,
+    UniversePeriod,
     diversify_universe,
     filter_by_listing_age,
     filter_by_volume,
     first_candle_time,
     load_categories,
+    load_universe,
+    load_universe_params,
     median_daily_quote_volume,
+    period_candidates,
+    prefilter_by_category,
+    select_period_universe,
+    universe_periods,
+    write_universe,
 )
 from miax.utils.config import CONFIGS_DIR, ConfigError
 
@@ -795,3 +807,824 @@ def test_volume_filter_then_diversify_keeps_volume_order() -> None:
     out = diversify_universe(by_volume, CATEGORIES)
     assert list(out["base_asset"]) == ["B", "E", "D", "F", "A"]
     assert list(out["median_quote_volume"]) == [90.0, 70.0, 50.0, 30.0, 10.0]
+
+
+# --- MIAX-028: universo por periodos congelado en un fichero versionado ---
+
+PARAMS = UniverseParams(
+    quote_asset="USDT",
+    first_period_start="2018-01-01",
+    last_period_end="2026-10-01",
+    period_months=12,
+    volume_window_months=3,
+    min_listing_days=30,
+    min_quote_volume=10_000_000.0,
+    max_per_category=10,
+    max_pairs=50,
+    min_categories=4,
+    categories_file="categories.yaml",
+)
+WINDOW_START = DAY0 + 200 * DAY_MS
+PERIOD = UniversePeriod(
+    window_start_ms=WINDOW_START,
+    window_end_ms=WINDOW_START + 90 * DAY_MS - 1,
+    period_start_ms=WINDOW_START + 90 * DAY_MS,
+    period_end_ms=WINDOW_START + 455 * DAY_MS,
+)
+AGE_CUTOFF = WINDOW_START - PARAMS.min_listing_days * DAY_MS
+UNIVERSE_COLUMNS = [
+    "period_start",
+    "period_end",
+    "symbol",
+    "category",
+    "median_quote_volume",
+    "first_candle",
+]
+
+
+def _ms(text: str) -> int:
+    """Milisegundos UTC de una fecha ISO."""
+    return int((pd.Timestamp(text, tz="UTC") - pd.Timestamp(0, tz="UTC")) // pd.Timedelta("1ms"))
+
+
+def _params_file(tmp_path: Path, **overrides: object) -> Path:
+    """Escribe un universe_params.yaml en tmp_path con los valores base y los cambios dados."""
+    values = {**dataclasses.asdict(PARAMS), **overrides}
+    path = tmp_path / "params.yaml"
+    path.write_text(yaml.safe_dump(values, sort_keys=False), encoding="utf-8")
+    return path
+
+
+def _selection_inputs(
+    ages: Mapping[str, int] | None = None,
+) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    """Pares A..F + USDC, primeras velas (todas muy antiguas salvo `ages`) y volumen decreciente."""
+    assets = ["A", "B", "C", "D", "E", "F", "USDC"]
+    pairs = pd.DataFrame({"symbol": [f"{a}USDT" for a in assets], "base_asset": assets})
+    first = pd.Series({f"{a}USDT": DAY0 for a in assets}, dtype="Int64")
+    for symbol, value in (ages or {}).items():
+        first[symbol] = value
+    volumes = pd.Series({f"{a}USDT": 1e9 - i * 1e6 for i, a in enumerate(assets)})
+    return pairs, first, volumes
+
+
+def _universe_frame(rows: Sequence[tuple[str, str, float, int]]) -> pd.DataFrame:
+    """DataFrame de un universo con las columnas que escribe write_universe."""
+    return pd.DataFrame(
+        {
+            "symbol": [r[0] for r in rows],
+            "category": [r[1] for r in rows],
+            "median_quote_volume": [r[2] for r in rows],
+            "first_candle_ms": pd.array([r[3] for r in rows], dtype="Int64"),
+        }
+    )
+
+
+# load_universe_params
+
+
+def test_real_universe_params_load() -> None:
+    """El universe_params.yaml real carga con los valores acordados (suelo de 5 M y 40 pares)."""
+    expected = dataclasses.replace(PARAMS, min_quote_volume=5_000_000.0, max_pairs=40)
+    assert load_universe_params() == expected
+
+
+def test_load_universe_params_absolute_path(tmp_path: Path) -> None:
+    """Una ruta absoluta se lee tal cual y los tipos son los del esquema."""
+    params = load_universe_params(_params_file(tmp_path, max_pairs=7, min_quote_volume=5))
+    assert params.max_pairs == 7
+    assert params.min_quote_volume == 5
+    assert isinstance(params, UniverseParams)
+
+
+def test_load_universe_params_missing_file_raises(tmp_path: Path) -> None:
+    """Un fichero inexistente es ConfigError."""
+    with pytest.raises(ConfigError):
+        load_universe_params(tmp_path / "nope.yaml")
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("first_period_start", "2018/01/01"),
+        ("first_period_start", "2018-1-1"),
+        ("first_period_start", "20180101"),
+        ("first_period_start", "2018-13-01"),
+        ("first_period_start", "2018-02-30"),
+        ("last_period_end", "01-10-2026"),
+        ("last_period_end", "2026-10-01T00:00"),
+        ("first_period_start", "2026-10-01"),  # igual a last_period_end
+        ("first_period_start", "2027-01-01"),  # posterior a last_period_end
+        ("period_months", 0),
+        ("period_months", -3),
+        ("volume_window_months", 0),
+        ("min_listing_days", -1),
+        ("min_quote_volume", -0.01),
+        ("max_per_category", 0),
+        ("max_pairs", 0),
+        ("min_categories", 0),
+    ],
+)
+def test_load_universe_params_invalid_value_raises(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    """Cada validacion de load_universe_params lanza ConfigError."""
+    with pytest.raises(ConfigError):
+        load_universe_params(_params_file(tmp_path, **{field: value}))
+
+
+@pytest.mark.parametrize("literal", [".nan", ".inf", "-.inf"])
+def test_load_universe_params_non_finite_min_quote_volume_raises(
+    tmp_path: Path, literal: str
+) -> None:
+    """min_quote_volume nan o inf se rechaza (nan esquivaria la comparacion con el minimo)."""
+    path = _params_file(tmp_path)
+    text = path.read_text(encoding="utf-8").replace(
+        "min_quote_volume: 10000000.0", f"min_quote_volume: {literal}"
+    )
+    assert literal in text
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ConfigError, match="min_quote_volume"):
+        load_universe_params(path)
+
+
+def test_load_universe_params_boundary_values_are_accepted(tmp_path: Path) -> None:
+    """Los minimos exactos (0 dias, volumen 0, 1 mes...) son validos."""
+    path = _params_file(
+        tmp_path,
+        period_months=1,
+        volume_window_months=1,
+        min_listing_days=0,
+        min_quote_volume=0.0,
+        max_per_category=1,
+        max_pairs=1,
+        min_categories=1,
+        first_period_start="2018-01-01",
+        last_period_end="2018-01-02",
+    )
+    assert load_universe_params(path).min_listing_days == 0
+
+
+def test_load_universe_params_wrong_type_or_unknown_field_raises(tmp_path: Path) -> None:
+    """Un tipo equivocado o un campo desconocido son ConfigError (los valida load_config)."""
+    with pytest.raises(ConfigError):
+        load_universe_params(_params_file(tmp_path, period_months="doce"))
+    with pytest.raises(ConfigError):
+        load_universe_params(_params_file(tmp_path, extra_field=1))
+
+
+# universe_periods
+
+
+def test_universe_periods_real_params_give_nine_periods() -> None:
+    """Con los parametros reales hay 9 periodos (2018..2026) y el ultimo acaba el 2026-10-01."""
+    periods = universe_periods(PARAMS)
+    assert len(periods) == 9
+    assert [p.period_start_ms for p in periods] == [_ms(f"{y}-01-01") for y in range(2018, 2027)]
+    assert periods[-1].period_end_ms == _ms("2026-10-01")  # recortado
+    assert periods[0].period_end_ms == _ms("2019-01-01")
+
+
+def test_universe_periods_window_ends_one_ms_before_period_and_starts_three_months_before() -> None:
+    """ANTIFUGA: cada ventana acaba 1 ms antes de su periodo y empieza 3 meses antes."""
+    periods = universe_periods(PARAMS)
+    for period in periods:
+        assert period.window_end_ms == period.period_start_ms - 1
+        start = pd.Timestamp(period.period_start_ms, unit="ms", tz="UTC")
+        expected = start - pd.DateOffset(months=3)
+        assert period.window_start_ms == _ms(expected.strftime("%Y-%m-%d"))
+    assert periods[0].window_start_ms == _ms("2017-10-01")
+    assert periods[0].window_end_ms == _ms("2018-01-01") - 1
+
+
+def test_universe_periods_are_contiguous_and_ordered() -> None:
+    """El fin de cada periodo es el inicio del siguiente y el orden es creciente."""
+    periods = universe_periods(PARAMS)
+    for previous, current in pairwise(periods):
+        assert previous.period_end_ms == current.period_start_ms
+        assert previous.period_start_ms < current.period_start_ms
+    assert all(p.period_start_ms < p.period_end_ms for p in periods)
+
+
+def test_universe_periods_single_period_when_months_cover_the_range() -> None:
+    """Un period_months que cubre todo el rango da un unico periodo recortado (universo fijo)."""
+    periods = universe_periods(dataclasses.replace(PARAMS, period_months=120))
+    assert len(periods) == 1
+    assert periods[0].period_start_ms == _ms("2018-01-01")
+    assert periods[0].period_end_ms == _ms("2026-10-01")
+
+
+def test_universe_periods_last_period_is_trimmed() -> None:
+    """El ultimo periodo se recorta a last_period_end y no lo supera."""
+    params = dataclasses.replace(PARAMS, last_period_end="2019-04-01")
+    periods = universe_periods(params)
+    assert [p.period_end_ms for p in periods] == [_ms("2019-01-01"), _ms("2019-04-01")]
+
+
+def test_universe_periods_exact_multiple_has_no_empty_extra_period() -> None:
+    """Si el rango es multiplo exacto, no aparece un periodo vacio al final."""
+    periods = universe_periods(dataclasses.replace(PARAMS, last_period_end="2020-01-01"))
+    assert len(periods) == 2
+    assert periods[-1].period_end_ms == _ms("2020-01-01")
+
+
+def test_universe_periods_month_end_start_stays_contiguous() -> None:
+    """Un inicio en dia 31 con pasos mensuales no deja huecos entre periodos."""
+    params = dataclasses.replace(
+        PARAMS, first_period_start="2018-01-31", last_period_end="2018-06-30", period_months=1
+    )
+    periods = universe_periods(params)
+    for previous, current in pairwise(periods):
+        assert previous.period_end_ms == current.period_start_ms
+
+
+def test_universe_periods_are_deterministic() -> None:
+    """La misma entrada da la misma salida."""
+    assert universe_periods(PARAMS) == universe_periods(PARAMS)
+
+
+@pytest.mark.parametrize("field", ["period_months", "volume_window_months"])
+@pytest.mark.parametrize("value", [0, -1])
+def test_universe_periods_invalid_months_raise_value_error(field: str, value: int) -> None:
+    """Con parametros construidos a mano, meses < 1 lanzan ValueError."""
+    with pytest.raises(ValueError, match=field):
+        universe_periods(dataclasses.replace(PARAMS, **{field: value}))
+
+
+# period_candidates
+
+
+def test_period_candidates_cutoff_is_inclusive_and_one_ms_later_is_out() -> None:
+    """ANTIFUGA: primera vela == corte entra; un ms despues queda fuera; un ms antes entra."""
+    first = pd.Series(
+        {"ON": AGE_CUTOFF, "AFTER": AGE_CUTOFF + 1, "BEFORE": AGE_CUTOFF - 1}, dtype="Int64"
+    )
+    assert period_candidates(first, PERIOD, PARAMS) == ["ON", "BEFORE"]
+
+
+def test_period_candidates_drops_na_and_keeps_order() -> None:
+    """Los NA se descartan y el orden de entrada se conserva."""
+    first = pd.Series({"Z": DAY0, "M": pd.NA, "A": DAY0, "K": DAY0}, dtype="Int64")
+    assert period_candidates(first, PERIOD, PARAMS) == ["Z", "A", "K"]
+
+
+def test_period_candidates_empty_series() -> None:
+    """Una serie vacia da lista vacia."""
+    assert period_candidates(pd.Series({}, dtype="Int64"), PERIOD, PARAMS) == []
+
+
+def test_period_candidates_uses_window_start_not_period_start() -> None:
+    """La referencia es el inicio de la ventana: listado dentro de la ventana no es candidato."""
+    first = pd.Series({"IN_WINDOW": PERIOD.window_start_ms + DAY_MS}, dtype="Int64")
+    assert period_candidates(first, PERIOD, PARAMS) == []
+
+
+def test_period_candidates_matches_the_age_filter_of_select_period_universe() -> None:
+    """Los candidatos coinciden con los simbolos que pasa el filtro de antiguedad del periodo."""
+    pairs, first, _ = _selection_inputs({"AUSDT": AGE_CUTOFF + 1, "BUSDT": AGE_CUTOFF})
+    aged = filter_by_listing_age(pairs, first, PERIOD.window_start_ms, PARAMS.min_listing_days)
+    assert period_candidates(first, PERIOD, PARAMS) == list(aged["symbol"])
+
+
+# prefilter_by_category
+
+
+def test_prefilter_excludes_stablecoin_pegged_and_uncategorized() -> None:
+    """Quedan fuera stablecoins, pegged y activos sin categoria; el resto se conserva."""
+    out = prefilter_by_category(_cat_pairs(["A", "USDC", "WBTC", "ZZZ", "D"]), CATEGORIES)
+    assert list(out["base_asset"]) == ["A", "D"]
+
+
+def test_prefilter_normalizes_case_keeps_order_and_resets_index() -> None:
+    """Normaliza mayusculas (base y claves), conserva el orden y deja indice 0..n-1."""
+    pairs = pd.DataFrame(
+        {"symbol": ["dUSDT", "aUSDT", "eUSDT", "zUSDT"], "base_asset": ["d", "a", "E", "z"]}
+    )
+    out = prefilter_by_category(pairs, {" a ": "c1", "d": "c2", "E": "c3"})
+    assert list(out["symbol"]) == ["dUSDT", "aUSDT", "eUSDT"]
+    assert list(out.index) == [0, 1, 2]
+    assert list(out.columns) == ["symbol", "base_asset"]
+
+
+def test_prefilter_custom_excluded_categories() -> None:
+    """Con excluded_categories vacio, las stablecoins pasan."""
+    out = prefilter_by_category(_cat_pairs(["A", "USDC"]), CATEGORIES, excluded_categories=())
+    assert list(out["base_asset"]) == ["A", "USDC"]
+
+
+def test_prefilter_does_not_mutate_input_and_empty_ok() -> None:
+    """No muta la entrada y un DataFrame vacio da vacio."""
+    pairs = _cat_pairs(["A", "USDC"])
+    before = pairs.copy()
+    prefilter_by_category(pairs, CATEGORIES)
+    pd.testing.assert_frame_equal(pairs, before)
+    assert prefilter_by_category(_cat_pairs([]), CATEGORIES).empty
+
+
+def test_prefilter_without_base_asset_raises() -> None:
+    """Sin columna base_asset es ValueError."""
+    with pytest.raises(ValueError, match="base_asset"):
+        prefilter_by_category(pd.DataFrame({"symbol": ["AUSDT"]}), CATEGORIES)
+
+
+# select_period_universe
+
+
+def test_select_applies_listing_age_with_window_start_reference_at_the_edge() -> None:
+    """ANTIFUGA: antiguedad medida desde el inicio de la ventana; limite inclusivo a +-1 ms."""
+    pairs, first, volumes = _selection_inputs(
+        {"AUSDT": AGE_CUTOFF, "BUSDT": AGE_CUTOFF + 1, "CUSDT": AGE_CUTOFF - 1}
+    )
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    symbols = set(out["symbol"])
+    assert {"AUSDT", "CUSDT"} <= symbols
+    assert "BUSDT" not in symbols
+
+
+def test_select_token_listed_inside_volume_window_is_dropped_despite_huge_volume() -> None:
+    """Un token lanzado dentro de la ventana no entra aunque tenga muchisimo volumen."""
+    pairs, first, volumes = _selection_inputs({"AUSDT": PERIOD.window_start_ms + 10 * DAY_MS})
+    volumes["AUSDT"] = 1e15
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert "AUSDT" not in set(out["symbol"])
+
+
+def test_select_first_candle_after_the_period_is_dropped() -> None:
+    """Una primera vela posterior al periodo (consulta 'de hoy') tampoco entra."""
+    pairs, first, volumes = _selection_inputs({"AUSDT": PERIOD.period_end_ms + 5 * DAY_MS})
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert "AUSDT" not in set(out["symbol"])
+
+
+def test_select_applies_volume_threshold_and_orders_by_volume() -> None:
+    """Descarta bajo el umbral (>= entra), ordena por volumen y excluye stablecoins."""
+    pairs, first, _ = _selection_inputs()
+    volumes = pd.Series(
+        {
+            "AUSDT": 20e6,
+            "BUSDT": PARAMS.min_quote_volume,
+            "CUSDT": PARAMS.min_quote_volume - 1,
+            "DUSDT": 90e6,
+            "EUSDT": 50e6,
+            "FUSDT": float("nan"),
+            "USDCUSDT": 99e9,
+        }
+    )
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert list(out["symbol"]) == ["DUSDT", "EUSDT", "AUSDT", "BUSDT"]
+    assert list(out.index) == [0, 1, 2, 3]
+    for column in ("symbol", "base_asset", "category", "median_quote_volume", "first_candle_ms"):
+        assert column in out.columns
+
+
+def test_select_applies_category_and_total_caps() -> None:
+    """Respeta max_per_category y max_pairs conservando el orden de volumen."""
+    pairs, first, volumes = _selection_inputs()
+    capped = dataclasses.replace(PARAMS, max_per_category=1)
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, capped)
+    assert list(out["symbol"]) == ["AUSDT", "DUSDT", "EUSDT", "FUSDT"]
+    total = dataclasses.replace(PARAMS, max_pairs=2)
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, total)
+    assert list(out["symbol"]) == ["AUSDT", "BUSDT"]
+
+
+def test_select_warns_but_does_not_raise_below_min_categories(
+    universe_log: pytest.LogCaptureFixture,
+) -> None:
+    """Con menos categorias que min_categories avisa (con el periodo) y devuelve igualmente."""
+    assets = ["A", "B", "C"]
+    pairs = pd.DataFrame({"symbol": [f"{a}USDT" for a in assets], "base_asset": assets})
+    first = pd.Series({f"{a}USDT": DAY0 for a in assets}, dtype="Int64")
+    volumes = pd.Series({f"{a}USDT": 5e7 for a in assets})
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert len(out) == 3
+    warnings = [r for r in universe_log.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert "c1" in message
+    label = pd.Timestamp(PERIOD.period_start_ms, unit="ms", tz="UTC").strftime("%Y-%m-%d")
+    assert label in message
+
+
+def test_select_does_not_warn_when_min_categories_is_met(
+    universe_log: pytest.LogCaptureFixture,
+) -> None:
+    """Con categorias suficientes no hay avisos."""
+    pairs, first, volumes = _selection_inputs()
+    select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert [r for r in universe_log.records if r.levelno == logging.WARNING] == []
+
+
+def test_select_returns_empty_when_nothing_survives(
+    universe_log: pytest.LogCaptureFixture,
+) -> None:
+    """Si ningun par supera los filtros devuelve vacio con columnas, avisa y no lanza."""
+    pairs, first, _ = _selection_inputs()
+    volumes = pd.Series({f"{a}USDT": 1.0 for a in "ABCDEF"})
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert out.empty
+    assert "symbol" in out.columns
+    assert "category" in out.columns
+    assert any(r.levelno == logging.WARNING for r in universe_log.records)
+
+
+def test_select_returns_empty_when_everything_is_uncategorized_or_excluded(
+    universe_log: pytest.LogCaptureFixture,
+) -> None:
+    """Todo sin categoria o stablecoin da vacio con aviso, sin lanzar."""
+    pairs = pd.DataFrame({"symbol": ["ZZZUSDT", "USDCUSDT"], "base_asset": ["ZZZ", "USDC"]})
+    first = pd.Series({"ZZZUSDT": DAY0, "USDCUSDT": DAY0}, dtype="Int64")
+    volumes = pd.Series({"ZZZUSDT": 5e8, "USDCUSDT": 5e8})
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    assert out.empty
+    assert "category" in out.columns
+    assert any(r.levelno == logging.WARNING for r in universe_log.records)
+
+
+def test_select_empty_pairs_returns_empty_without_raising() -> None:
+    """Un catalogo vacio da universo vacio."""
+    pairs = pd.DataFrame({"symbol": [], "base_asset": []})
+    first = pd.Series({}, dtype="Int64")
+    volumes = pd.Series({}, dtype="float64")
+    assert select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS).empty
+
+
+def test_select_does_not_mutate_inputs_and_is_deterministic() -> None:
+    """No muta las entradas y repetir da el mismo resultado."""
+    pairs, first, volumes = _selection_inputs()
+    before = (pairs.copy(), first.copy(), volumes.copy())
+    one = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    two = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    pd.testing.assert_frame_equal(one, two)
+    pd.testing.assert_frame_equal(pairs, before[0])
+    pd.testing.assert_series_equal(first, before[1])
+    pd.testing.assert_series_equal(volumes, before[2])
+
+
+def test_leak_no_selected_pair_is_listed_after_age_cutoff_in_any_real_period() -> None:
+    """FUGA: en todos los periodos reales, ningun par elegido cotiza tras el corte de antiguedad."""
+    assets = ["A", "B", "C", "D", "E", "F"]
+    pairs = pd.DataFrame({"symbol": [f"{a}USDT" for a in assets], "base_asset": assets})
+    # Primeras velas repartidas entre 2016 y 2026, incluidas las posteriores a cada periodo.
+    first = pd.Series(
+        {f"{a}USDT": _ms(f"{2016 + 2 * i}-06-15") for i, a in enumerate(assets)}, dtype="Int64"
+    )
+    volumes = pd.Series({f"{a}USDT": 5e7 for a in assets})
+    for period in universe_periods(PARAMS):
+        cutoff = period.window_start_ms - PARAMS.min_listing_days * DAY_MS
+        out = select_period_universe(pairs, first, volumes, CATEGORIES, period, PARAMS)
+        assert (out["first_candle_ms"] <= cutoff).all()
+        assert (out["first_candle_ms"] < period.period_start_ms).all()
+        assert all(first[s] <= cutoff for s in period_candidates(first, period, PARAMS))
+
+
+# write_universe / load_universe
+
+
+def _two_periods() -> list[tuple[UniversePeriod, pd.DataFrame]]:
+    """Dos periodos reales: el primero con tres pares y el segundo con uno."""
+    periods = universe_periods(PARAMS)
+    first = _universe_frame(
+        [
+            ("BTCUSDT", "l1", 123456789.123456, _ms("2017-08-17")),
+            ("ETHUSDT", "l1", 98765432.1, _ms("2017-08-17")),
+            ("UNIUSDT", "defi", 55555555.557, _ms("2020-09-17")),
+        ]
+    )
+    second = _universe_frame([("SOLUSDT", "l1", 77000000.0, _ms("2020-08-11"))])
+    return [(periods[0], first), (periods[1], second)]
+
+
+def _read_yaml(path: Path) -> dict[str, Any]:
+    """Lee el YAML escrito por write_universe."""
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
+
+
+def test_write_returns_path_and_has_header_and_structure(tmp_path: Path) -> None:
+    """Escribe la cabecera, la estructura del plan y devuelve la ruta."""
+    target = tmp_path / "u.yaml"
+    written = write_universe(_two_periods(), PARAMS, target, generated_at="2026-10-12T18:00:00Z")
+    assert written == target
+    assert target.read_text(encoding="utf-8").startswith(UNIVERSE_HEADER)
+    doc = _read_yaml(target)
+    assert list(doc) == ["generated_at", "params", "periods"]
+    assert doc["generated_at"] == "2026-10-12T18:00:00Z"
+    assert doc["params"] == dataclasses.asdict(PARAMS)
+    first = doc["periods"][0]
+    assert first["period_start"] == "2018-01-01"
+    assert first["period_end"] == "2019-01-01"
+    assert first["volume_window"] == ["2017-10-01", "2017-12-31"]
+    assert first["n_pairs"] == 3
+    assert first["categories"] == {"l1": 2, "defi": 1}
+    assert first["pairs"][0] == {
+        "symbol": "BTCUSDT",
+        "category": "l1",
+        "median_quote_volume": 123456789.12,
+        "first_candle": "2017-08-17",
+    }
+    assert doc["periods"][1]["n_pairs"] == 1
+
+
+def test_write_default_generated_at_is_utc_timestamp(tmp_path: Path) -> None:
+    """Sin generated_at se usa la hora actual en UTC con formato ISO terminado en Z."""
+    write_universe(_two_periods(), PARAMS, tmp_path / "u.yaml")
+    stamp = _read_yaml(tmp_path / "u.yaml")["generated_at"]
+    assert stamp.endswith("Z")
+    assert pd.Timestamp(stamp).tzinfo is not None
+
+
+def test_write_yaml_uses_native_python_types(tmp_path: Path) -> None:
+    """El YAML tiene tipos nativos (float, int, str), sin objetos numpy."""
+    write_universe(_two_periods(), PARAMS, tmp_path / "u.yaml")
+    text = (tmp_path / "u.yaml").read_text(encoding="utf-8")
+    assert "!!python" not in text
+    assert "numpy" not in text
+    doc = yaml.safe_load(text)
+    pair = doc["periods"][0]["pairs"][0]
+    assert type(pair["median_quote_volume"]) is float
+    assert type(pair["symbol"]) is str
+    assert type(pair["category"]) is str
+    assert type(pair["first_candle"]) is str
+    assert type(doc["periods"][0]["n_pairs"]) is int
+    assert type(doc["params"]["period_months"]) is int
+    assert type(doc["params"]["min_quote_volume"]) is float
+
+
+def test_write_rounds_volume_to_two_decimals(tmp_path: Path) -> None:
+    """median_quote_volume se redondea a 2 decimales."""
+    write_universe(_two_periods(), PARAMS, tmp_path / "u.yaml")
+    pairs = _read_yaml(tmp_path / "u.yaml")["periods"][0]["pairs"]
+    assert [p["median_quote_volume"] for p in pairs] == [123456789.12, 98765432.1, 55555555.56]
+
+
+def test_write_first_candle_is_utc_date_of_the_instant(tmp_path: Path) -> None:
+    """La primera vela se escribe como fecha UTC (el ultimo ms del dia sigue siendo ese dia)."""
+    frame = _universe_frame([("AUSDT", "l1", 1e7, _ms("2017-08-17") + DAY_MS - 1)])
+    write_universe([(universe_periods(PARAMS)[0], frame)], PARAMS, tmp_path / "u.yaml")
+    doc = _read_yaml(tmp_path / "u.yaml")
+    assert doc["periods"][0]["pairs"][0]["first_candle"] == "2017-08-17"
+
+
+def test_write_is_atomic_leaves_no_tmp_file(tmp_path: Path) -> None:
+    """Tras escribir con exito no queda ningun .tmp."""
+    write_universe(_two_periods(), PARAMS, tmp_path / "u.yaml")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["u.yaml"]
+
+
+def test_write_overwrites_existing_file(tmp_path: Path) -> None:
+    """Escribir sobre un fichero existente lo reemplaza."""
+    target = tmp_path / "u.yaml"
+    target.write_text("viejo\n", encoding="utf-8")
+    write_universe(_two_periods(), PARAMS, target)
+    assert "viejo" not in target.read_text(encoding="utf-8")
+
+
+def test_write_failed_replace_leaves_no_tmp_and_propagates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Si os.replace falla no queda .tmp, el fichero previo sigue intacto y el error se propaga."""
+    target = tmp_path / "u.yaml"
+    target.write_text("previo\n", encoding="utf-8")
+
+    def boom(src: object, dst: object) -> None:
+        raise OSError("disco lleno")
+
+    monkeypatch.setattr(universe.os, "replace", boom)
+    with pytest.raises(OSError, match="disco lleno"):
+        write_universe(_two_periods(), PARAMS, target)
+    assert target.read_text(encoding="utf-8") == "previo\n"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["u.yaml"]
+
+
+def test_write_relative_path_resolves_against_configs_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Una ruta relativa se escribe bajo CONFIGS_DIR (parcheado a tmp_path)."""
+    monkeypatch.setattr(universe, "CONFIGS_DIR", tmp_path / "configs")
+    written = write_universe(_two_periods(), PARAMS, "u.yaml")
+    assert written == tmp_path / "configs" / "u.yaml"
+    assert written.is_file()
+    assert len(load_universe("u.yaml")) == 4
+
+
+def test_write_empty_period_and_no_periods(tmp_path: Path) -> None:
+    """Un periodo vacio se escribe con n_pairs 0 y pairs []; sin periodos tambien es valido."""
+    period = universe_periods(PARAMS)[0]
+    write_universe([(period, _universe_frame([]))], PARAMS, tmp_path / "a.yaml")
+    doc = _read_yaml(tmp_path / "a.yaml")
+    assert doc["periods"][0]["n_pairs"] == 0
+    assert doc["periods"][0]["pairs"] == []
+    assert doc["periods"][0]["categories"] == {}
+    write_universe([], PARAMS, tmp_path / "b.yaml")
+    assert _read_yaml(tmp_path / "b.yaml")["periods"] == []
+
+
+def test_roundtrip_write_then_load_is_lossless(tmp_path: Path) -> None:
+    """write_universe -> load_universe conserva filas, orden, valores y tipos."""
+    write_universe(_two_periods(), PARAMS, tmp_path / "u.yaml")
+    loaded = load_universe(tmp_path / "u.yaml")
+    assert list(loaded.columns) == UNIVERSE_COLUMNS
+    assert list(loaded["symbol"]) == ["BTCUSDT", "ETHUSDT", "UNIUSDT", "SOLUSDT"]
+    assert list(loaded["category"]) == ["l1", "l1", "defi", "l1"]
+    assert list(loaded["median_quote_volume"]) == [123456789.12, 98765432.1, 55555555.56, 77e6]
+    assert list(loaded.index) == [0, 1, 2, 3]
+    for column in ("period_start", "period_end", "first_candle"):
+        assert str(loaded[column].dtype) == "datetime64[us, UTC]"
+    assert loaded["period_start"].iloc[0] == pd.Timestamp("2018-01-01", tz="UTC")
+    assert loaded["period_end"].iloc[0] == pd.Timestamp("2019-01-01", tz="UTC")
+    assert loaded["period_start"].iloc[3] == pd.Timestamp("2019-01-01", tz="UTC")
+    assert loaded["first_candle"].iloc[2] == pd.Timestamp("2020-09-17", tz="UTC")
+    assert loaded["median_quote_volume"].dtype == "float64"
+    assert pd.api.types.is_string_dtype(loaded["symbol"])
+    assert pd.api.types.is_string_dtype(loaded["category"])
+
+
+def test_load_universe_period_with_empty_pairs_adds_no_rows(tmp_path: Path) -> None:
+    """Un periodo con `pairs: []` no aporta filas pero el resto si."""
+    periods = universe_periods(PARAMS)
+    full = _universe_frame([("BTCUSDT", "l1", 1e8, _ms("2017-08-17"))])
+    write_universe(
+        [(periods[0], full), (periods[1], _universe_frame([])), (periods[2], full)],
+        PARAMS,
+        tmp_path / "u.yaml",
+    )
+    loaded = load_universe(tmp_path / "u.yaml")
+    assert list(loaded["period_start"]) == [
+        pd.Timestamp("2018-01-01", tz="UTC"),
+        pd.Timestamp("2020-01-01", tz="UTC"),
+    ]
+
+
+EMPTY_PERIOD_YAML = (
+    "periods:\n  - period_start: '2018-01-01'\n    period_end: '2019-01-01'\n    pairs: []\n"
+)
+
+
+@pytest.mark.parametrize("text", ["periods: []\n", EMPTY_PERIOD_YAML])
+def test_load_universe_without_rows_keeps_columns_and_utc_dtypes(tmp_path: Path, text: str) -> None:
+    """Sin ninguna fila, las columnas existen y las fechas son datetime64[us, UTC]."""
+    path = tmp_path / "u.yaml"
+    path.write_text(text, encoding="utf-8")
+    loaded = load_universe(path)
+    assert loaded.empty
+    assert list(loaded.columns) == UNIVERSE_COLUMNS
+    for column in ("period_start", "period_end", "first_candle"):
+        assert str(loaded[column].dtype) == "datetime64[us, UTC]"
+    assert loaded["median_quote_volume"].dtype == "float64"
+
+
+def test_load_universe_missing_file_raises(tmp_path: Path) -> None:
+    """Un fichero inexistente es ConfigError."""
+    with pytest.raises(ConfigError, match="No se encuentra"):
+        load_universe(tmp_path / "nope.yaml")
+
+
+def test_load_universe_relative_path_resolves_against_configs_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Una ruta relativa se busca bajo CONFIGS_DIR; una inexistente alli es ConfigError."""
+    monkeypatch.setattr(universe, "CONFIGS_DIR", tmp_path)
+    write_universe(_two_periods(), PARAMS, tmp_path / "u.yaml")
+    assert len(load_universe("u.yaml")) == 4
+    with pytest.raises(ConfigError):
+        load_universe("otro.yaml")
+
+
+def _pair_yaml(**overrides: str) -> str:
+    """YAML de un periodo con un par, con los campos del par sobrescribibles."""
+    pair = {
+        "symbol": "A",
+        "category": "c",
+        "median_quote_volume": "1.0",
+        "first_candle": "'2017-01-01'",
+        **overrides,
+    }
+    body = ", ".join(f"{key}: {value}" for key, value in pair.items())
+    head = "period_start: '2018-01-01', period_end: '2019-01-01'"
+    return f"periods:\n  - {{{head}, pairs: [{{{body}}}]}}\n"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "- a\n- b\n",
+        "just text\n",
+        "key: [unclosed\n",
+        "periods: 3\n",
+        "periods:\n  - period_start: '2018-01-01'\n",
+        "periods:\n  - 7\n",
+        "periods:\n  - {period_start: '2018-01-01', period_end: '2019-01-01', pairs: 5}\n",
+        "periods:\n  - {period_start: '2018-01-01', period_end: '2019-01-01', pairs: [{symbol: A}]}\n",  # noqa: E501
+        _pair_yaml(median_quote_volume="abc"),
+        _pair_yaml(first_candle="'ayer'"),
+        _pair_yaml().replace("'2018-01-01'", "'ayer'", 1),
+    ],
+)
+def test_load_universe_malformed_raises_config_error(tmp_path: Path, text: str) -> None:
+    """Un YAML mal formado o con campos invalidos es ConfigError."""
+    path = tmp_path / "u.yaml"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ConfigError):
+        load_universe(path)
+
+
+def test_roundtrip_of_select_period_universe_output(tmp_path: Path) -> None:
+    """La salida real de select_period_universe se puede escribir y volver a leer."""
+    pairs, first, volumes = _selection_inputs()
+    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    write_universe([(PERIOD, out)], PARAMS, tmp_path / "u.yaml")
+    loaded = load_universe(tmp_path / "u.yaml")
+    assert list(loaded["symbol"]) == list(out["symbol"])
+    assert list(loaded["category"]) == list(out["category"])
+
+
+# build_universe (orquestacion con la red parcheada)
+
+
+def test_build_universe_orchestrates_without_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """build_universe encadena catalogo, prefiltro, primeras velas y ventanas por periodo."""
+    categories = {"A": "l1", "B": "l1", "D": "l2", "USDC": "stablecoin"}
+    params = dataclasses.replace(
+        PARAMS,
+        first_period_start="2020-01-01",
+        last_period_end="2021-07-01",
+        min_categories=1,
+    )
+    client = object()
+    now_ms = _ms("2026-10-13")
+    base_url = "https://example.invalid"
+    calls: dict[str, list[Any]] = {"pairs": [], "first": [], "volume": []}
+
+    def fake_list_pairs(**kwargs: object) -> pd.DataFrame:
+        calls["pairs"].append(kwargs)
+        assets = ["A", "B", "D", "USDC", "ZZZ"]
+        return pd.DataFrame({"symbol": [f"{a}USDT" for a in assets], "base_asset": assets})
+
+    def fake_first(symbols: Sequence[str], reference_ms: int, **kwargs: object) -> pd.Series:
+        calls["first"].append((list(symbols), reference_ms, kwargs))
+        dates = {"AUSDT": "2019-01-01", "BUSDT": "2020-12-01", "DUSDT": "2018-05-01"}
+        return pd.Series({s: _ms(dates[s]) for s in symbols}, dtype="Int64")
+
+    def fake_volume(symbols: Sequence[str], start: int, end: int, **kwargs: object) -> pd.Series:
+        calls["volume"].append((list(symbols), start, end, kwargs))
+        return pd.Series({s: 5e7 for s in symbols}, dtype="float64")
+
+    monkeypatch.setattr(universe, "list_pairs", fake_list_pairs)
+    monkeypatch.setattr(universe, "first_candle_time", fake_first)
+    monkeypatch.setattr(universe, "median_daily_quote_volume", fake_volume)
+
+    result = universe.build_universe(
+        params, categories, client=client, now_ms=now_ms, base_url=base_url
+    )
+
+    assert len(calls["pairs"]) == 1
+    assert calls["pairs"][0] == {"quote_asset": "USDT", "client": client, "base_url": base_url}
+    # Prefiltro: sin USDC (stablecoin) ni ZZZ (sin categoria); primeras velas una sola vez.
+    assert len(calls["first"]) == 1
+    symbols, reference_ms, kwargs = calls["first"][0]
+    assert symbols == ["AUSDT", "BUSDT", "DUSDT"]
+    assert reference_ms == now_ms
+    assert kwargs == {"client": client, "base_url": base_url}
+    # BUSDT cotiza despues del corte de antiguedad de ambos periodos.
+    assert len(calls["volume"]) == 2
+    (symbols1, start1, end1, kwargs1), (symbols2, start2, end2, kwargs2) = calls["volume"]
+    assert symbols1 == ["AUSDT", "DUSDT"]
+    assert symbols2 == ["AUSDT", "DUSDT"]
+    assert (start1, end1) == (_ms("2019-10-01"), _ms("2020-01-01") - 1)
+    assert (start2, end2) == (_ms("2020-10-01"), _ms("2021-01-01") - 1)
+    assert kwargs1 == kwargs2 == {"client": client, "base_url": base_url}
+    # Resultado: un par (periodo, universo) por periodo, en orden.
+    assert [period for period, _ in result] == universe_periods(params)
+    assert [list(frame["symbol"]) for _, frame in result] == [["AUSDT", "DUSDT"]] * 2
+    assert all(frame["category"].notna().all() for _, frame in result)
+
+
+def test_build_universe_does_not_write_any_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """build_universe solo devuelve datos: la escritura es cosa del llamador."""
+    monkeypatch.setattr(universe, "CONFIGS_DIR", tmp_path)
+    monkeypatch.setattr(
+        universe,
+        "list_pairs",
+        lambda **kwargs: pd.DataFrame({"symbol": ["AUSDT"], "base_asset": ["A"]}),
+    )
+    monkeypatch.setattr(
+        universe,
+        "first_candle_time",
+        lambda symbols, reference_ms, **kwargs: pd.Series(
+            {s: _ms("2017-01-01") for s in symbols}, dtype="Int64"
+        ),
+    )
+    monkeypatch.setattr(
+        universe,
+        "median_daily_quote_volume",
+        lambda symbols, start, end, **kwargs: pd.Series({s: 5e7 for s in symbols}),
+    )
+    params = dataclasses.replace(PARAMS, min_categories=1)
+    result = universe.build_universe(params, {"A": "l1"}, client=object(), now_ms=_ms("2026-10-13"))
+    assert len(result) == len(universe_periods(params))
+    assert list(tmp_path.iterdir()) == []

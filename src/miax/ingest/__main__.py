@@ -1,4 +1,4 @@
-"""CLI de la ingesta: `python -m miax.ingest [download|validate|pairs]`, por defecto `download`."""
+"""CLI de la ingesta: `python -m miax.ingest [download|validate|pairs|universe]` (def. download)."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 import requests
+import yaml
 
 from miax.ingest.exchange_info import list_pairs
 from miax.ingest.http import HttpClient, HttpError, RetriesExhaustedError
@@ -17,7 +18,16 @@ from miax.ingest.klines import DAY_MS, DEFAULT_BASE_URL, candle_offset_ms, inter
 from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import update_symbol
 from miax.ingest.store import DEFAULT_BASE_DIR
+from miax.ingest.universe import (
+    DEFAULT_UNIVERSE_FILE,
+    DEFAULT_UNIVERSE_PARAMS_FILE,
+    build_universe,
+    load_categories,
+    load_universe_params,
+    write_universe,
+)
 from miax.utils import get_logger
+from miax.utils.config import ConfigError
 from miax.utils.io import write_parquet
 
 logger = get_logger(__name__)
@@ -63,7 +73,8 @@ def _add_download_parser(subparsers: argparse._SubParsersAction) -> None:
         "download",
         description=(
             "Descarga klines de Binance y los cachea en Parquet, reanudando lo ya bajado. "
-            "Otros subcomandos: validate (integridad de la cache), pairs (catalogo de pares)."
+            "Otros subcomandos: validate (integridad de la cache), pairs (catalogo de pares), "
+            "universe (congela el universo por periodos)."
         ),
     )
     parser.add_argument(
@@ -126,6 +137,26 @@ def _add_pairs_parser(subparsers: argparse._SubParsersAction) -> None:
     )
 
 
+def _add_universe_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Anade el subcomando `universe`."""
+    parser = subparsers.add_parser(
+        "universe",
+        description=(
+            "Construye el universo por periodos (hace llamadas a Binance) y lo congela en un "
+            "YAML versionado."
+        ),
+    )
+    parser.add_argument(
+        "--params",
+        default=DEFAULT_UNIVERSE_PARAMS_FILE,
+        help="Parametros del universo (relativo a configs/).",
+    )
+    parser.add_argument(
+        "--out", default=DEFAULT_UNIVERSE_FILE, help="YAML de salida (relativo a configs/)."
+    )
+    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="URL base de la API.")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """Construye el parser de argumentos de la CLI, con un subcomando por comando."""
     parser = argparse.ArgumentParser(prog="python -m miax.ingest")
@@ -133,6 +164,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_download_parser(subparsers)
     _add_validate_parser(subparsers)
     _add_pairs_parser(subparsers)
+    _add_universe_parser(subparsers)
     return parser
 
 
@@ -333,11 +365,37 @@ def _run_pairs(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_universe(args: argparse.Namespace) -> int:
+    """Subcomando `universe`: congela el universo; 2 si la config no vale, 1 si falla el trabajo."""
+    try:
+        params = load_universe_params(args.params)
+        categories = load_categories(params.categories_file)
+    except (ConfigError, yaml.YAMLError) as exc:
+        logger.error("Configuracion del universo no valida: %s", exc)
+        return 2
+    try:
+        with HttpClient(rate_limiter=RateLimiter()) as client:
+            # "Ahora" solo acota la consulta de primeras velas: son un hecho fijo, sin fuga.
+            universes = build_universe(
+                params,
+                categories,
+                client=client,
+                now_ms=_to_ms(_utc_now()),
+                base_url=args.base_url,
+            )
+        write_universe(universes, params, args.out)
+    except (HttpError, ValueError, OSError, requests.exceptions.RequestException) as exc:
+        logger.error("Fallo la construccion del universo: %s", exc)
+        return 1
+    return 0
+
+
 # Registro de subcomandos: uno nuevo es una entrada mas (y su parser en `_build_parser`).
 _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "download": _run_download,
     "validate": _run_validate,
     "pairs": _run_pairs,
+    "universe": _run_universe,
 }
 
 
