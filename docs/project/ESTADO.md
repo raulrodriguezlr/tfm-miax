@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
-| Alonso | MIAX-028 | `feature/MIAX-028` | 2026-10-12 | en curso |
+| Alonso | MIAX-028 | `feature/MIAX-028` | 2026-10-12 | en review |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
 
@@ -58,7 +58,7 @@ El contrato que evita que unos bloqueen a otros. **Si cambias una, avisas antes,
 
 | Quién | Qué bloquea | Desde | Qué se necesita |
 |---|---|---|---|
-| — | — | — | — |
+| Alonso | Universo por periodos desde 2017 (opción B, MIAX-028): provisional. Si se confirma, el grafo, la GNN y la validación (E3+) deben admitir un conjunto de nodos que cambia por periodo | 2026-10-12 | Validarlo con el tutor en la tutoría del 2026-10-13 y, si sigue, abrir tickets para nodos variables |
 
 ---
 
@@ -77,6 +77,23 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-13 · Alonso · MIAX-028
+- **Hecho:** universo **por periodos** congelado en un fichero. `configs/universe_params.yaml` (parámetros) y, en `miax.ingest.universe`: `UniverseParams`, `UniversePeriod`, `load_universe_params(path="universe_params.yaml")` (valida y lanza `ConfigError`), `universe_periods(params) -> list[UniversePeriod]`, `select_period_universe(pairs, first_candles, volumes, categories, period, params) -> pd.DataFrame` (pura: antigüedad, volumen, diversificación), `write_universe(universes, params, path="universe.yaml", *, generated_at=None) -> Path` (YAML atómico, tipos nativos) y `load_universe(path="universe.yaml") -> pd.DataFrame` (una fila por par y periodo). `build_universe(params, categories, *, client, now_ms, base_url=...) -> list[tuple[UniversePeriod, pd.DataFrame]]` orquesta la descarga (catálogo, primeras velas, volúmenes por ventana) sin escribir. Todo exportado desde `miax.ingest`. El subcomando `python -m miax.ingest universe [--params] [--out] [--base-url]` (con red) llama a `build_universe` y escribe `configs/universe.yaml`.
+- **Decisión (provisional hasta la tutoría del 2026-10-13):** opción B, el universo **no es fijo**: cada periodo anual (2018 a 2026-10-01, 9 periodos) tiene el suyo, elegido solo con datos anteriores. La ventana de volumen son los 3 meses previos al periodo y acaba 1 ms antes de que empiece; la antigüedad mínima (30 días) se mide contra el **inicio de la ventana**, no del periodo, para que el volumen no incluya la euforia de lanzamiento. Si el tutor prefiere un universo fijo basta con configurar un único periodo. `min_categories=4` solo **avisa** (los primeros años son casi todo L1) y un periodo sin ningún par útil queda vacío con aviso, sin lanzar.
+- **Ojo:** el prefiltro de `build_universe` descarta los pares sin categoría útil antes de consultar la red, así que `configs/categories.yaml` debe cubrir los activos que fueron líquidos en cada periodo, incluidos los hoy deslistados; si falta uno, no entra. Los pares en `BREAK` entran (D-13). Los periodos vacíos no aparecen en `load_universe`; para saber qué periodos hay, usar `universe_periods(load_universe_params())`.
+- **Ojo:** `configs/universe.yaml` lo genera el subcomando `universe` y no se edita a mano. El subcomando no se prueba con red; su lógica vive en funciones de `src/` con tests sin red. El subcomando hace toda la red antes de escribir: si `write_universe` falla, hay que relanzarlo entero.
+- **Refactor:** `universe.py` ya no define `DAY_MS` ni el peso de `/klines`: importa `DAY_MS` y `KLINES_WEIGHT` de `klines.py` (mismos valores, mismo comportamiento).
+- **CLI:** el subcomando `universe` sigue el patrón de CLAUDE.md §6.6 (entrada en `_COMMANDS`, lógica en `src/`, códigos de salida 0/1/2: `ConfigError` da 2, fallos de red o disco dan 1, sin `print`).
+- **Categorías ampliadas:** `configs/categories.yaml` pasa de 90 a 210 activos con un barrido real (2026-10-13) de los pares USDT líquidos (≥ 10 M) en alguna ventana anual desde 2017, incluidos los deslistados (EOS, LUNA, FTT, XMR, OMG, SRM, BCC/BCHABC…), y una categoría nueva `gaming` (SAND, MANA, AXS, CHZ…), que en 2022 tenía mucho peso. Sin ellos, el universo de 2019-2022 estaría sesgado hacia los supervivientes. Clasificación a mano: revisarla en el PR.
+- **Decisión (con Alonso):** suelo de liquidez de **5 M** USDT/día y **40 pares** como tamaño objetivo (`max_pairs`), en vez de 10 M / 50. Con un umbral absoluto alto el tamaño seguía al ciclo de mercado (25 pares en 2023 tras FTX, 50 en 2022 y 2025); así el universo es estable (40 pares, 7-8 categorías) desde 2022 y el grafo apenas cambia de nodos.
+- **Ojo (5 M es provisional):** 5 M no sale de un criterio formal: es el suelo más alto con el que se llega a 40 pares todos los años desde 2022. Solo decide cuando no hay 40 pares líquidos: en 2022, 2024 y 2025 manda el tope de 40 (el par más débil tiene 11-32 M), pero en **2023** 15 de los 40 pares están entre 5 y 10 M (y 6 en 2026). A 1 minuto lo que contamina es que el precio no se actualice (efecto Epps), y eso no lo mide el volumen diario. Criterio defendible pendiente: exigir que el 95-99 % de las velas de 1 minuto de la ventana tengan operaciones (`num_trades > 0`), empezando por medir los 15 pares débiles de 2023. Encaja en MIAX-030 o en la Épica 2; si sale mal, se sube el suelo o se cambia el criterio.
+- **Prueba de humo real (2026-10-13):** `python -m miax.ingest universe` contra Binance, código 0. Pares por periodo (categorías): 2018: 2 (BTC, ETH) · 2019: 11 (2) · 2020: 10 (3) · 2021: 21 (5) · 2022 a 2026: 40 (7-8).
+- **Ojo (para la tutoría):** **2018-2020 no dan un grafo útil** (2 a 11 nodos, casi todo L1). No es un fallo: Binance abrió en julio de 2017 y sus pares USDT empezaron el 17-08-2017 solo con BTC y ETH; en 2017 las altcoins cotizaban contra BTC y ETH (23 pares cada uno antes de octubre). Ni contra BTC hay más: para 2018 solo ETH, BCC y NEO superan 10 M. Sintetizar precios USDT desde pares BTC metería el movimiento de BTC en cada serie, justo lo que contamina el *lead-lag*. Conclusión: el grafo útil empieza en 2021-2022.
+- **Ojo (MIAX-030):** hay pares que dejan de cotizar dentro de su periodo y su serie se corta: BCC (renombrado a BCHABC en nov-2018) en 2019, BCHABC (a BCH en nov-2020) en 2020, LUNA (colapso en mayo de 2022) en 2022. Además `LUNAUSDT` es Terra clásica hasta mayo de 2022 y Terra 2.0 después, en la misma serie. La cobertura por periodo debe detectarlo.
+- **Ojo (descarga, siguiente paso):** aún no hay velas descargadas (`data/` vacío); `configs/universe.yaml` es la lista. El universo implica 104 símbolos distintos y ≈ 123 M velas de 1 minuto (cota superior: algunos pares dejan de cotizar a mitad), el 80 % en 2022-2026. Bajando cada símbolo de forma continua de su primer a su último periodo: ≈ 129 M velas, ≈ 129.000 peticiones, unas 3,5-4 h con el limitador actual (reanudable) y unos 5-8 GB en Parquet (estimación, sin medir). Los volcados mensuales de `data.binance.vision` lo acelerarían (ticket aparte).
+- **Ojo (5 minutos):** las velas de 5m (y 15m, 1h) **no se descargan aparte**: salen de remuestrear las de 1m (MIAX-042, D-04), porque una vela de 5m de Binance es la agregación exacta de sus cinco de 1m y un único origen evita incoherencias entre horizontes. La reducción de ruido viene del horizonte, no de la descarga. Bajar 5m directamente (≈ 26 M velas, ≈ 45 min) solo valdría como comprobación del remuestreo.
+- **Pendiente:** si se confirma la opción B, el grafo, la GNN y la validación (E3+) han de admitir un conjunto de nodos que cambia por periodo (ver Bloqueos abiertos). Descarga de velas 1m del universo, fuera de este ticket.
 
 ### 2026-10-12 · Raúl · Reglas de equipo
 - **Hecho:** `CLAUDE.md`, `AGENTS.md` y `ONBOARDING.md` recogen las prácticas acordadas durante MIAX-024 a 029. Son reglas nuevas que **leen ya los Claude de los tres**:
@@ -104,6 +121,8 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 - **Decisión:** un activo sin categoría se **descarta** (con log que lista sus `base_asset` para añadirlos al YAML), no se agrupa en "otros". `diversify_universe` no reordena por volumen: se queda con los primeros de cada categoría en el orden que recibe, así que hay que pasarle la salida de `filter_by_volume`. `stablecoin` y `pegged` (envueltos como WBTC/WBETH, oro como PAXG y fiat como EUR) se excluyen por defecto: su precio es plano o replica otro activo y darían *lead-lag* trivial. El YAML incluye ticker antiguo y nuevo de los renombrados (MATIC/POL, FTM/S, RNDR/RENDER).
 - **Ojo (uso previsto, MIAX-028):** `list_pairs(quote_asset="USDT")` → `filter_by_listing_age` → `filter_by_volume` (ordena por volumen) → `diversify_universe(pairs, load_categories())`. El resultado lo congela MIAX-028 en `configs/universe.yaml`. No hay CLI.
 - **Ojo:** las categorías están hechas a mano con el conocimiento de hoy (sesgo menor: un activo se clasifica como lo vemos ahora, no como cuando empezó el periodo). Conviene revisar el YAML en el PR.
+- **Decisión (con Alonso):** YAML a mano y **no** CoinGecko en el pipeline. CoinGecko da varias etiquetas por moneda (habría que elegir una con otra regla subjetiva), sus tickers chocan con los de Binance (`S`, `MEME`, `NEIRO`…), sus etiquetas cambian sin histórico (no reproducible) y añade API, clave y fallos de red; para 30–50 activos su ventaja de escala no compensa. El sesgo de clasificar con la visión de hoy es el mismo en ambos.
+- **Pendiente (MIAX-028):** para poder citar una fuente externa en la memoria, consultar CoinGecko **una sola vez** a mano, contrastar y justificar el YAML con esa consulta (anotando la fecha) y seguir usando el YAML congelado. Sin meter la API en el código.
 - **Pendiente:** los valores por defecto (10 por categoría, 50 en total, mínimo 4 categorías) son provisionales; los definitivos se fijan en MIAX-028.
 
 ### 2026-10-12 · Alonso · MIAX-026

@@ -1,18 +1,48 @@
-# Categorias de activos para diversificar el universo (MIAX-027).
+# Categorias de activos para diversificar el universo (MIAX-027, ampliado en MIAX-028).
 #
 # Mapa categoria -> lista de activos base (el `base_asset` de exchangeInfo, en mayusculas).
 # Se edita a mano: no hay red ni fuentes externas, asi el universo es reproducible.
 # Un activo no puede estar en dos categorias; `load_categories` falla si ocurre.
 # `stablecoin` y `pegged` se excluyen por defecto del universo (precio plano o replica de otro
 # activo, lo que daria lead-lag trivial). Un activo que no aparezca aqui se descarta con un log.
-# Se incluyen el ticker antiguo y el nuevo de los renombrados (MATIC/POL, FTM/S, RNDR/RENDER).
+# Se incluyen el ticker antiguo y el nuevo de los renombrados (MATIC/POL, FTM/S, RNDR/RENDER,
+# BCC/BCHABC/BCH).
+#
+# MIAX-028: se anaden los activos que fueron liquidos (mediana >= 10 M USDT/dia) en alguna
+# ventana anual desde 2017, incluidos los hoy deslistados (estado BREAK): sin ellos, el universo
+# de los primeros anyos quedaria sesgado hacia los supervivientes. Barrido del 2026-10-13.
 
-l1: [BTC, ETH, SOL, ADA, AVAX, DOT, ATOM, NEAR, APT, SUI, TRX, XRP, LTC, BCH, ETC, XLM, ALGO, HBAR, ICP, TON, SEI, INJ, FTM, S, EGLD]
-l2: [ARB, OP, MATIC, POL, IMX, STRK, ZK, MANTA, METIS, LRC]
-defi: [UNI, AAVE, MKR, CRV, COMP, SNX, LDO, PENDLE, DYDX, 1INCH, SUSHI, CAKE, JUP, GMX, RUNE, ENA, JTO, YFI, BAL]
-meme: [DOGE, SHIB, PEPE, FLOKI, BONK, WIF, BOME, MEME, PEOPLE, TURBO, NEIRO]
-exchange: [BNB]
-infra: [LINK, FIL, GRT, AR, PYTH, TIA]
-ai: [FET, TAO, WLD, RNDR, RENDER]
-stablecoin: [USDC, FDUSD, TUSD, BUSD, DAI, USDP, USDE]
-pegged: [WBTC, WBETH, PAXG, EUR, AEUR, EURI]  # envueltos, oro y fiat: replican otro activo
+l1: [
+  BTC, ETH, SOL, ADA, AVAX, DOT, ATOM, NEAR, APT, SUI, TRX, XRP, LTC, BCH, ETC, XLM, ALGO,
+  HBAR, ICP, TON, SEI, INJ, FTM, S, EGLD,
+  BCC, BCHABC,  # tickers antiguos de BCH en Binance
+  EOS, NEO, GAS, QTUM, ONT, ICX, IOST, ZIL, WAVES, IOTA, VET, XTZ, ONE, KSM, FLOW, MINA,
+  CELO, ROSE, CFX, KAVA, WAXP, SAGA, CHR,
+  LUNA,  # LUNAUSDT: Terra clasica hasta mayo de 2022 y Terra 2.0 despues (misma serie)
+  LUNC,  # Terra clasica tras el renombrado
+  XMR, ZEC, DASH, ZEN, RVN,  # privacidad y proof-of-work
+]
+l2: [ARB, OP, MATIC, POL, IMX, STRK, ZK, MANTA, METIS, LRC, OMG, CELR, SKL, LOOM, STX, ALT]
+defi: [
+  UNI, AAVE, MKR, CRV, COMP, SNX, LDO, PENDLE, DYDX, 1INCH, SUSHI, CAKE, JUP, GMX, RUNE, ENA,
+  JTO, YFI, BAL,
+  YFII, SRM, RAY, BAKE, DODO, SXP, JST, SUN, C98, LINA, REEF, RSR, EPS, UNFI, OGN, ETHFI,
+  EIGEN, OM, WLFI,
+]
+meme: [
+  DOGE, SHIB, PEPE, FLOKI, BONK, WIF, BOME, MEME, PEOPLE, TURBO, NEIRO,
+  1000SATS, ORDI, DOGS, NOT, PENGU, TRUMP,
+]
+gaming: [  # juegos, metaverso y tokens de aficionados
+  SAND, MANA, AXS, SLP, ALICE, ENJ, TLM, GALA, APE, MBOX, GMT, PIXEL, BEAMX, SUPER, XAI,
+  COCOS, WIN, CHZ, OG,
+]
+exchange: [BNB, FTT, TWT, SFP]
+infra: [
+  LINK, FIL, GRT, AR, PYTH, TIA,
+  THETA, TFUEL, HOT, SC, STORJ, ANKR, ARPA, CTSI, IOTX, HNT, QNT, ZRO, W, ENS, AUDIO, MASK,
+  COTI, KEEP, NU, POND, ATA, TRB, BAT, FIDA, JASMY, DENT,
+]
+ai: [FET, TAO, WLD, RNDR, RENDER, ARKM, IO, OCEAN, AGIX, VIRTUAL]
+stablecoin: [USDC, FDUSD, TUSD, BUSD, DAI, USDP, USDE, BFUSD, XUSD]
+pegged: [WBTC, WBETH, PAXG, EUR, AEUR, EURI, AUD, GBP]  # envueltos, oro y fiat: replican otro activo
