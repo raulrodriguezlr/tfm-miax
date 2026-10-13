@@ -12,6 +12,7 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
+| Alonso | MIAX-031 (y MIAX-030) | `feature/MIAX-031` | 2026-10-13 | en review |
 | Alonso | MIAX-030 | `feature/MIAX-030` | 2026-10-13 | en review |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
@@ -78,6 +79,10 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-13 · Alonso · MIAX-031
+- **Hecho:** `docs/datos/sesgo-supervivencia.md` (qué es el riesgo, lo medido, qué está corregido, qué pares faltan y por qué, cómo reproducir las cifras) y corrección de la fila del riesgo 8 del README. Ticket solo de documentación, sin código.
+- **Ojo:** la premisa original (la API no sirve deslistados) era falsa. El sesgo de supervivencia dentro de Binance está corregido en lo esencial: el 2026-10-13 se consultó la primera vela de los 254 pares USDT en `BREAK` y los 254 devuelven velas (medido, 0 sin velas), solo `NBTUSDT` falta en `exchangeInfo`, y 12 de los 104 símbolos del universo están hoy en `BREAK`. Lo residual (activos sin par USDT en 2017-2018, sesgo de exchange, renombrados, series cortadas, categorías con la visión de hoy) está listado en el documento. Cifras del 2026-10-13.
+- **Pendiente:** (a) MIAX-186 (capítulo de datos) parte de este documento; (b) el tratamiento de `LUNAUSDT` y de las series cortadas, en MIAX-034; (c) **propuesta para el equipo:** un ticket nuevo para obtener los datos desde los volcados mensuales de `data.binance.vision` (reproducible con un comando, mucho más rápido que la API y sin límite de peticiones), en lugar de que cada uno descargue unas 4 h por la API; mientras tanto, la caché se comparte por Google Drive.
 ### 2026-10-13 · Alonso · MIAX-030
 - **Hecho:** `miax.ingest.coverage` con `coverage_from_frame(candles, interval, start_ms=None, end_ms=None) -> dict` (pura), `coverage_report(symbols, interval, *, base_dir, start_ms=None, end_ms=None) -> pd.DataFrame` (una fila por símbolo, también si no hay caché) y `universe_coverage(universe, interval, *, base_dir, now_ms=None) -> pd.DataFrame` (cada par en cada periodo de `load_universe()`). Columnas (`COVERAGE_COLUMNS`): `symbol`, `first_open`, `last_open`, `expected`, `present`, `coverage_pct`, `traded_pct` (% de minutos con `num_trades > 0` sobre los esperados), `n_gaps`, `max_gap_candles`, `missing_before`, `missing_after`. Exportadas desde `miax.ingest`. Subcomando `python -m miax.ingest coverage (--symbol A,B | --universe) [--universe-file] [--interval] [--base-dir] [--start --end] [--output]`: sale con 2 si los argumentos no valen, 1 si algún símbolo no tiene velas en el rango (o falla `--output`), 0 si no.
 - **Decisión:** con rango, la cobertura se mide sobre la rejilla del intervalo en `[start, end)` (esperadas = ranuras de la rejilla), y `missing_before`/`missing_after` cuentan las ranuras vacías antes de la primera y después de la última vela: así una serie cortada (BCC 2019, BCHABC 2020, LUNA 2022) sale con `missing_after` alto aunque no tenga huecos internos. Sin rango, el rango es de la primera a la última vela y los extremos valen 0. Los huecos internos reutilizan `find_gaps` de `integrity.py`. `1M` y otros intervalos sin paso fijo dan `ValueError` (código 2 en la CLI).
