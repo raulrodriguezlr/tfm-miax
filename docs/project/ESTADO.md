@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | — | — | — | libre |
-| Alonso | MIAX-028 | `feature/MIAX-028` | 2026-10-12 | en review |
+| Alonso | MIAX-032 (y MIAX-030, MIAX-031) | `feature/MIAX-032` | 2026-10-13 | en review |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
 
@@ -77,6 +77,14 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-13 · Alonso · MIAX-032
+- **Hecho:** los tests de ingesta corren sin red. `scripts/dev/record_fixtures.py` graba (una vez, con red) cuatro fixtures crudos en `tests/fixtures/binance/` (BTCUSDT 1m de 2024-03-01, los bordes del hueco de LUNAUSDT de mayo de 2022, velas 1d de 7 símbolos con su primera vela y oct-dic de 2023, y `exchangeInfo` recortado a 15 símbolos); su README dice de dónde sale cada uno y cómo regenerarlos. `tests/fakes/binance.py` (`FakeBinance`) los sirve como la API real (`/klines` filtra por símbolo, intervalo, rango inclusivo y `limit`; `/exchangeInfo`), con la cabecera `X-MBX-USED-WEIGHT-1M`, registro de peticiones y errores programables (`schedule_error`); se engancha parcheando `requests.Session.get`, sin tocar el código de producción. `tests/integration/test_ingest_offline.py` prueba la CLI real (`download`, `validate`, `pairs`, `universe`): día completo de BTC, reanudación, validación limpia, aviso de hueco de LUNAUSDT, filtro de pares en BREAK, 429 con `Retry-After` y universo de 2024 con EOS (BREAK) evaluado como los demás (D-13) y USDC fuera.
+- **Decisión:** el falso vive en `tests/fakes/` (reutilizable por otros tests de integración) y el test lo carga por su ruta, porque el modo `importlib` de pytest no mete `tests/` en `sys.path`. Un símbolo sin fixture responde 400 `Invalid symbol` en vez de una lista vacía, para que un test mal montado falle en lugar de pasar en vacío.
+- **Decisión:** `tests/conftest.py` apunta `HTTP_PROXY`/`HTTPS_PROXY` (y minúsculas) a `http://127.0.0.1:9` y quita `NO_PROXY`, para tapar el agujero de los subprocesos: uno con `requests` falla al instante en local. No cubre sockets crudos en subprocesos (queda dicho en el comentario).
+- **Ojo:** los fixtures son una foto del 2026-10-13: `exchange_info.json` cambia con el tiempo (estados de los pares) y los tests se apoyan en su contenido, no en nombres concretos de extras; si se regeneran, revisar el diff. El falso no inventa velas: en 1d solo sirve la primera vela y oct-dic de 2023, así que una consulta fuera de esa ventana devuelve menos de lo que daría Binance.
+- **Ojo:** relanzar una descarga cuyo último minuto es el final del rango hace una petición de `/klines` que vuelve vacía (la reanudación pide desde `last + 1 ms`, que sigue dentro del rango). No baja velas ni repite lo ya cacheado, pero no es «ninguna llamada»; el test lo comprueba así. Mejorable en `update_symbol`, fuera de este ticket.
+- **Pendiente:** con esto la Épica 1 queda completa a falta de mergear MIAX-030, 031 y 032; la release v0.2.0 la hace quien mergee el último.
 
 ### 2026-10-13 · Alonso · MIAX-028
 - **Hecho:** universo **por periodos** congelado en un fichero. `configs/universe_params.yaml` (parámetros) y, en `miax.ingest.universe`: `UniverseParams`, `UniversePeriod`, `load_universe_params(path="universe_params.yaml")` (valida y lanza `ConfigError`), `universe_periods(params) -> list[UniversePeriod]`, `select_period_universe(pairs, first_candles, volumes, categories, period, params) -> pd.DataFrame` (pura: antigüedad, volumen, diversificación), `write_universe(universes, params, path="universe.yaml", *, generated_at=None) -> Path` (YAML atómico, tipos nativos) y `load_universe(path="universe.yaml") -> pd.DataFrame` (una fila por par y periodo). `build_universe(params, categories, *, client, now_ms, base_url=...) -> list[tuple[UniversePeriod, pd.DataFrame]]` orquesta la descarga (catálogo, primeras velas, volúmenes por ventana) sin escribir. Todo exportado desde `miax.ingest`. El subcomando `python -m miax.ingest universe [--params] [--out] [--base-url]` (con red) llama a `build_universe` y escribe `configs/universe.yaml`.
