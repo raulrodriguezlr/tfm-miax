@@ -74,8 +74,20 @@ def load_klines(
     base_dir: str | Path = DEFAULT_BASE_DIR,
     start_ms: int | None = None,
     end_ms: int | None = None,
+    columns: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Lee las klines cacheadas (solo las de [start_ms, end_ms] si se indica), por `open_time`."""
+    """Lee las klines cacheadas (solo las de [start_ms, end_ms] si se indica), por `open_time`.
+
+    Con `columns` lee solo esas (mas `open_time`, siempre); por defecto devuelve las 12.
+    """
+    if columns is None:
+        selected = KLINE_COLUMNS
+    else:
+        unknown = [c for c in columns if c not in KLINE_COLUMNS]
+        if unknown:
+            raise ValueError(f"Columnas de klines desconocidas: {unknown}")
+        # `open_time` va siempre: es la clave por la que se ordena y se filtra el rango.
+        selected = ["open_time", *dict.fromkeys(c for c in columns if c != "open_time")]
     directory = (
         resolve_repo_path(base_dir) / _validate_segment(symbol) / _validate_segment(interval)
     )
@@ -90,14 +102,14 @@ def load_klines(
             continue
         if start_ms is not None and month_end <= start_ms:
             continue
-        frames.append(read_parquet(path))
+        frames.append(read_parquet(path, columns=selected))
 
     if not frames:
-        return pd.DataFrame({c: pd.Series(dtype=t) for c, t in KLINE_DTYPES.items()})
+        return pd.DataFrame({c: pd.Series(dtype=KLINE_DTYPES[c]) for c in selected})
 
     result = pd.concat(frames, ignore_index=True).sort_values("open_time", kind="stable")
     if start_ms is not None:
         result = result[result["open_time"] >= start_ms]
     if end_ms is not None:
         result = result[result["open_time"] <= end_ms]
-    return result.reset_index(drop=True)[KLINE_COLUMNS]
+    return result.reset_index(drop=True)[selected]

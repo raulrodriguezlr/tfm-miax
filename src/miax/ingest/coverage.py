@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from miax.ingest.integrity import find_gaps
-from miax.ingest.klines import candle_offset_ms, interval_ms
+from miax.ingest.klines import candle_offset_ms, interval_ms, slot_bounds
 from miax.ingest.store import DEFAULT_BASE_DIR, load_klines
 from miax.utils.logging import get_logger
 
@@ -37,11 +37,6 @@ def _timestamp(open_time_ms: int | None) -> pd.Timestamp:
     if open_time_ms is None:
         return pd.NaT
     return pd.Timestamp(open_time_ms, unit="ms", tz="UTC")
-
-
-def _ceil_div(numerator: int, denominator: int) -> int:
-    """Division entera redondeada hacia arriba (denominador positivo)."""
-    return -(-numerator // denominator)
 
 
 def _pct(count: int, expected: int) -> float:
@@ -92,11 +87,7 @@ def coverage_from_frame(
         times = unique["open_time"]
         # Solo cuentan las velas dentro del rango y sobre la rejilla del intervalo.
         inside = unique[(times >= start_ms) & (times < end_ms) & ((times - offset) % step == 0)]
-        first_k = _ceil_div(start_ms - offset, step)
-        last_k = _ceil_div(end_ms - offset, step) - 1
-        expected = max(0, last_k - first_k + 1)
-        first_slot = offset + first_k * step
-        last_slot = offset + last_k * step
+        first_slot, last_slot, expected = slot_bounds(start_ms, end_ms, interval)
 
     present = len(inside)
     traded = int((inside["num_trades"] > 0).sum())

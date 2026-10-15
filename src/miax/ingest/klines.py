@@ -62,6 +62,28 @@ def candle_offset_ms(interval: str) -> int:
     return WEEK_OFFSET_MS if interval.endswith("w") else 0
 
 
+def slot_bounds(start_ms: int, end_ms: int, interval: str) -> tuple[int, int, int]:
+    """Da el primer y el ultimo slot de `interval` en `[start_ms, end_ms)` y cuantos hay.
+
+    Si no cabe ningun slot, `expected` es 0 y `last_slot` queda por debajo de `first_slot`.
+    """
+    step = interval_ms(interval)
+    if step is None:
+        raise ValueError(f"El intervalo {interval!r} no tiene duracion fija")
+    if start_ms >= end_ms:
+        raise ValueError(f"Rango vacio o invertido: [{start_ms}, {end_ms})")
+    offset = candle_offset_ms(interval)
+    # Rango semiabierto: el primer slot es el primero >= start_ms y el ultimo el ultimo < end_ms.
+    first_k = _ceil_div(start_ms - offset, step)
+    last_k = _ceil_div(end_ms - offset, step) - 1
+    return offset + first_k * step, offset + last_k * step, max(0, last_k - first_k + 1)
+
+
+def _ceil_div(numerator: int, denominator: int) -> int:
+    """Division entera redondeada hacia arriba (denominador positivo)."""
+    return -(-numerator // denominator)
+
+
 def _to_frame(rows: list[list[Any]]) -> pd.DataFrame:
     """Estructura las filas crudas de Binance en un DataFrame con nombres y dtypes."""
     frame = pd.DataFrame(rows, columns=KLINE_COLUMNS)

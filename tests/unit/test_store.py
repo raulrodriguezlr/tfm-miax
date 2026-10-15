@@ -278,3 +278,20 @@ def test_default_base_dir_lives_under_data_raw() -> None:
 
     assert resolved == REPO_ROOT / "data" / "raw" / "klines"
     assert (REPO_ROOT / "data" / "raw") in resolved.parents
+
+
+def test_columns_reads_only_requested_plus_open_time(tmp_path: Path) -> None:
+    """Con `columns` solo vuelven esas mas `open_time`; sin el parametro, las 12 de siempre."""
+    df = _frame(n=35)
+    save_klines(df, SYMBOL, INTERVAL, base_dir=tmp_path)
+
+    subset = load_klines(SYMBOL, INTERVAL, base_dir=tmp_path, columns=["close", "num_trades"])
+    full = load_klines(SYMBOL, INTERVAL, base_dir=tmp_path)
+
+    assert list(subset.columns) == ["open_time", "close", "num_trades"]
+    assert list(full.columns) == KLINE_COLUMNS
+    assert_frame_equal(subset, full[["open_time", "close", "num_trades"]])
+    empty = load_klines("NOPEUSDT", INTERVAL, base_dir=tmp_path, columns=["close"])
+    assert list(empty.columns) == ["open_time", "close"]
+    with pytest.raises(ValueError, match="desconocidas"):
+        load_klines(SYMBOL, INTERVAL, base_dir=tmp_path, columns=["nope"])
