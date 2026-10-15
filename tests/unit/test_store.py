@@ -12,6 +12,9 @@ from pandas.testing import assert_frame_equal
 
 from miax.ingest import load_klines, save_klines
 from miax.ingest.klines import KLINE_COLUMNS, KLINE_DTYPES
+from miax.ingest.store import DEFAULT_BASE_DIR
+from miax.utils.config import REPO_ROOT
+from miax.utils.io import resolve_repo_path
 
 HOUR_MS = 3_600_000
 SYMBOL = "BTCUSDT"
@@ -267,3 +270,11 @@ def test_absolute_path_segment_is_rejected(tmp_path: Path) -> None:
         load_klines(str(outside), INTERVAL, base_dir=base)
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_default_base_dir_lives_under_data_raw() -> None:
+    """El directorio por defecto de la cache cuelga de `data/raw` en la raiz del repo."""
+    resolved: Path = resolve_repo_path(DEFAULT_BASE_DIR)
+
+    assert resolved == REPO_ROOT / "data" / "raw" / "klines"
+    assert (REPO_ROOT / "data" / "raw") in resolved.parents
