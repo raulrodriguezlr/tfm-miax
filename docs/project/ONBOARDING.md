@@ -257,6 +257,8 @@ El contrato que evita bloqueos. Si cambias una, **avisas antes, no después**:
 | Qué hace cada versión | [CHANGELOG.md](../../CHANGELOG.md) |
 | El tablero | https://trello.com/b/PBzf0gtT/tfm-miax-lead-lag-cripto |
 
+**Los datos no van por Git.** La cache de klines vive en `data/raw/klines/<SÍMBOLO>/<intervalo>/AAAA-MM.parquet` y `data/` está ignorado. Para tenerla, copia la carpeta `klines` del Drive dentro de `data/raw/` y comprueba que se lee con `python -m miax.ingest validate --symbol BTCUSDT`.
+
 ---
 
 ## 13. Primer ticket

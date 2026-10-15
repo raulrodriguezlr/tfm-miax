@@ -17,7 +17,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | Épica | Tickets | Área | Qué deja hecho |
 |---|---|---|---|
 | [0. Fundación](#épica-0--fundación-del-proyecto) | 001–015 | A | Repo, reglas, entorno, CI |
-| [1. Ingesta](#épica-1--ingesta-de-datos) | 016–032 | A | Histórico de Binance en local |
+| [1. Ingesta](#épica-1--ingesta-de-datos) | 016–032, 197 | A | Histórico de Binance en local |
 | [2. Panel y preprocesado](#épica-2--panel-y-preprocesado) | 033–046 | A | Panel limpio de retornos |
 | [3. Residualización](#épica-3--residualización-del-factor-común) | 047–060 | B | Retornos idiosincráticos |
 | [4. Lead-lag](#épica-4--lead-lag-línea-base) | 061–076 | B | Grafo dirigido con FDR |
@@ -80,6 +80,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-030 | Informe de cobertura temporal por símbolo | 029 | Tabla de fecha inicial, final y % de velas presentes |
 | MIAX-031 | Documentar el sesgo de supervivencia como limitación declarada | 024 | Queda escrito qué pares faltan y por qué |
 | MIAX-032 | Tests de ingesta con fixtures, sin tocar la red | 018, 021 | `pytest` pasa sin conexión |
+| MIAX-197 | Guardar la cache de klines en data/raw/klines | 020 | Descarga, validación y cobertura usan data/raw/klines por defecto |
 
 ---
 

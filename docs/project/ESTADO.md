@@ -11,7 +11,7 @@
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
-| Piettro | — | — | — | libre |
+| Piettro | MIAX-197 | `feature/MIAX-197` | 2026-10-15 | en curso |
 | Alonso | MIAX-032 (y MIAX-030, MIAX-031) | `feature/MIAX-032` | 2026-10-13 | en review |
 | Alonso | MIAX-031 (y MIAX-030) | `feature/MIAX-031` | 2026-10-13 | en review |
 | Alonso | MIAX-030 | `feature/MIAX-030` | 2026-10-13 | en review |
@@ -42,6 +42,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-12 | La prohibición de tocar la red en los tests la vigila una guardia autouse en `tests/conftest.py`, no la revisión humana. | Un `monkeypatch` sobre `socket.socket.connect`/`connect_ex` falla siempre y se restaura solo, aunque el test falle. | MIAX-008 |
 | D-13 | El catálogo de pares se consulta completo, incluidos los pares en `BREAK` (parados o deslistados); filtrar por estado es decisión del universo (MIAX-025 a 028), no de la consulta. | Sin los pares en `BREAK` no se puede medir el sesgo de supervivencia (MIAX-031). | MIAX-024 |
 | D-14 | El universo se elige con el volumen de una ventana anterior al periodo de estudio, nunca con el del propio periodo: así la selección no usa información del futuro, y los pares que entonces eran líquidos entran aunque hoy estén deslistados. | Elegir por el volumen de hoy o del test es sesgo de selección y de supervivencia. | MIAX-025 |
+| D-?? | La cache de klines vive en `data/raw/klines` (por defecto en `miax.ingest.store.DEFAULT_BASE_DIR`). | Son datos crudos e inmutables tal como salen de Binance, y el grupo acordó dejar todo lo descargado en `data/raw/`; así la carpeta `klines` del Drive se copia tal cual dentro de `data/raw/`. | MIAX-197 |
 
 ---
 
@@ -79,6 +80,12 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-10-15 · Piettro · MIAX-197
+- **Hecho:** `DEFAULT_BASE_DIR` de `miax.ingest.store` pasa de `data/klines` a `data/raw/klines`; descarga, validación y cobertura (que lo importan de ahí) leen y escriben en la nueva ruta por defecto, con el mismo layout `<SÍMBOLO>/<intervalo>/AAAA-MM.parquet`. `test_cli.py` actualizado y test nuevo en `test_store.py` que fija que el directorio cuelga de `data/raw`. Documentado en ONBOARDING §12 cómo obtener los datos (copiar la carpeta `klines` del Drive dentro de `data/raw/`).
+- **Decisión:** D-?? (la cache de klines vive en `data/raw/klines`, ver §2). Es un cambio de comportamiento, no un refactor: por eso un test existente cambia. No se mueven ni borran datos.
+- **Ojo:** quien ya tenga la cache en `data/klines` debe moverla a `data/raw/klines` o se encontrará la caché vacía (el comando `validate` saldrá con 1). Las entradas anteriores de la bitácora que citan `data/klines` (MIAX-020) describen el valor de entonces y no se han tocado.
+- **Pendiente:** nada.
 
 ### 2026-10-13 · Alonso · MIAX-032
 - **Hecho:** los tests de ingesta corren sin red. `scripts/dev/record_fixtures.py` graba (una vez, con red) cuatro fixtures crudos en `tests/fixtures/binance/` (BTCUSDT 1m de 2024-03-01, los bordes del hueco de LUNAUSDT de mayo de 2022, velas 1d de 7 símbolos con su primera vela y oct-dic de 2023, y `exchangeInfo` recortado a 15 símbolos); su README dice de dónde sale cada uno y cómo regenerarlos. `tests/fakes/binance.py` (`FakeBinance`) los sirve como la API real (`/klines` filtra por símbolo, intervalo, rango inclusivo y `limit`; `/exchangeInfo`), con la cabecera `X-MBX-USED-WEIGHT-1M`, registro de peticiones y errores programables (`schedule_error`); se engancha parcheando `requests.Session.get`, sin tocar el código de producción. `tests/integration/test_ingest_offline.py` prueba la CLI real (`download`, `validate`, `pairs`, `universe`): día completo de BTC, reanudación, validación limpia, aviso de hueco de LUNAUSDT, filtro de pares en BREAK, 429 con `Retry-After` y universo de 2024 con EOS (BREAK) evaluado como los demás (D-13) y USDC fuera.

@@ -29,6 +29,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Informe de cobertura temporal de la caché de klines: `coverage_report` da, por símbolo, la fecha inicial y final, el porcentaje de velas presentes, el de minutos con operaciones (`num_trades > 0`), los huecos y las velas que faltan al principio o al final del rango, y `universe_coverage` lo mide para cada par en su periodo del universo para detectar series cortadas (BCC, BCHABC, LUNA); `python -m miax.ingest coverage` lo ejecuta con `--symbol` o `--universe`, y sale con código 1 si algún símbolo no tiene velas (MIAX-030)
 
 ### Cambiado
+- La cache de klines se guarda por defecto en `data/raw/klines` en lugar de `data/klines`: la descarga, la validación y la cobertura leen y escriben ahí, de modo que la carpeta `klines` del Drive se copia tal cual dentro de `data/raw/` (MIAX-197)
 - Reglas de equipo ampliadas en `CLAUDE.md` y `AGENTS.md`: se refactoriza código de tickets cerrados antes que duplicarlo (sin cambios masivos), sin atribución a Claude en commits y PR, prueba de humo real antes del PR, cierre al mergear con squash (con el mensaje de todos los commits) y CLI con subcomandos
 
 ---
