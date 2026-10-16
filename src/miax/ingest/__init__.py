@@ -7,7 +7,7 @@ from miax.ingest.integrity import check_klines_frame, find_gaps, validate_klines
 from miax.ingest.klines import candle_offset_ms, download_klines, interval_ms, slot_bounds
 from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import cached_last_open_time, update_symbol
-from miax.ingest.store import load_klines, save_klines
+from miax.ingest.store import cache_bounds, load_klines, save_klines
 from miax.ingest.universe import (
     UniverseParams,
     UniversePeriod,
@@ -36,6 +36,7 @@ __all__ = [
     "UniverseParams",
     "UniversePeriod",
     "build_universe",
+    "cache_bounds",
     "cached_last_open_time",
     "candle_offset_ms",
     "check_klines_frame",
