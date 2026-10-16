@@ -14,10 +14,12 @@ from miax.ingest.klines import (
     KLINES_WEIGHT,
     candle_offset_ms,
     interval_ms,
+    slot_bounds,
 )
 
 STEP_MS = 60_000
 T0 = 1_700_000_000_000
+T0_ALIGNED = 1_767_225_600_000  # 2026-01-01T00:00:00Z (jueves), multiplo de un minuto
 
 
 def _candle(open_time: int) -> list[Any]:
@@ -271,3 +273,47 @@ def test_candle_offset_ms_only_for_weekly() -> None:
     assert candle_offset_ms("1w") == 4 * 86_400_000
     for interval in ("1s", "1m", "1h", "1d", "1M"):
         assert candle_offset_ms(interval) == 0
+
+
+def test_slot_bounds_aligned_range() -> None:
+    """Un rango alineado de 10 slots da primer slot, ultimo slot y `expected = 10`."""
+    assert slot_bounds(T0_ALIGNED, T0_ALIGNED + 10 * STEP_MS, "1m") == (
+        T0_ALIGNED,
+        T0_ALIGNED + 9 * STEP_MS,
+        10,
+    )
+
+
+def test_slot_bounds_unaligned_start_moves_to_next_slot() -> None:
+    """Un `start` entre dos slots empieza en el siguiente y no cuenta el anterior."""
+    first, last, expected = slot_bounds(T0_ALIGNED + 1, T0_ALIGNED + 5 * STEP_MS, "1m")
+    assert (first, last, expected) == (T0_ALIGNED + STEP_MS, T0_ALIGNED + 4 * STEP_MS, 4)
+
+
+def test_slot_bounds_range_without_slot_has_zero_expected() -> None:
+    """Si no cabe ningun slot, `expected` es 0 y `last_slot` queda por debajo de `first_slot`."""
+    first, last, expected = slot_bounds(T0_ALIGNED + 1, T0_ALIGNED + STEP_MS - 1, "1m")
+    assert expected == 0
+    assert last < first
+
+
+def test_slot_bounds_weekly_uses_monday_offset() -> None:
+    """Con velas semanales los slots caen en lunes, no en jueves como la epoca."""
+    week = 604_800_000
+    monday = T0_ALIGNED + candle_offset_ms("1w")  # T0_ALIGNED es jueves: +4 dias es lunes
+    first, last, expected = slot_bounds(T0_ALIGNED, monday + 2 * week, "1w")
+    assert (first, last, expected) == (monday, monday + week, 2)
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "interval"),
+    [
+        (T0_ALIGNED, T0_ALIGNED + STEP_MS, "1M"),
+        (T0_ALIGNED, T0_ALIGNED, "1m"),
+        (T0_ALIGNED + STEP_MS, T0_ALIGNED, "1m"),
+    ],
+)
+def test_slot_bounds_invalid_raises(start: int, end: int, interval: str) -> None:
+    """Un intervalo sin paso fijo, un rango vacio o uno invertido dan `ValueError`."""
+    with pytest.raises(ValueError):
+        slot_bounds(start, end, interval)

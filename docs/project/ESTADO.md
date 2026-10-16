@@ -11,7 +11,7 @@
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
-| Piettro | MIAX-197 | `feature/MIAX-197` | 2026-10-15 | en curso |
+| Piettro | MIAX-033 | `feature/MIAX-033` | 2026-10-15 | en curso |
 | Alonso | MIAX-032 (y MIAX-030, MIAX-031) | `feature/MIAX-032` | 2026-10-13 | en review |
 | Alonso | MIAX-031 (y MIAX-030) | `feature/MIAX-031` | 2026-10-13 | en review |
 | Alonso | MIAX-030 | `feature/MIAX-030` | 2026-10-13 | en review |
@@ -42,7 +42,8 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-12 | La prohibición de tocar la red en los tests la vigila una guardia autouse en `tests/conftest.py`, no la revisión humana. | Un `monkeypatch` sobre `socket.socket.connect`/`connect_ex` falla siempre y se restaura solo, aunque el test falle. | MIAX-008 |
 | D-13 | El catálogo de pares se consulta completo, incluidos los pares en `BREAK` (parados o deslistados); filtrar por estado es decisión del universo (MIAX-025 a 028), no de la consulta. | Sin los pares en `BREAK` no se puede medir el sesgo de supervivencia (MIAX-031). | MIAX-024 |
 | D-14 | El universo se elige con el volumen de una ventana anterior al periodo de estudio, nunca con el del propio periodo: así la selección no usa información del futuro, y los pares que entonces eran líquidos entran aunque hoy estén deslistados. | Elegir por el volumen de hoy o del test es sesgo de selección y de supervivencia. | MIAX-025 |
-| D-?? | La cache de klines vive en `data/raw/klines` (por defecto en `miax.ingest.store.DEFAULT_BASE_DIR`). | Son datos crudos e inmutables tal como salen de Binance, y el grupo acordó dejar todo lo descargado en `data/raw/`; así la carpeta `klines` del Drive se copia tal cual dentro de `data/raw/`. | MIAX-197 |
+| D-15 | La cache de klines vive en `data/raw/klines` (por defecto en `miax.ingest.store.DEFAULT_BASE_DIR`). | Son datos crudos e inmutables tal como salen de Binance, y el grupo acordó dejar todo lo descargado en `data/raw/`; así la carpeta `klines` del Drive se copia tal cual dentro de `data/raw/`. | MIAX-197 |
+| D-?? | La alineacion a la rejilla comun se hace por rango y por campos (`align_klines(symbols, interval, start_ms, end_ms, fields=...)`), no con un panel global de todo el historico; la rejilla son las aperturas de vela en `[inicio, fin)`, indice UTC `datetime64[ms, UTC]` con `freq = None`, y lo que falta es `NaN`. | Un solo campo de los 104 simbolos en 1m (2018-2026) son unos 3,8 GB, y habra mas campos; con huecos no hay frecuencia regular y `NaN` respeta D-02. | MIAX-033 |
 
 ---
 
@@ -81,9 +82,17 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-15 · Piettro · MIAX-033
+- **Hecho:** `miax.features.alignment` con `build_time_grid(start_ms, end_ms, interval="1m") -> DatetimeIndex` (aperturas de vela UTC en `[inicio, fin)`), `align_frame(frame, grid, fields)` (pura, un símbolo) y `align_klines(symbols, interval, start_ms, end_ms, *, fields=("close",), base_dir) -> dict[campo, DataFrame]` (ancho `tiempo × símbolo`, mismo índice en todos, `float64`), exportadas desde `miax.features`. Lo que falta queda `NaN`, nunca 0 ni relleno (D-02); un símbolo sin caché es una columna entera de `NaN` con aviso; una `open_time` duplicada o desalineada lanza `ValueError` con el símbolo y la pista de `python -m miax.ingest validate`. `num_trades` sale `float64` porque un entero no admite `NaN`.
+- **Decisión:** D-?? (alineación por rango y por campos, no un panel global; ver §2). El rango es semiabierto y `load_klines` se llama con `end_ms - 1` porque su extremo es inclusivo: una vela en `end_ms` no entra.
+- **Refactor (código de tickets cerrados, comportamiento idéntico, tests existentes sin tocar):** `load_klines` gana `columns=None` (lee solo esas columnas más `open_time`; por defecto las 12) y la aritmética de slots de `coverage_from_frame` pasa a `slot_bounds(start_ms, end_ms, interval)` en `ingest/klines.py` (con `_ceil_div`), exportada desde `miax.ingest` y usada por la cobertura y la rejilla.
+- **Ojo:** `align_klines` no sabe del universo: recibe símbolos y rango explícitos. Memoria: `campos × slots × símbolos × 8 B` (un año de 1m con 40 símbolos son unos 170 MB por campo). Las velas entre el último slot y `end_ms`, o antes del primero, se ignoran. Los DataFrames comparten memoria con los arrays internos (`copy=False`), así que no hay pico de 2× esa cifra.
+- **Ojo (fuga en lead-lag):** `open_time` es la **apertura** de la vela, y el valor de esa fila (`close`, `volume`, `num_trades`, etc.) solo se conoce al **cierre**, en `open_time + intervalo`. Quien use la rejilla para predecir o calcular retardos tiene que tenerlo en cuenta: es el punto clásico de fuga en lead-lag.
+- **Pendiente:** cómo se parte el panel por periodo del universo (provisional, §4) es de MIAX-041; clasificar los huecos es MIAX-034 y la máscara de validez MIAX-035. La prueba de humo real con la caché del Drive queda para el tester.
+
 ### 2026-10-15 · Piettro · MIAX-197
 - **Hecho:** `DEFAULT_BASE_DIR` de `miax.ingest.store` pasa de `data/klines` a `data/raw/klines`; descarga, validación y cobertura (que lo importan de ahí) leen y escriben en la nueva ruta por defecto, con el mismo layout `<SÍMBOLO>/<intervalo>/AAAA-MM.parquet`. `test_cli.py` actualizado y test nuevo en `test_store.py` que fija que el directorio cuelga de `data/raw`. Documentado en ONBOARDING §12 cómo obtener los datos (copiar la carpeta `klines` del Drive dentro de `data/raw/`).
-- **Decisión:** D-?? (la cache de klines vive en `data/raw/klines`, ver §2). Es un cambio de comportamiento, no un refactor: por eso un test existente cambia. No se mueven ni borran datos.
+- **Decisión:** D-15 (la cache de klines vive en `data/raw/klines`, ver §2). Es un cambio de comportamiento, no un refactor: por eso un test existente cambia. No se mueven ni borran datos.
 - **Ojo:** quien ya tenga la cache en `data/klines` debe moverla a `data/raw/klines` o se encontrará la caché vacía (el comando `validate` saldrá con 1). Las entradas anteriores de la bitácora que citan `data/klines` (MIAX-020) describen el valor de entonces y no se han tocado.
 - **Pendiente:** nada.
 

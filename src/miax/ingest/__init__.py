@@ -4,7 +4,7 @@ from miax.ingest.coverage import coverage_from_frame, coverage_report, universe_
 from miax.ingest.exchange_info import fetch_exchange_info, list_pairs, pairs_from_exchange_info
 from miax.ingest.http import ClientError, HttpClient, HttpError, RetriesExhaustedError
 from miax.ingest.integrity import check_klines_frame, find_gaps, validate_klines
-from miax.ingest.klines import candle_offset_ms, download_klines, interval_ms
+from miax.ingest.klines import candle_offset_ms, download_klines, interval_ms, slot_bounds
 from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import cached_last_open_time, update_symbol
 from miax.ingest.store import load_klines, save_klines
@@ -60,6 +60,7 @@ __all__ = [
     "prefilter_by_category",
     "save_klines",
     "select_period_universe",
+    "slot_bounds",
     "universe_coverage",
     "universe_periods",
     "update_symbol",
