@@ -26,7 +26,7 @@ def _check_fields(fields: Sequence[str]) -> list[str]:
     return list(fields)
 
 
-def _grid_ms(grid: pd.DatetimeIndex) -> np.ndarray:
+def grid_ms(grid: pd.DatetimeIndex) -> np.ndarray:
     """Devuelve la rejilla como `int64` en ms desde la epoca UTC."""
     return grid.tz_convert("UTC").as_unit("ms").asi8
 
@@ -64,7 +64,7 @@ def align_frame(frame: pd.DataFrame, grid: pd.DatetimeIndex, fields: Sequence[st
         raise ValueError(f"Faltan columnas para alinear: {missing}")
     result = np.full((len(grid), len(columns)), np.nan, dtype="float64")
     if len(grid) and len(frame):
-        inside, rows = _positions(frame["open_time"].to_numpy(dtype="int64"), _grid_ms(grid))
+        inside, rows = _positions(frame["open_time"].to_numpy(dtype="int64"), grid_ms(grid))
         for j, field in enumerate(columns):
             result[rows, j] = frame[field].to_numpy(dtype="float64")[inside]
     return pd.DataFrame(result, index=grid, columns=columns)
@@ -94,7 +94,7 @@ def align_klines(
     grid = build_time_grid(start_ms, end_ms, interval)
     if not len(grid):
         raise ValueError("rejilla vacia: el rango no contiene ningun slot")
-    grid_ms = _grid_ms(grid)
+    slots_ms = grid_ms(grid)
     # Un array por campo, rellenado simbolo a simbolo: no se acumulan frames intermedios.
     arrays = {f: np.full((len(grid), len(names)), np.nan, dtype="float64") for f in columns}
     for k, symbol in enumerate(names):
@@ -112,7 +112,7 @@ def align_klines(
             logger.warning("Sin velas de %s %s en el rango: columna de NaN", symbol, interval)
             continue
         try:
-            inside, rows = _positions(candles["open_time"].to_numpy(dtype="int64"), grid_ms)
+            inside, rows = _positions(candles["open_time"].to_numpy(dtype="int64"), slots_ms)
         except ValueError as exc:
             raise ValueError(
                 f"{symbol} {interval}: {exc}; revisa la cache con "

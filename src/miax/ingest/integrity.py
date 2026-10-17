@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 
 from miax.ingest.klines import KLINE_DTYPES, candle_offset_ms, interval_ms
-from miax.ingest.store import _MONTH_STEM, DEFAULT_BASE_DIR, _month_bounds_ms, _validate_segment
-from miax.utils.io import read_parquet, resolve_repo_path
+from miax.ingest.store import DEFAULT_BASE_DIR, _month_bounds_ms, _month_files
+from miax.utils.io import read_parquet
 from miax.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -109,15 +109,6 @@ def find_gaps(open_times: pd.Series, interval: str) -> pd.DataFrame:
             "missing_candles": (jump[mask] // step - 1).astype("int64"),
         }
     ).reset_index(drop=True)
-
-
-def _month_files(symbol: str, interval: str, base_dir: str | Path) -> tuple[Path, list[Path]]:
-    """Devuelve la carpeta de `symbol`/`interval` y sus ficheros de mes ordenados."""
-    directory = (
-        resolve_repo_path(base_dir) / _validate_segment(symbol) / _validate_segment(interval)
-    )
-    paths = sorted(p for p in directory.glob("*.parquet") if _MONTH_STEM.fullmatch(p.stem))
-    return directory, paths
 
 
 def count_month_files(
