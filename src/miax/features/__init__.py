@@ -10,6 +10,7 @@ from miax.features.gaps import (
     gap_runs,
     listings_from_universe,
 )
+from miax.features.validity import mask_invalid, return_validity, validity_mask
 
 __all__ = [
     "GapCause",
@@ -22,4 +23,7 @@ __all__ = [
     "download_ends_from_universe",
     "gap_runs",
     "listings_from_universe",
+    "mask_invalid",
+    "return_validity",
+    "validity_mask",
 ]
