@@ -14,7 +14,7 @@ from miax.ingest.klines import interval_ms
 from miax.ingest.store import DEFAULT_BASE_DIR
 
 
-def _check_params(window: int, min_valid_share: float) -> None:
+def check_window_params(window: int, min_valid_share: float) -> None:
     """Valida los parametros de la ventana; lanza `ValueError` si no valen."""
     if window < 1:
         raise ValueError(f"window debe ser >= 1, no {window}")
@@ -30,7 +30,7 @@ def realized_volatility(
     Reescala por `window / n` (con `n` los retornos no `NaN` de la ventana) y da `NaN` si
     `n / window < min_valid_share`; las filas que faltan al principio cuentan como no validas.
     """
-    _check_params(window, min_valid_share)
+    check_window_params(window, min_valid_share)
     if not all(pd.api.types.is_float_dtype(dtype) for dtype in returns.dtypes):
         raise ValueError("returns debe ser float en todas las columnas")
     if not (returns.index.is_monotonic_increasing and returns.index.is_unique):
@@ -63,7 +63,7 @@ def realized_volatility_from_cache(
     Pide `window - 1` retornos anteriores al rango (pasado) para que la ventana del primer slot
     este completa; el indice es exactamente `build_time_grid(start_ms, end_ms, interval)`.
     """
-    _check_params(window, min_valid_share)
+    check_window_params(window, min_valid_share)
     step = interval_ms(interval)
     if step is None:
         raise ValueError(f"El intervalo {interval!r} no tiene duracion fija: no hay rejilla")

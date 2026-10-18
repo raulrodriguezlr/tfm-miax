@@ -1,6 +1,7 @@
 """Retornos, residualizacion y features por nodo."""
 
-from miax.features.alignment import align_frame, align_klines, build_time_grid
+from miax.features.activity import log_relative_to_past, relative_volume_from_cache
+from miax.features.alignment import align_frame, align_klines, build_time_grid, shift_to_close
 from miax.features.gaps import (
     GapCause,
     cause_counts,
@@ -25,11 +26,14 @@ __all__ = [
     "download_ends_from_universe",
     "gap_runs",
     "listings_from_universe",
+    "log_relative_to_past",
     "log_returns",
     "mask_invalid",
     "realized_volatility",
     "realized_volatility_from_cache",
+    "relative_volume_from_cache",
     "return_validity",
     "returns_from_cache",
+    "shift_to_close",
     "validity_mask",
 ]

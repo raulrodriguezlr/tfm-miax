@@ -31,6 +31,15 @@ def grid_ms(grid: pd.DatetimeIndex) -> np.ndarray:
     return grid.tz_convert("UTC").as_unit("ms").asi8
 
 
+def shift_to_close(index: pd.DatetimeIndex, interval: str) -> pd.DatetimeIndex:
+    """Desplaza un indice de aperturas un paso: el instante en que la vela ya se conoce (D-19)."""
+    step = interval_ms(interval)
+    if step is None:
+        raise ValueError(f"El intervalo {interval!r} no tiene duracion fija: no hay rejilla")
+    # La fila pasa de la apertura al cierre de su vela: el instante en que su valor ya se conoce.
+    return pd.DatetimeIndex((grid_ms(index) + step).astype("datetime64[ms]"), tz="UTC")
+
+
 def _positions(open_time: np.ndarray, grid_ms: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Da la mascara de velas dentro de la rejilla y su fila en ella; falla si hay duplicadas."""
     # Solo cuenta el rango de la rejilla [primer slot, ultimo slot]; el resto se ignora sin mirar.
