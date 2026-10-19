@@ -13,6 +13,7 @@ from miax.features.gaps import (
 from miax.features.returns import log_returns, returns_from_cache
 from miax.features.tails import clip_returns, fit_clip_bounds, tail_report
 from miax.features.validity import mask_invalid, return_validity, validity_mask
+from miax.features.volatility import realized_volatility, realized_volatility_from_cache
 
 __all__ = [
     "GapCause",
@@ -29,6 +30,8 @@ __all__ = [
     "listings_from_universe",
     "log_returns",
     "mask_invalid",
+    "realized_volatility",
+    "realized_volatility_from_cache",
     "return_validity",
     "returns_from_cache",
     "tail_report",
