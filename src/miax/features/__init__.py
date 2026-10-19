@@ -11,6 +11,7 @@ from miax.features.gaps import (
     listings_from_universe,
 )
 from miax.features.returns import log_returns, returns_from_cache
+from miax.features.tails import clip_returns, fit_clip_bounds, tail_report
 from miax.features.validity import mask_invalid, return_validity, validity_mask
 
 __all__ = [
@@ -21,12 +22,15 @@ __all__ = [
     "cause_counts",
     "classify_klines",
     "classify_slots",
+    "clip_returns",
     "download_ends_from_universe",
+    "fit_clip_bounds",
     "gap_runs",
     "listings_from_universe",
     "log_returns",
     "mask_invalid",
     "return_validity",
     "returns_from_cache",
+    "tail_report",
     "validity_mask",
 ]
