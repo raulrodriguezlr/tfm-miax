@@ -19,6 +19,9 @@ from miax.features.volatility import check_window_params
 from miax.ingest.klines import interval_ms
 from miax.ingest.store import DEFAULT_BASE_DIR
 
+# Campos de actividad: valen > 0 siempre que hay operaciones (taker_buy_* puede ser 0, queda fuera).
+ACTIVITY_FIELDS = ("quote_asset_volume", "volume", "num_trades")
+
 
 def log_relative_to_past(
     values: pd.DataFrame,
@@ -64,6 +67,52 @@ def log_relative_to_past(
     return relative.set_axis(shift_to_close(relative.index, interval), axis=0)
 
 
+def relative_activity_from_cache(
+    field: str,
+    symbols: Sequence[str],
+    interval: str,
+    start_ms: int,
+    end_ms: int,
+    *,
+    window: int = 10080,
+    min_valid_share: float = 0.5,
+    base_dir: str | Path = DEFAULT_BASE_DIR,
+) -> pd.DataFrame:
+    """Lee la cache y da la actividad relativa de `field` (de `ACTIVITY_FIELDS`) en `[start, end)`.
+
+    Pide `window + 1` velas anteriores al rango (pasado) para que la base del primer slot este
+    completa; el indice es exactamente `build_time_grid(start_ms, end_ms, interval)`.
+    """
+    if field not in ACTIVITY_FIELDS:
+        raise ValueError(
+            f"Campo de actividad no admitido: {field!r}; validos: {list(ACTIVITY_FIELDS)}"
+        )
+    check_window_params(window, min_valid_share)
+    step = interval_ms(interval)
+    if step is None:
+        raise ValueError(f"El intervalo {interval!r} no tiene duracion fija: no hay rejilla")
+    grid = build_time_grid(start_ms, end_ms, interval)
+    if not len(grid):
+        raise ValueError("rejilla vacia: el rango no contiene ningun slot")
+    # El slot conocido en start es la vela de start - paso, y su base son las `window` velas
+    # anteriores a esa: todo es ANTERIOR a start_ms (pasado), asi el primer slot no mira adelante.
+    wide_start = start_ms - (window + 1) * step
+    wide_end = end_ms - step
+    values = align_klines(
+        symbols, interval, wide_start, wide_end, fields=(field,), base_dir=base_dir
+    )[field]
+    causes = classify_klines(symbols, interval, wide_start, wide_end, base_dir=base_dir)
+    relative = log_relative_to_past(
+        values, validity_mask(causes), interval, window=window, min_valid_share=min_valid_share
+    )
+    # La salida cubre [wide_start + paso, end_ms): las `window` primeras filas caen antes de
+    # start_ms y solo servian para llenar la base del primer slot, asi que se quitan.
+    relative = relative.iloc[window:]
+    if not relative.index.equals(grid):
+        raise RuntimeError("el indice de actividad relativa no coincide con la rejilla del rango")
+    return relative
+
+
 def relative_volume_from_cache(
     symbols: Sequence[str],
     interval: str,
@@ -79,27 +128,40 @@ def relative_volume_from_cache(
     Pide `window + 1` velas anteriores al rango (pasado) para que la base del primer slot este
     completa; el indice es exactamente `build_time_grid(start_ms, end_ms, interval)`.
     """
-    check_window_params(window, min_valid_share)
-    step = interval_ms(interval)
-    if step is None:
-        raise ValueError(f"El intervalo {interval!r} no tiene duracion fija: no hay rejilla")
-    grid = build_time_grid(start_ms, end_ms, interval)
-    if not len(grid):
-        raise ValueError("rejilla vacia: el rango no contiene ningun slot")
-    # El slot conocido en start es la vela de start - paso, y su base son las `window` velas
-    # anteriores a esa: todo es ANTERIOR a start_ms (pasado), asi el primer slot no mira adelante.
-    wide_start = start_ms - (window + 1) * step
-    wide_end = end_ms - step
-    volume = align_klines(
-        symbols, interval, wide_start, wide_end, fields=("quote_asset_volume",), base_dir=base_dir
-    )["quote_asset_volume"]
-    causes = classify_klines(symbols, interval, wide_start, wide_end, base_dir=base_dir)
-    relative = log_relative_to_past(
-        volume, validity_mask(causes), interval, window=window, min_valid_share=min_valid_share
+    return relative_activity_from_cache(
+        "quote_asset_volume",
+        symbols,
+        interval,
+        start_ms,
+        end_ms,
+        window=window,
+        min_valid_share=min_valid_share,
+        base_dir=base_dir,
     )
-    # La salida cubre [wide_start + paso, end_ms): las `window` primeras filas caen antes de
-    # start_ms y solo servian para llenar la base del primer slot, asi que se quitan.
-    relative = relative.iloc[window:]
-    if not relative.index.equals(grid):
-        raise RuntimeError("el indice de volumen relativo no coincide con la rejilla del rango")
-    return relative
+
+
+def relative_trades_from_cache(
+    symbols: Sequence[str],
+    interval: str,
+    start_ms: int,
+    end_ms: int,
+    *,
+    window: int = 10080,
+    min_valid_share: float = 0.5,
+    base_dir: str | Path = DEFAULT_BASE_DIR,
+) -> pd.DataFrame:
+    """Lee la cache y da las operaciones relativas (`num_trades`) conocidas en `[start, end)`.
+
+    Misma base movil de `window` velas anteriores que el volumen relativo; el indice es exactamente
+    `build_time_grid(start_ms, end_ms, interval)`.
+    """
+    return relative_activity_from_cache(
+        "num_trades",
+        symbols,
+        interval,
+        start_ms,
+        end_ms,
+        window=window,
+        min_valid_share=min_valid_share,
+        base_dir=base_dir,
+    )
