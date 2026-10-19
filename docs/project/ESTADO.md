@@ -12,9 +12,8 @@
 |---|---|---|---|---|
 | Raúl | — (reglas de equipo) | `docs/reglas-equipo` | 2026-10-12 | en review |
 | Piettro | MIAX-037 | `feature/MIAX-037` | 2026-10-17 | en curso |
-| Alonso | MIAX-038 | `feature/MIAX-038` | 2026-10-17 | en curso |
 | Piettro | MIAX-035 | `feature/MIAX-035` | 2026-10-17 | en curso |
-| Alonso | MIAX-039 | `feature/MIAX-039` | 2026-10-17 | en curso |
+| Alonso | MIAX-039 | `feature/MIAX-039` | 2026-10-17 | mergeado (#37) |
 
 **Versión actual:** `v0.1.0` (2026-10-11, en `main` con tag) · **Snapshot de `develop`:** `v0.2.0-snapshot.5` (este PR será `.6`)
 

@@ -37,7 +37,7 @@ __all__ = [
     "relative_volume_from_cache",
     "return_validity",
     "returns_from_cache",
-    "tail_report",
     "shift_to_close",
+    "tail_report",
     "validity_mask",
 ]
