@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from miax.features.alignment import align_klines, build_time_grid, grid_ms
+from miax.features.alignment import align_klines, build_time_grid, shift_to_close
 from miax.features.gaps import classify_klines
 from miax.features.validity import mask_invalid, return_validity, validity_mask
 from miax.ingest.klines import interval_ms
@@ -34,9 +34,7 @@ def log_returns(close: pd.DataFrame, valid: pd.DataFrame, interval: str) -> pd.D
         raise ValueError(f"precio no finito o <= 0 en slots validos de: {bad}")
     # diff() solo trae el cierre de t-1 a la fila t: no mira al futuro (la 1.a fila no tiene t-1).
     steps = mask_invalid(np.log(prices).diff(), return_validity(valid))
-    # La fila pasa de la apertura al cierre de su vela: el instante en que el retorno ya se conoce.
-    known_at = pd.DatetimeIndex((grid_ms(steps.index) + step).astype("datetime64[ms]"), tz="UTC")
-    return steps.set_axis(known_at, axis=0)
+    return steps.set_axis(shift_to_close(steps.index, interval), axis=0)
 
 
 def returns_from_cache(
