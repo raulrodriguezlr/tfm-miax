@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -16,10 +16,13 @@ from miax.features import (
     build_time_grid,
     classify_klines,
     log_relative_to_past,
+    relative_activity_from_cache,
+    relative_trades_from_cache,
     relative_volume_from_cache,
     shift_to_close,
     validity_mask,
 )
+from miax.features.activity import ACTIVITY_FIELDS
 from miax.features.volatility import check_window_params
 from miax.ingest import save_klines
 from miax.ingest.klines import KLINE_COLUMNS, KLINE_DTYPES
@@ -805,3 +808,313 @@ def test_cache_is_deterministic(tmp_path: Path) -> None:
         relative_volume_from_cache(*args, window=10, base_dir=tmp_path),
         relative_volume_from_cache(*args, window=10, base_dir=tmp_path),
     )
+
+
+# --- relative_trades_from_cache y relative_activity_from_cache ---------------------------------
+
+
+def _random_trades(n: int, seed: int = 0) -> list[int]:
+    """Numero de operaciones deterministas, enteras y >= 1."""
+    return np.maximum(1, np.round(_random_volume(n, seed) / 100.0)).astype(int).tolist()
+
+
+def _cache_with_base_volume(
+    base_dir: Path,
+    symbol: str,
+    minutes: list[int],
+    quote_volume: list[float],
+    num_trades: list[int],
+    base_volume: list[float],
+) -> None:
+    """Como `_cache`, pero con la columna `volume` (base) propia en lugar de la constante."""
+    candles = _candles(minutes, quote_volume, num_trades)
+    candles["volume"] = np.asarray(base_volume, dtype=candles["volume"].dtype)
+    save_klines(candles, symbol, "1m", base_dir=base_dir)
+
+
+def _manual_rel(
+    symbols: list[str],
+    field: str,
+    start: int,
+    end: int,
+    base_dir: Path,
+    *,
+    window: int,
+    share: float = 0.5,
+) -> pd.DataFrame:
+    """Cadena a mano: align, classify, validity_mask, log_relative_to_past y recorte."""
+    wide_start, wide_end = start - (window + 1) * MIN_MS, end - MIN_MS
+    values = align_klines(symbols, "1m", wide_start, wide_end, fields=(field,), base_dir=base_dir)[
+        field
+    ]
+    causes = classify_klines(symbols, "1m", wide_start, wide_end, base_dir=base_dir)
+    return log_relative_to_past(
+        values, validity_mask(causes), "1m", window=window, min_valid_share=share
+    ).iloc[window:]
+
+
+def test_trades_output_is_exactly_the_requested_grid(tmp_path: Path) -> None:
+    """El indice de salida es `build_time_grid(start, end)`, con su dtype y sin freq."""
+    _cache(tmp_path, "A", list(range(60)), [5.0] * 60, _random_trades(60))
+    start, end = T0 + 20 * MIN_MS, T0 + 40 * MIN_MS
+    out = relative_trades_from_cache(["A"], "1m", start, end, window=10, base_dir=tmp_path)
+    grid = build_time_grid(start, end, "1m")
+    assert out.index.equals(grid)
+    assert out.index.dtype == grid.dtype
+    assert out.index.freq is None
+    assert len(out) == 20
+    assert all(dtype == "float64" for dtype in out.dtypes)
+
+
+def test_trades_unaligned_start_and_end(tmp_path: Path) -> None:
+    """`start_ms` y `end_ms` no alineados dan la rejilla de `build_time_grid`."""
+    _cache(tmp_path, "A", list(range(60)), [5.0] * 60, _random_trades(60))
+    start, end = T0 + 20 * MIN_MS + 1, T0 + 40 * MIN_MS - 1
+    out = relative_trades_from_cache(["A"], "1m", start, end, window=10, base_dir=tmp_path)
+    assert out.index.equals(build_time_grid(start, end, "1m"))
+
+
+def test_trades_first_slot_base_uses_data_before_the_range(tmp_path: Path) -> None:
+    """La base del primer slot son las `W` velas anteriores a su vela, calculada a mano."""
+    trades = [10 + k * k for k in range(60)]
+    _cache(tmp_path, "A", list(range(60)), [5.0] * 60, trades)  # volumen constante, no cuenta
+    window, start_min, end_min = 5, 20, 30
+    out = relative_trades_from_cache(
+        ["A"],
+        "1m",
+        T0 + start_min * MIN_MS,
+        T0 + end_min * MIN_MS,
+        window=window,
+        base_dir=tmp_path,
+    )
+    logs = np.log(np.asarray(trades, dtype="float64"))
+
+    def want(candle: int) -> float:
+        return float(logs[candle] - logs[candle - window : candle].mean())
+
+    # La fila `start` es la vela start - 1 min; su base son las 5 anteriores a ella (14..18).
+    assert np.isclose(out["A"].iloc[0], want(start_min - 1), rtol=0, atol=1e-12)
+    explicit = np.log(10 + 19**2) - np.mean([np.log(10 + k * k) for k in range(14, 19)])
+    assert np.isclose(out["A"].iloc[0], explicit, rtol=0, atol=1e-12)
+    assert np.isclose(out["A"].iloc[-1], want(end_min - 2), rtol=0, atol=1e-12)
+    assert out["A"].notna().all()
+
+
+def test_trades_symbol_without_cache_is_all_nan_column(tmp_path: Path) -> None:
+    """Un simbolo sin cache es una columna de NaN y no estropea a los demas."""
+    _cache(tmp_path, "A", list(range(60)), [5.0] * 60, _random_trades(60))
+    out = relative_trades_from_cache(
+        ["A", "GHOST"], "1m", T0 + 20 * MIN_MS, T0 + 30 * MIN_MS, window=5, base_dir=tmp_path
+    )
+    assert out.columns.tolist() == ["A", "GHOST"]
+    assert out["GHOST"].isna().all()
+    assert out["A"].notna().all()
+
+
+def test_trades_result_equals_manual_chain(tmp_path: Path) -> None:
+    """Identico a la cadena a mano con `num_trades` (hueco, NO_TRADES, activos distintos)."""
+    n = 90
+    trades_a = _random_trades(n - 1, seed=1)
+    trades_a[30] = trades_a[31] = 0  # NO_TRADES
+    volume_a = [5.0] * (n - 1)
+    volume_a[30] = volume_a[31] = 0.0
+    _cache(tmp_path, "A", [k for k in range(n) if k != 45], volume_a, trades_a)
+    _cache(tmp_path, "B", list(range(n)), [5.0] * n, [t * 1000 for t in _random_trades(n, seed=2)])
+    _cache(tmp_path, "C", list(range(10, n)), [5.0] * (n - 10), _random_trades(n - 10, seed=3))
+    start, end = T0 + 40 * MIN_MS, T0 + 80 * MIN_MS
+    symbols = ["A", "B", "C", "GHOST"]
+    for window, share in ((10, 0.5), (1, 0.5), (25, 0.8)):
+        out = relative_trades_from_cache(
+            symbols, "1m", start, end, window=window, min_valid_share=share, base_dir=tmp_path
+        )
+        manual = _manual_rel(
+            symbols, "num_trades", start, end, tmp_path, window=window, share=share
+        )
+        assert_frame_equal(out, manual, rtol=0, atol=1e-12)
+        assert out.index.equals(build_time_grid(start, end, "1m"))
+        assert out["GHOST"].isna().all()
+        assert out[["A", "B", "C"]].notna().to_numpy().any()
+
+
+def test_trades_scale_does_not_matter_x1000_gives_the_same_rel(tmp_path: Path) -> None:
+    """Un activo con 1000 veces las operaciones da el mismo `rel`."""
+    small = _random_trades(120, seed=4)
+    _cache(tmp_path, "SMALL", list(range(120)), [5.0] * 120, small)
+    _cache(tmp_path, "BIG", list(range(120)), [5.0] * 120, [t * 1000 for t in small])
+    out = relative_trades_from_cache(
+        ["SMALL", "BIG"], "1m", T0 + 50 * MIN_MS, T0 + 110 * MIN_MS, window=20, base_dir=tmp_path
+    )
+    assert out["SMALL"].notna().all()
+    assert np.allclose(out["SMALL"], out["BIG"], rtol=0, atol=1e-12)
+
+
+def test_trades_no_trades_and_missing_candles_are_nan(tmp_path: Path) -> None:
+    """Las velas con 0 operaciones y las que faltan dan NaN en su fila, nunca 0 ni -inf."""
+    n = 40
+    volume = [10.0] * n
+    trades = [7] * n
+    volume[20] = 0.0
+    trades[20] = 0
+    minutes = [k for k in range(n) if k != 25]
+    del volume[25]
+    del trades[25]
+    _cache(tmp_path, "A", minutes, volume, trades)
+    out = relative_trades_from_cache(
+        ["A"], "1m", T0 + 10 * MIN_MS, T0 + 35 * MIN_MS, window=5, base_dir=tmp_path
+    )
+    row = lambda m: out["A"].loc[pd.Timestamp(T0 + m * MIN_MS, unit="ms", tz="UTC")]
+    assert np.isnan(row(21))  # vela 20: NO_TRADES
+    assert np.isnan(row(26))  # vela 25: sin vela
+    assert not np.isinf(out["A"].to_numpy()).any()
+    assert np.isclose(row(22), 0.0, rtol=0, atol=1e-12)  # la 20 no entra en la base
+
+
+def test_trades_right_trim_does_not_change_common_values(tmp_path: Path) -> None:
+    """No-fuga: recortar el rango por la derecha no cambia las filas comunes."""
+    _cache(tmp_path, "A", list(range(100)), [5.0] * 100, _random_trades(100))
+    full = relative_trades_from_cache(
+        ["A"], "1m", T0 + 30 * MIN_MS, T0 + 90 * MIN_MS, window=10, base_dir=tmp_path
+    )
+    short = relative_trades_from_cache(
+        ["A"], "1m", T0 + 30 * MIN_MS, T0 + 50 * MIN_MS, window=10, base_dir=tmp_path
+    )
+    assert_frame_equal(full.loc[short.index], short, rtol=0, atol=1e-12)
+
+
+def test_trades_no_leak_future_candles_do_not_change_past_rel(tmp_path: Path) -> None:
+    """No-fuga: cambiar las operaciones desde la vela k no altera las filas con indice <= k."""
+    n, k = 80, 50
+    trades = _random_trades(n, seed=5)
+    changed = trades[:k] + [t * 9 for t in trades[k:]]
+    _cache(tmp_path / "base", "A", list(range(n)), [5.0] * n, trades)
+    _cache(tmp_path / "changed", "A", list(range(n)), [5.0] * n, changed)
+    start, end = T0 + 20 * MIN_MS, T0 + 70 * MIN_MS
+    a = relative_trades_from_cache(["A"], "1m", start, end, window=10, base_dir=tmp_path / "base")
+    b = relative_trades_from_cache(
+        ["A"], "1m", start, end, window=10, base_dir=tmp_path / "changed"
+    )
+    cut = pd.Timestamp(T0 + k * MIN_MS, unit="ms", tz="UTC")
+    after = cut + pd.Timedelta(minutes=1)
+    assert_frame_equal(a.loc[:cut], b.loc[:cut], rtol=0, atol=1e-12)
+    assert not np.allclose(a.loc[after:], b.loc[after:])
+
+
+def test_trades_invalid_params_raise(tmp_path: Path) -> None:
+    """`window` y `min_valid_share` invalidos lanzan `ValueError`."""
+    with pytest.raises(ValueError, match="window"):
+        relative_trades_from_cache(["A"], "1m", T0, T0 + 10 * MIN_MS, window=0, base_dir=tmp_path)
+    with pytest.raises(ValueError, match="min_valid_share"):
+        relative_trades_from_cache(
+            ["A"], "1m", T0, T0 + 10 * MIN_MS, min_valid_share=0.0, base_dir=tmp_path
+        )
+
+
+def test_trades_is_deterministic(tmp_path: Path) -> None:
+    """Dos llamadas iguales dan exactamente el mismo resultado."""
+    _cache(tmp_path, "A", list(range(60)), [5.0] * 60, _random_trades(60))
+    args = (["A"], "1m", T0 + 20 * MIN_MS, T0 + 50 * MIN_MS)
+    assert_frame_equal(
+        relative_trades_from_cache(*args, window=10, base_dir=tmp_path),
+        relative_trades_from_cache(*args, window=10, base_dir=tmp_path),
+    )
+
+
+def test_activity_fields_constant() -> None:
+    """Los campos admitidos son exactamente quote_asset_volume, volume y num_trades."""
+    assert ACTIVITY_FIELDS == ("quote_asset_volume", "volume", "num_trades")
+
+
+def _mixed_cache(tmp_path: Path) -> None:
+    """Cache con volumen en USDT, volumen base y operaciones de formas distintas."""
+    n = 80
+    for symbol, seed in (("A", 21), ("B", 31)):
+        _cache_with_base_volume(
+            tmp_path,
+            symbol,
+            list(range(n)),
+            _random_volume(n, seed=seed).tolist(),
+            _random_trades(n, seed=seed + 1),
+            (_random_volume(n, seed=seed + 2) / 7.0).tolist(),
+        )
+
+
+def test_activity_generic_equals_the_specific_functions(tmp_path: Path) -> None:
+    """La generica con `quote_asset_volume` y `num_trades` da lo mismo que las dos especificas."""
+    _mixed_cache(tmp_path)
+    args = (["A", "B", "GHOST"], "1m", T0 + 30 * MIN_MS, T0 + 70 * MIN_MS)
+    kwargs = {"window": 12, "min_valid_share": 0.6, "base_dir": tmp_path}
+    assert_frame_equal(
+        relative_activity_from_cache("quote_asset_volume", *args, **kwargs),
+        relative_volume_from_cache(*args, **kwargs),
+        rtol=0,
+        atol=0,
+    )
+    assert_frame_equal(
+        relative_activity_from_cache("num_trades", *args, **kwargs),
+        relative_trades_from_cache(*args, **kwargs),
+        rtol=0,
+        atol=0,
+    )
+
+
+def test_activity_volume_field_works_and_matches_hand_calculation(tmp_path: Path) -> None:
+    """Con `"volume"` funciona y coincide con la cadena a mano sobre esa columna."""
+    _mixed_cache(tmp_path)
+    start, end = T0 + 30 * MIN_MS, T0 + 70 * MIN_MS
+    out = relative_activity_from_cache(
+        "volume", ["A", "B"], "1m", start, end, window=12, base_dir=tmp_path
+    )
+    manual = _manual_rel(["A", "B"], "volume", start, end, tmp_path, window=12)
+    assert_frame_equal(out, manual, rtol=0, atol=1e-12)
+    assert out.notna().all().all()
+    assert out.index.equals(build_time_grid(start, end, "1m"))
+
+
+def test_each_function_reads_its_own_column(tmp_path: Path) -> None:
+    """Con columnas de formas distintas, cada funcion da lo suyo y distinto de las otras."""
+    _mixed_cache(tmp_path)
+    start, end = T0 + 30 * MIN_MS, T0 + 70 * MIN_MS
+    kwargs = {"window": 12, "base_dir": tmp_path}
+    trades = relative_trades_from_cache(["A", "B"], "1m", start, end, **kwargs)
+    quote = relative_volume_from_cache(["A", "B"], "1m", start, end, **kwargs)
+    base = relative_activity_from_cache("volume", ["A", "B"], "1m", start, end, **kwargs)
+    assert not np.allclose(trades, quote, atol=1e-3)
+    assert not np.allclose(trades, base, atol=1e-3)
+    assert not np.allclose(quote, base, atol=1e-3)
+    for out, field in ((trades, "num_trades"), (quote, "quote_asset_volume"), (base, "volume")):
+        manual = _manual_rel(["A", "B"], field, start, end, tmp_path, window=12)
+        assert_frame_equal(out, manual, rtol=0, atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["close", "open", "high", "low", "taker_buy_base", "taker_buy_quote", "foo", ""],
+)
+def test_activity_unsupported_field_raises_without_reading_the_cache(
+    field: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un campo no admitido lanza `ValueError` sin llamar a `align_klines` ni `classify_klines`."""
+    calls: list[str] = []
+
+    def spy(name: str) -> Callable[..., None]:
+        def inner(*args: object, **kwargs: object) -> None:
+            calls.append(name)
+            raise AssertionError(f"{name} no deberia llamarse")
+
+        return inner
+
+    monkeypatch.setattr("miax.features.activity.align_klines", spy("align_klines"))
+    monkeypatch.setattr("miax.features.activity.classify_klines", spy("classify_klines"))
+    with pytest.raises(ValueError, match="no admitido"):
+        relative_activity_from_cache(
+            field, ["A"], "1m", T0, T0 + 10 * MIN_MS, window=3, base_dir=tmp_path
+        )
+    assert calls == []
+
+
+def test_activity_unsupported_field_raises_with_a_nonexistent_base_dir(tmp_path: Path) -> None:
+    """Con un `base_dir` que no existe, el campo invalido sigue lanzando `ValueError`."""
+    missing = tmp_path / "no" / "existe"
+    with pytest.raises(ValueError, match="no admitido"):
+        relative_activity_from_cache("close", ["A"], "1m", T0, T0 + 10 * MIN_MS, base_dir=missing)
+    assert not missing.exists()
