@@ -16,6 +16,13 @@ from miax.features.gaps import (
     gap_runs,
     listings_from_universe,
 )
+from miax.features.resample import (
+    bar_factor,
+    horizon_returns_from_cache,
+    resample_fields,
+    resample_from_cache,
+    resample_validity,
+)
 from miax.features.returns import log_returns, returns_from_cache
 from miax.features.tails import clip_returns, fit_clip_bounds, tail_report
 from miax.features.validity import mask_invalid, return_validity, validity_mask
@@ -25,6 +32,7 @@ __all__ = [
     "GapCause",
     "align_frame",
     "align_klines",
+    "bar_factor",
     "build_time_grid",
     "cause_counts",
     "classify_klines",
@@ -33,6 +41,7 @@ __all__ = [
     "download_ends_from_universe",
     "fit_clip_bounds",
     "gap_runs",
+    "horizon_returns_from_cache",
     "listings_from_universe",
     "log_relative_to_past",
     "log_returns",
@@ -42,6 +51,9 @@ __all__ = [
     "relative_activity_from_cache",
     "relative_trades_from_cache",
     "relative_volume_from_cache",
+    "resample_fields",
+    "resample_from_cache",
+    "resample_validity",
     "return_validity",
     "returns_from_cache",
     "shift_to_close",
