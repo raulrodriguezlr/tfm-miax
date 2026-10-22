@@ -36,6 +36,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - Volumen relativo al propio pasado de cada activo: `log_relative_to_past` da `ln(V_τ)` menos la media del log de las 10080 velas válidas anteriores (7 días a 1m, sin incluir la vela actual ni mirar al futuro), de modo que BTC y un token pequeño quedan en la misma escala y un cambio de régimen se absorbe en una semana; es `NaN` (nunca 0) si el slot no es válido o menos de la mitad de la ventana lo es, y `relative_volume_from_cache` lo entrega desde la caché con la base del primer slot completa (MIAX-039)
 - Número de operaciones relativo al propio pasado de cada activo: `relative_trades_from_cache` aplica a `num_trades` la misma base móvil de 7 días hacia atrás que el volumen relativo (sin la vela actual ni mirar al futuro), de modo que mide cuántas manos operan y no cuánto dinero, y `relative_activity_from_cache` hace lo mismo para cualquiera de `quote_asset_volume`, `volume` o `num_trades` (MIAX-040)
 - Remuestreo de las velas de 1m a barras de 5m, 15m y 1h (`resample_from_cache`) y retornos a esos horizontes (`horizon_returns_from_cache`) desde el mismo origen: una barra es válida si su último minuto es válido y al menos el 80 % de sus minutos lo son, `open` es el del primer minuto válido, `high` y `low` el máximo y el mínimo de los minutos válidos, `close` el último y los volúmenes y operaciones se suman sin reescalar (MIAX-042)
+- Universos semestral y anual para pruebas de robustez: `configs/universe_params_semiannual.yaml` y `configs/universe_params_annual.yaml` generan `configs/universe_semiannual.yaml` y `configs/universe_annual.yaml` con la misma regla que el principal, cambiando solo la duración del periodo, para comprobar que las conclusiones no dependen de la frecuencia de rebalanceo (MIAX-198)
 
 ### Cambiado
 - `load_klines` acepta `columns` para leer solo las columnas necesarias (más `open_time`), y la aritmética de slots de la cobertura se reutiliza como `slot_bounds`, sin cambiar el comportamiento (MIAX-033)
@@ -44,6 +45,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - La cache de klines se guarda por defecto en `data/raw/klines` en lugar de `data/klines`: la descarga, la validación y la cobertura leen y escriben ahí, de modo que la carpeta `klines` del Drive se copia tal cual dentro de `data/raw/` (MIAX-197)
 - Reglas de equipo ampliadas en `CLAUDE.md` y `AGENTS.md`: se refactoriza código de tickets cerrados antes que duplicarlo (sin cambios masivos), sin atribución a Claude en commits y PR, prueba de humo real antes del PR, cierre al mergear con squash (con el mensaje de todos los commits) y CLI con subcomandos
 - `relative_volume_from_cache` delega en la nueva `relative_activity_from_cache` para no duplicar la lectura de la caché con el número de operaciones, sin cambiar el comportamiento (MIAX-040)
+- El universo principal (`configs/universe.yaml`) pasa de periodos anuales a trimestrales, decidido antes de ver resultados de lead-lag; los mismos parámetros (suelo de 5 M, 40 pares, 10 por categoría) con `period_months: 3` (MIAX-198)
 
 ---
 

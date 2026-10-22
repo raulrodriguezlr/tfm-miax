@@ -1,10 +1,10 @@
 # Generado por `python -m miax.ingest universe` (MIAX-028). No editar a mano: regenerar.
-generated_at: '2026-10-13T10:59:24Z'
+generated_at: '2026-10-22T19:36:54Z'
 params:
   quote_asset: USDT
   first_period_start: '2018-01-01'
   last_period_end: '2026-10-01'
-  period_months: 12
+  period_months: 3
   volume_window_months: 3
   min_listing_days: 30
   min_quote_volume: 5000000.0
@@ -14,7 +14,7 @@ params:
   categories_file: categories.yaml
 periods:
 - period_start: '2018-01-01'
-  period_end: '2019-01-01'
+  period_end: '2018-04-01'
   volume_window:
   - '2017-10-01'
   - '2017-12-31'
@@ -30,8 +30,126 @@ periods:
     category: l1
     median_quote_volume: 5794940.35
     first_candle: '2017-08-17'
+- period_start: '2018-04-01'
+  period_end: '2018-07-01'
+  volume_window:
+  - '2018-01-01'
+  - '2018-03-31'
+  n_pairs: 5
+  categories:
+    l1: 4
+    exchange: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 356480801.35
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 98776318.11
+    first_candle: '2017-08-17'
+  - symbol: NEOUSDT
+    category: l1
+    median_quote_volume: 38212564.28
+    first_candle: '2017-11-20'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 25243393.7
+    first_candle: '2017-11-06'
+  - symbol: BCCUSDT
+    category: l1
+    median_quote_volume: 8426702.82
+    first_candle: '2017-11-11'
+- period_start: '2018-07-01'
+  period_end: '2018-10-01'
+  volume_window:
+  - '2018-04-01'
+  - '2018-06-30'
+  n_pairs: 6
+  categories:
+    l1: 5
+    exchange: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 236418155.69
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 70118224.93
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 36064581.54
+    first_candle: '2017-11-06'
+  - symbol: BCCUSDT
+    category: l1
+    median_quote_volume: 26328649.24
+    first_candle: '2017-11-11'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 12837335.36
+    first_candle: '2017-12-13'
+  - symbol: NEOUSDT
+    category: l1
+    median_quote_volume: 12677995.65
+    first_candle: '2017-11-20'
+- period_start: '2018-10-01'
+  period_end: '2019-01-01'
+  volume_window:
+  - '2018-07-01'
+  - '2018-09-30'
+  n_pairs: 11
+  categories:
+    l1: 10
+    exchange: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 252863897.4
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 83746254.88
+    first_candle: '2017-08-17'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 72126152.56
+    first_candle: '2018-05-28'
+  - symbol: BCCUSDT
+    category: l1
+    median_quote_volume: 28454750.28
+    first_candle: '2017-11-11'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 17476187.83
+    first_candle: '2018-04-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 15055326.36
+    first_candle: '2018-05-04'
+  - symbol: NEOUSDT
+    category: l1
+    median_quote_volume: 14868213.62
+    first_candle: '2017-11-20'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 12346043.4
+    first_candle: '2017-12-13'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 11904322.05
+    first_candle: '2017-11-06'
+  - symbol: IOTAUSDT
+    category: l1
+    median_quote_volume: 9454796.22
+    first_candle: '2018-05-31'
+  - symbol: XLMUSDT
+    category: l1
+    median_quote_volume: 9240353.33
+    first_candle: '2018-05-31'
 - period_start: '2019-01-01'
-  period_end: '2020-01-01'
+  period_end: '2019-04-01'
   volume_window:
   - '2018-10-01'
   - '2018-12-31'
@@ -84,8 +202,156 @@ periods:
     category: l1
     median_quote_volume: 5818567.51
     first_candle: '2017-11-20'
+- period_start: '2019-04-01'
+  period_end: '2019-07-01'
+  volume_window:
+  - '2019-01-01'
+  - '2019-03-31'
+  n_pairs: 9
+  categories:
+    l1: 8
+    exchange: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 99135847.58
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 39821840.75
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 32399208.71
+    first_candle: '2017-11-06'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 18503931.32
+    first_candle: '2018-05-28'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 16432691.31
+    first_candle: '2018-05-04'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 11813685.4
+    first_candle: '2017-12-13'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 10352836.74
+    first_candle: '2018-06-11'
+  - symbol: BCHABCUSDT
+    category: l1
+    median_quote_volume: 9127140.63
+    first_candle: '2018-11-16'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 5900733.55
+    first_candle: '2018-04-17'
+- period_start: '2019-07-01'
+  period_end: '2019-10-01'
+  volume_window:
+  - '2019-04-01'
+  - '2019-06-30'
+  n_pairs: 11
+  categories:
+    l1: 9
+    exchange: 1
+    ai: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 273791910.63
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 85664531.89
+    first_candle: '2017-11-06'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 85335852.93
+    first_candle: '2017-08-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 44973534.63
+    first_candle: '2018-05-04'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 40656121.44
+    first_candle: '2017-12-13'
+  - symbol: BCHABCUSDT
+    category: l1
+    median_quote_volume: 40541183.81
+    first_candle: '2018-11-16'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 39584059.95
+    first_candle: '2018-05-28'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 20788074.58
+    first_candle: '2018-06-11'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 13118216.52
+    first_candle: '2018-04-17'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 9794584.74
+    first_candle: '2019-02-28'
+  - symbol: NEOUSDT
+    category: l1
+    median_quote_volume: 7727892.75
+    first_candle: '2017-11-20'
+- period_start: '2019-10-01'
+  period_end: '2020-01-01'
+  volume_window:
+  - '2019-07-01'
+  - '2019-09-30'
+  n_pairs: 9
+  categories:
+    l1: 7
+    exchange: 1
+    infra: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 420525631.18
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 56230677.35
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 36709825.09
+    first_candle: '2017-11-06'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 20582206.09
+    first_candle: '2017-12-13'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 19705433.53
+    first_candle: '2018-05-28'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 18009323.28
+    first_candle: '2018-05-04'
+  - symbol: BCHABCUSDT
+    category: l1
+    median_quote_volume: 15288509.69
+    first_candle: '2018-11-16'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 10400120.46
+    first_candle: '2018-06-11'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 8623017.24
+    first_candle: '2019-01-16'
 - period_start: '2020-01-01'
-  period_end: '2021-01-01'
+  period_end: '2020-04-01'
   volume_window:
   - '2019-10-01'
   - '2019-12-31'
@@ -135,8 +401,204 @@ periods:
     category: l1
     median_quote_volume: 5021570.13
     first_candle: '2018-07-25'
+- period_start: '2020-04-01'
+  period_end: '2020-07-01'
+  volume_window:
+  - '2020-01-01'
+  - '2020-03-31'
+  n_pairs: 13
+  categories:
+    l1: 10
+    exchange: 1
+    infra: 1
+    l2: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 547679966.93
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 122069507.66
+    first_candle: '2017-08-17'
+  - symbol: BCHUSDT
+    category: l1
+    median_quote_volume: 57935379.08
+    first_candle: '2019-11-28'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 48867064.72
+    first_candle: '2017-11-06'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 40232050.46
+    first_candle: '2018-05-04'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 37884670.94
+    first_candle: '2018-05-28'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 36581176.11
+    first_candle: '2017-12-13'
+  - symbol: ETCUSDT
+    category: l1
+    median_quote_volume: 30941717.2
+    first_candle: '2018-06-12'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 27023850.83
+    first_candle: '2019-01-16'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 16655084.17
+    first_candle: '2018-06-11'
+  - symbol: XTZUSDT
+    category: l1
+    median_quote_volume: 16402861.02
+    first_candle: '2019-09-24'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 12171168.73
+    first_candle: '2018-04-17'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 7176876.96
+    first_candle: '2019-04-26'
+- period_start: '2020-07-01'
+  period_end: '2020-10-01'
+  volume_window:
+  - '2020-04-01'
+  - '2020-06-30'
+  n_pairs: 13
+  categories:
+    l1: 10
+    exchange: 1
+    infra: 1
+    l2: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 542758086.61
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 143704806.18
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 45271776.51
+    first_candle: '2017-11-06'
+  - symbol: BCHUSDT
+    category: l1
+    median_quote_volume: 27851758.9
+    first_candle: '2019-11-28'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 26122757.01
+    first_candle: '2019-01-16'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 21835213.64
+    first_candle: '2018-05-04'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 20487208.5
+    first_candle: '2018-05-28'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 18877872.47
+    first_candle: '2017-12-13'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 15262822.95
+    first_candle: '2018-04-17'
+  - symbol: XTZUSDT
+    category: l1
+    median_quote_volume: 14266889.54
+    first_candle: '2019-09-24'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 10048856.98
+    first_candle: '2018-06-11'
+  - symbol: ETCUSDT
+    category: l1
+    median_quote_volume: 9953813.59
+    first_candle: '2018-06-12'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 6425492.88
+    first_candle: '2019-04-26'
+- period_start: '2020-10-01'
+  period_end: '2021-01-01'
+  volume_window:
+  - '2020-07-01'
+  - '2020-09-30'
+  n_pairs: 14
+  categories:
+    l1: 10
+    infra: 2
+    exchange: 1
+    l2: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 540830483.35
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 301588776.3
+    first_candle: '2017-08-17'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 128697731.52
+    first_candle: '2019-01-16'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 57327315.54
+    first_candle: '2017-11-06'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 43946680.18
+    first_candle: '2018-05-04'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 40213570.7
+    first_candle: '2018-04-17'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 30369909.88
+    first_candle: '2018-05-28'
+  - symbol: VETUSDT
+    category: l1
+    median_quote_volume: 29756466.25
+    first_candle: '2018-07-25'
+  - symbol: BCHUSDT
+    category: l1
+    median_quote_volume: 27814499.97
+    first_candle: '2019-11-28'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 27032944.25
+    first_candle: '2018-06-11'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 24374592.62
+    first_candle: '2017-12-13'
+  - symbol: XTZUSDT
+    category: l1
+    median_quote_volume: 20634661.07
+    first_candle: '2019-09-24'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 5838315.58
+    first_candle: '2019-04-10'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 5158993.56
+    first_candle: '2019-04-26'
 - period_start: '2021-01-01'
-  period_end: '2022-01-01'
+  period_end: '2021-04-01'
   volume_window:
   - '2020-10-01'
   - '2020-12-31'
@@ -232,8 +694,534 @@ periods:
     category: defi
     median_quote_volume: 5170529.11
     first_candle: '2020-07-09'
+- period_start: '2021-04-01'
+  period_end: '2021-07-01'
+  volume_window:
+  - '2021-01-01'
+  - '2021-03-31'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 1
+    infra: 8
+    meme: 1
+    defi: 10
+    l2: 4
+    gaming: 4
+    ai: 2
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 3821835012.66
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1670239592.06
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 608850070.24
+    first_candle: '2017-11-06'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 432016485.92
+    first_candle: '2018-04-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 362012875.26
+    first_candle: '2018-05-04'
+  - symbol: DOTUSDT
+    category: l1
+    median_quote_volume: 357232931.92
+    first_candle: '2020-08-18'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 273068836.24
+    first_candle: '2017-12-13'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 206396789.85
+    first_candle: '2019-01-16'
+  - symbol: BCHUSDT
+    category: l1
+    median_quote_volume: 130773455.29
+    first_candle: '2019-11-28'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 114146758.5
+    first_candle: '2019-07-05'
+  - symbol: XLMUSDT
+    category: l1
+    median_quote_volume: 112815970.32
+    first_candle: '2018-05-31'
+  - symbol: SXPUSDT
+    category: defi
+    median_quote_volume: 111461685.36
+    first_candle: '2020-07-20'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 110129586.41
+    first_candle: '2018-05-28'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 108571867.38
+    first_candle: '2020-09-17'
+  - symbol: VETUSDT
+    category: l1
+    median_quote_volume: 108049973.81
+    first_candle: '2018-07-25'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 82335340.31
+    first_candle: '2020-09-01'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 67774859.06
+    first_candle: '2020-10-15'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 54783493.69
+    first_candle: '2019-04-26'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 51295634.43
+    first_candle: '2019-04-10'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 51254200.59
+    first_candle: '2020-10-15'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 50930927.84
+    first_candle: '2020-08-15'
+  - symbol: YFIUSDT
+    category: defi
+    median_quote_volume: 44822019.18
+    first_candle: '2020-08-10'
+  - symbol: ENJUSDT
+    category: gaming
+    median_quote_volume: 35437461.66
+    first_candle: '2019-04-18'
+  - symbol: OMGUSDT
+    category: l2
+    median_quote_volume: 32562825.71
+    first_candle: '2019-04-03'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 28670747.53
+    first_candle: '2019-09-06'
+  - symbol: RSRUSDT
+    category: defi
+    median_quote_volume: 28450664.97
+    first_candle: '2020-08-27'
+  - symbol: SNXUSDT
+    category: defi
+    median_quote_volume: 24611799.69
+    first_candle: '2020-07-09'
+  - symbol: BATUSDT
+    category: infra
+    median_quote_volume: 23633860.52
+    first_candle: '2019-03-04'
+  - symbol: SRMUSDT
+    category: defi
+    median_quote_volume: 21612367.59
+    first_candle: '2020-08-11'
+  - symbol: OCEANUSDT
+    category: ai
+    median_quote_volume: 19427103.39
+    first_candle: '2020-08-19'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 19063909.52
+    first_candle: '2020-08-14'
+  - symbol: ANKRUSDT
+    category: infra
+    median_quote_volume: 16574062.6
+    first_candle: '2019-07-23'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 16334981.28
+    first_candle: '2020-09-04'
+  - symbol: COTIUSDT
+    category: infra
+    median_quote_volume: 16237245.78
+    first_candle: '2020-02-26'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 15607968.76
+    first_candle: '2020-08-06'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 15540202.57
+    first_candle: '2019-02-28'
+  - symbol: HOTUSDT
+    category: infra
+    median_quote_volume: 14631852.32
+    first_candle: '2019-02-18'
+  - symbol: LRCUSDT
+    category: l2
+    median_quote_volume: 12772566.34
+    first_candle: '2020-06-12'
+  - symbol: TFUELUSDT
+    category: infra
+    median_quote_volume: 12722279.5
+    first_candle: '2019-05-24'
+  - symbol: SKLUSDT
+    category: l2
+    median_quote_volume: 9852702.3
+    first_candle: '2020-12-01'
+- period_start: '2021-07-01'
+  period_end: '2021-10-01'
+  volume_window:
+  - '2021-04-01'
+  - '2021-06-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 2
+    meme: 1
+    l2: 3
+    infra: 10
+    gaming: 4
+    defi: 10
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 3605701810.68
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 2418566593.05
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 1520666084.64
+    first_candle: '2017-11-06'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 1296677856.11
+    first_candle: '2019-07-05'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 1113456410.58
+    first_candle: '2018-05-04'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 627802619.94
+    first_candle: '2018-04-17'
+  - symbol: DOTUSDT
+    category: l1
+    median_quote_volume: 403597433.41
+    first_candle: '2020-08-18'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 396494423.13
+    first_candle: '2019-04-26'
+  - symbol: VETUSDT
+    category: l1
+    median_quote_volume: 334648427.95
+    first_candle: '2018-07-25'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 277017596.42
+    first_candle: '2018-05-28'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 274406726.43
+    first_candle: '2017-12-13'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 263701308.05
+    first_candle: '2018-06-11'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 247350302.02
+    first_candle: '2019-01-16'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 190370444.16
+    first_candle: '2020-10-15'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 186989730.01
+    first_candle: '2019-09-06'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 183566327.3
+    first_candle: '2020-08-11'
+  - symbol: SXPUSDT
+    category: defi
+    median_quote_volume: 165139468.39
+    first_candle: '2020-07-20'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 156925042.69
+    first_candle: '2021-02-19'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 154471694.1
+    first_candle: '2019-04-10'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 108935516.8
+    first_candle: '2020-09-17'
+  - symbol: HOTUSDT
+    category: infra
+    median_quote_volume: 89301749.45
+    first_candle: '2019-02-18'
+  - symbol: WINUSDT
+    category: gaming
+    median_quote_volume: 85331486.03
+    first_candle: '2019-08-01'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 78136819.91
+    first_candle: '2020-10-15'
+  - symbol: DENTUSDT
+    category: infra
+    median_quote_volume: 73644538.76
+    first_candle: '2019-08-27'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 63841672.77
+    first_candle: '2020-09-04'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 63327006.67
+    first_candle: '2020-09-01'
+  - symbol: ENJUSDT
+    category: gaming
+    median_quote_volume: 61458250.45
+    first_candle: '2019-04-18'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 55048489.71
+    first_candle: '2020-08-15'
+  - symbol: REEFUSDT
+    category: defi
+    median_quote_volume: 53478380.76
+    first_candle: '2020-12-29'
+  - symbol: OMGUSDT
+    category: l2
+    median_quote_volume: 50694399.14
+    first_candle: '2019-04-03'
+  - symbol: TFUELUSDT
+    category: infra
+    median_quote_volume: 47968444.14
+    first_candle: '2019-05-24'
+  - symbol: 1INCHUSDT
+    category: defi
+    median_quote_volume: 46463176.29
+    first_candle: '2020-12-25'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 43221734.66
+    first_candle: '2020-12-17'
+  - symbol: YFIUSDT
+    category: defi
+    median_quote_volume: 36867717.9
+    first_candle: '2020-08-10'
+  - symbol: SCUSDT
+    category: infra
+    median_quote_volume: 32161431.27
+    first_candle: '2020-07-06'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 29298139.45
+    first_candle: '2020-08-06'
+  - symbol: COTIUSDT
+    category: infra
+    median_quote_volume: 26381372.91
+    first_candle: '2020-02-26'
+  - symbol: ANKRUSDT
+    category: infra
+    median_quote_volume: 25525704.06
+    first_candle: '2019-07-23'
+  - symbol: FTTUSDT
+    category: exchange
+    median_quote_volume: 21139596.94
+    first_candle: '2019-12-20'
+  - symbol: CELRUSDT
+    category: l2
+    median_quote_volume: 20409378.89
+    first_candle: '2019-03-25'
+- period_start: '2021-10-01'
+  period_end: '2022-01-01'
+  volume_window:
+  - '2021-07-01'
+  - '2021-09-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 2
+    meme: 2
+    gaming: 7
+    l2: 2
+    infra: 7
+    defi: 10
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 2135934192.38
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1618787191.49
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 478167296.64
+    first_candle: '2017-11-06'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 391460405.36
+    first_candle: '2018-04-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 361109980.18
+    first_candle: '2018-05-04'
+  - symbol: DOTUSDT
+    category: l1
+    median_quote_volume: 312400238.72
+    first_candle: '2020-08-18'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 281572605.89
+    first_candle: '2019-07-05'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 259774298.14
+    first_candle: '2020-08-11'
+  - symbol: AXSUSDT
+    category: gaming
+    median_quote_volume: 233176095.84
+    first_candle: '2020-11-04'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 183156210.95
+    first_candle: '2019-04-26'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 172077503.65
+    first_candle: '2020-10-15'
+  - symbol: LUNAUSDT
+    category: l1
+    median_quote_volume: 159031217.64
+    first_candle: '2020-08-21'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 152024586.71
+    first_candle: '2019-01-16'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 106183996.52
+    first_candle: '2018-05-28'
+  - symbol: ETCUSDT
+    category: l1
+    median_quote_volume: 105175185.47
+    first_candle: '2018-06-12'
+  - symbol: ICPUSDT
+    category: l1
+    median_quote_volume: 104597741.94
+    first_candle: '2021-05-11'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 96033325.61
+    first_candle: '2019-04-10'
+  - symbol: ALICEUSDT
+    category: gaming
+    median_quote_volume: 94965691.0
+    first_candle: '2021-03-15'
+  - symbol: TLMUSDT
+    category: gaming
+    median_quote_volume: 92838848.44
+    first_candle: '2021-04-13'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 68782174.53
+    first_candle: '2021-05-10'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 65495561.31
+    first_candle: '2020-09-17'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 64191999.41
+    first_candle: '2019-09-06'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 61869599.33
+    first_candle: '2021-02-19'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 58812434.39
+    first_candle: '2020-09-04'
+  - symbol: SLPUSDT
+    category: gaming
+    median_quote_volume: 56346738.99
+    first_candle: '2021-04-30'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 55400235.73
+    first_candle: '2020-09-01'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 53050381.76
+    first_candle: '2020-10-15'
+  - symbol: FTTUSDT
+    category: exchange
+    median_quote_volume: 51582786.58
+    first_candle: '2019-12-20'
+  - symbol: SXPUSDT
+    category: defi
+    median_quote_volume: 45526464.18
+    first_candle: '2020-07-20'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 45032592.74
+    first_candle: '2020-08-14'
+  - symbol: BAKEUSDT
+    category: defi
+    median_quote_volume: 37769862.94
+    first_candle: '2021-04-30'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 37227421.81
+    first_candle: '2020-12-17'
+  - symbol: OMGUSDT
+    category: l2
+    median_quote_volume: 35238188.42
+    first_candle: '2019-04-03'
+  - symbol: ENJUSDT
+    category: gaming
+    median_quote_volume: 30369816.77
+    first_candle: '2019-04-18'
+  - symbol: DENTUSDT
+    category: infra
+    median_quote_volume: 29880101.82
+    first_candle: '2019-08-27'
+  - symbol: SRMUSDT
+    category: defi
+    median_quote_volume: 29085082.69
+    first_candle: '2020-08-11'
+  - symbol: COMPUSDT
+    category: defi
+    median_quote_volume: 27847659.48
+    first_candle: '2020-06-25'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 26878604.26
+    first_candle: '2020-08-15'
+  - symbol: HOTUSDT
+    category: infra
+    median_quote_volume: 24009923.17
+    first_candle: '2019-02-18'
+  - symbol: COTIUSDT
+    category: infra
+    median_quote_volume: 22255658.95
+    first_candle: '2020-02-26'
 - period_start: '2022-01-01'
-  period_end: '2023-01-01'
+  period_end: '2022-04-01'
   volume_window:
   - '2021-10-01'
   - '2021-12-31'
@@ -407,8 +1395,533 @@ periods:
     category: defi
     median_quote_volume: 31579487.33
     first_candle: '2020-07-20'
+- period_start: '2022-04-01'
+  period_end: '2022-07-01'
+  volume_window:
+  - '2022-01-01'
+  - '2022-03-31'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 2
+    meme: 2
+    gaming: 10
+    l2: 3
+    infra: 5
+    defi: 8
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1700126662.51
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1244923155.96
+    first_candle: '2017-08-17'
+  - symbol: LUNAUSDT
+    category: l1
+    median_quote_volume: 337964123.11
+    first_candle: '2020-08-21'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 275001163.85
+    first_candle: '2017-11-06'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 239573015.64
+    first_candle: '2020-08-11'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 232862841.16
+    first_candle: '2018-05-04'
+  - symbol: FTMUSDT
+    category: l1
+    median_quote_volume: 227971982.2
+    first_candle: '2019-06-11'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 197719964.44
+    first_candle: '2021-05-10'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 187906721.55
+    first_candle: '2020-09-22'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 174223542.25
+    first_candle: '2021-09-13'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 169055126.44
+    first_candle: '2020-08-14'
+  - symbol: DOTUSDT
+    category: l1
+    median_quote_volume: 162269234.92
+    first_candle: '2020-08-18'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 148649634.7
+    first_candle: '2018-04-17'
+  - symbol: ATOMUSDT
+    category: l1
+    median_quote_volume: 123515450.57
+    first_candle: '2019-04-29'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 121329820.25
+    first_candle: '2019-04-26'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 94408949.93
+    first_candle: '2019-07-05'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 94402278.42
+    first_candle: '2020-08-06'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 90064395.04
+    first_candle: '2019-01-16'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 60487534.1
+    first_candle: '2020-10-15'
+  - symbol: SLPUSDT
+    category: gaming
+    median_quote_volume: 48241323.55
+    first_candle: '2021-04-30'
+  - symbol: AXSUSDT
+    category: gaming
+    median_quote_volume: 48226865.88
+    first_candle: '2020-11-04'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 44918386.34
+    first_candle: '2020-08-15'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 39164351.35
+    first_candle: '2019-04-10'
+  - symbol: LRCUSDT
+    category: l2
+    median_quote_volume: 37559226.32
+    first_candle: '2020-06-12'
+  - symbol: ALICEUSDT
+    category: gaming
+    median_quote_volume: 27322928.65
+    first_candle: '2021-03-15'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 27023298.4
+    first_candle: '2021-09-09'
+  - symbol: OMGUSDT
+    category: l2
+    median_quote_volume: 24785854.0
+    first_candle: '2019-04-03'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 24465370.25
+    first_candle: '2020-09-04'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 23596486.53
+    first_candle: '2020-09-01'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 23370216.6
+    first_candle: '2019-09-06'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 22693744.16
+    first_candle: '2020-10-15'
+  - symbol: FTTUSDT
+    category: exchange
+    median_quote_volume: 22092310.64
+    first_candle: '2019-12-20'
+  - symbol: WINUSDT
+    category: gaming
+    median_quote_volume: 21535583.81
+    first_candle: '2019-08-01'
+  - symbol: ENJUSDT
+    category: gaming
+    median_quote_volume: 21284206.59
+    first_candle: '2019-04-18'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 20733881.44
+    first_candle: '2020-12-17'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 20647872.41
+    first_candle: '2020-09-17'
+  - symbol: TLMUSDT
+    category: gaming
+    median_quote_volume: 20138212.65
+    first_candle: '2021-04-13'
+  - symbol: SUNUSDT
+    category: defi
+    median_quote_volume: 18803049.75
+    first_candle: '2020-09-21'
+  - symbol: JASMYUSDT
+    category: infra
+    median_quote_volume: 18781951.65
+    first_candle: '2021-11-22'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 18578663.55
+    first_candle: '2021-02-19'
+- period_start: '2022-07-01'
+  period_end: '2022-10-01'
+  volume_window:
+  - '2022-04-01'
+  - '2022-06-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 1
+    meme: 3
+    l2: 3
+    gaming: 8
+    infra: 6
+    defi: 9
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1872204589.24
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1470465124.58
+    first_candle: '2017-08-17'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 230501976.66
+    first_candle: '2017-11-06'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 222245784.91
+    first_candle: '2020-08-11'
+  - symbol: LUNAUSDT
+    category: l1
+    median_quote_volume: 202484113.53
+    first_candle: '2020-08-21'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 160328204.82
+    first_candle: '2018-05-04'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 120720303.32
+    first_candle: '2020-09-22'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 113478674.59
+    first_candle: '2018-04-17'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 106875054.29
+    first_candle: '2019-07-05'
+  - symbol: NEARUSDT
+    category: l1
+    median_quote_volume: 103119767.96
+    first_candle: '2020-10-14'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 98673628.38
+    first_candle: '2021-05-10'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 86909969.11
+    first_candle: '2018-06-11'
+  - symbol: FTMUSDT
+    category: l1
+    median_quote_volume: 78516268.72
+    first_candle: '2019-06-11'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 64570144.53
+    first_candle: '2019-04-26'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 61769415.22
+    first_candle: '2021-09-13'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 56336283.33
+    first_candle: '2020-08-14'
+  - symbol: JASMYUSDT
+    category: infra
+    median_quote_volume: 47589360.74
+    first_candle: '2021-11-22'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 45157456.25
+    first_candle: '2020-09-04'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 43497628.52
+    first_candle: '2019-01-16'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 36897394.61
+    first_candle: '2020-08-06'
+  - symbol: AXSUSDT
+    category: gaming
+    median_quote_volume: 34543080.24
+    first_candle: '2020-11-04'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 33330713.96
+    first_candle: '2020-10-15'
+  - symbol: PEOPLEUSDT
+    category: meme
+    median_quote_volume: 28743767.55
+    first_candle: '2021-12-23'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 26532610.61
+    first_candle: '2020-10-15'
+  - symbol: ENSUSDT
+    category: infra
+    median_quote_volume: 21391353.03
+    first_candle: '2021-11-10'
+  - symbol: SLPUSDT
+    category: gaming
+    median_quote_volume: 19515252.47
+    first_candle: '2021-04-30'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 19498033.67
+    first_candle: '2019-04-10'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 18645431.34
+    first_candle: '2020-08-15'
+  - symbol: ALICEUSDT
+    category: gaming
+    median_quote_volume: 17306225.17
+    first_candle: '2021-03-15'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 16077578.74
+    first_candle: '2020-12-17'
+  - symbol: OGNUSDT
+    category: defi
+    median_quote_volume: 16073553.08
+    first_candle: '2020-01-09'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 15669846.74
+    first_candle: '2021-09-09'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 15327168.15
+    first_candle: '2020-09-17'
+  - symbol: LRCUSDT
+    category: l2
+    median_quote_volume: 15052929.27
+    first_candle: '2020-06-12'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 14379027.88
+    first_candle: '2019-09-06'
+  - symbol: IMXUSDT
+    category: l2
+    median_quote_volume: 13746511.61
+    first_candle: '2022-01-10'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 13142451.78
+    first_candle: '2020-09-01'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 12145959.58
+    first_candle: '2021-02-19'
+  - symbol: TLMUSDT
+    category: gaming
+    median_quote_volume: 12096844.46
+    first_candle: '2021-04-13'
+  - symbol: RSRUSDT
+    category: defi
+    median_quote_volume: 11945546.02
+    first_candle: '2020-08-27'
+- period_start: '2022-10-01'
+  period_end: '2023-01-01'
+  volume_window:
+  - '2022-07-01'
+  - '2022-09-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 2
+    l2: 2
+    meme: 3
+    gaming: 7
+    infra: 6
+    defi: 10
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 4193584505.42
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1327073915.41
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 138312501.01
+    first_candle: '2020-08-11'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 123415858.07
+    first_candle: '2017-11-06'
+  - symbol: ETCUSDT
+    category: l1
+    median_quote_volume: 112219202.9
+    first_candle: '2018-06-12'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 86822367.59
+    first_candle: '2018-05-04'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 78108520.23
+    first_candle: '2018-04-17'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 69556969.03
+    first_candle: '2019-04-26'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 57204537.1
+    first_candle: '2021-05-10'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 57201717.69
+    first_candle: '2020-09-22'
+  - symbol: ATOMUSDT
+    category: l1
+    median_quote_volume: 48483657.42
+    first_candle: '2019-04-29'
+  - symbol: APEUSDT
+    category: gaming
+    median_quote_volume: 48147345.99
+    first_candle: '2022-03-17'
+  - symbol: NEARUSDT
+    category: l1
+    median_quote_volume: 45730941.5
+    first_candle: '2020-10-14'
+  - symbol: DOTUSDT
+    category: l1
+    median_quote_volume: 43814484.87
+    first_candle: '2020-08-18'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 43577209.04
+    first_candle: '2019-09-06'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 43107026.17
+    first_candle: '2019-07-05'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 43087149.16
+    first_candle: '2022-06-01'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 40135357.64
+    first_candle: '2019-01-16'
+  - symbol: GMTUSDT
+    category: gaming
+    median_quote_volume: 37341254.02
+    first_candle: '2022-03-09'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 32860123.41
+    first_candle: '2020-08-14'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 27689423.03
+    first_candle: '2021-09-13'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 27145390.56
+    first_candle: '2020-09-04'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 24317102.85
+    first_candle: '2020-10-15'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 19968251.03
+    first_candle: '2022-05-09'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 17875810.51
+    first_candle: '2020-09-17'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 15333052.02
+    first_candle: '2020-08-06'
+  - symbol: JASMYUSDT
+    category: infra
+    median_quote_volume: 15304919.18
+    first_candle: '2021-11-22'
+  - symbol: UNFIUSDT
+    category: defi
+    median_quote_volume: 15151946.3
+    first_candle: '2020-11-19'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 14915738.5
+    first_candle: '2020-08-15'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 14785049.96
+    first_candle: '2020-10-15'
+  - symbol: ENSUSDT
+    category: infra
+    median_quote_volume: 14476554.45
+    first_candle: '2021-11-10'
+  - symbol: AXSUSDT
+    category: gaming
+    median_quote_volume: 13243205.01
+    first_candle: '2020-11-04'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 12329090.73
+    first_candle: '2021-09-09'
+  - symbol: SNXUSDT
+    category: defi
+    median_quote_volume: 11189476.33
+    first_candle: '2020-07-09'
+  - symbol: PEOPLEUSDT
+    category: meme
+    median_quote_volume: 10552702.67
+    first_candle: '2021-12-23'
+  - symbol: FTTUSDT
+    category: exchange
+    median_quote_volume: 8324670.43
+    first_candle: '2019-12-20'
+  - symbol: THETAUSDT
+    category: infra
+    median_quote_volume: 7827484.57
+    first_candle: '2019-04-10'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 7274244.09
+    first_candle: '2020-12-17'
+  - symbol: COMPUSDT
+    category: defi
+    median_quote_volume: 7070980.39
+    first_candle: '2020-06-25'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 7050089.9
+    first_candle: '2020-09-01'
 - period_start: '2023-01-01'
-  period_end: '2024-01-01'
+  period_end: '2023-04-01'
   volume_window:
   - '2022-10-01'
   - '2022-12-31'
@@ -582,8 +2095,516 @@ periods:
     category: infra
     median_quote_volume: 5051074.97
     first_candle: '2021-05-14'
+- period_start: '2023-04-01'
+  period_end: '2023-07-01'
+  volume_window:
+  - '2023-01-01'
+  - '2023-03-31'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 1
+    l2: 3
+    meme: 2
+    defi: 8
+    gaming: 7
+    infra: 6
+    ai: 3
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 6579383321.24
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 773790711.52
+    first_candle: '2017-08-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 142841389.1
+    first_candle: '2018-05-04'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 115505756.81
+    first_candle: '2020-08-11'
+  - symbol: APTUSDT
+    category: l1
+    median_quote_volume: 101640721.67
+    first_candle: '2022-10-19'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 101288725.24
+    first_candle: '2017-11-06'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 99100310.83
+    first_candle: '2019-04-26'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 82418394.41
+    first_candle: '2019-07-05'
+  - symbol: FTMUSDT
+    category: l1
+    median_quote_volume: 72104221.7
+    first_candle: '2019-06-11'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 67079099.2
+    first_candle: '2022-06-01'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 62735294.44
+    first_candle: '2017-12-13'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 61835000.18
+    first_candle: '2021-05-10'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 55064307.31
+    first_candle: '2022-05-09'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 49231861.53
+    first_candle: '2021-09-13'
+  - symbol: CFXUSDT
+    category: l1
+    median_quote_volume: 47448816.44
+    first_candle: '2021-03-29'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 46164643.07
+    first_candle: '2018-04-17'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 43203525.77
+    first_candle: '2020-10-15'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 41262338.11
+    first_candle: '2020-09-22'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 40722066.59
+    first_candle: '2021-09-09'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 35524122.01
+    first_candle: '2019-01-16'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 29023345.33
+    first_candle: '2019-02-28'
+  - symbol: MASKUSDT
+    category: infra
+    median_quote_volume: 27722993.83
+    first_candle: '2021-05-25'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 25913760.6
+    first_candle: '2020-08-14'
+  - symbol: APEUSDT
+    category: gaming
+    median_quote_volume: 19111848.71
+    first_candle: '2022-03-17'
+  - symbol: GMTUSDT
+    category: gaming
+    median_quote_volume: 17091455.81
+    first_candle: '2022-03-09'
+  - symbol: RNDRUSDT
+    category: ai
+    median_quote_volume: 16359605.82
+    first_candle: '2021-11-27'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 16251637.4
+    first_candle: '2020-08-15'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 15968395.02
+    first_candle: '2020-12-17'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 14937598.33
+    first_candle: '2019-09-06'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 14560675.5
+    first_candle: '2020-08-06'
+  - symbol: AXSUSDT
+    category: gaming
+    median_quote_volume: 13286397.68
+    first_candle: '2020-11-04'
+  - symbol: SNXUSDT
+    category: defi
+    median_quote_volume: 11940887.72
+    first_candle: '2020-07-09'
+  - symbol: JASMYUSDT
+    category: infra
+    median_quote_volume: 11417638.15
+    first_candle: '2021-11-22'
+  - symbol: SUSHIUSDT
+    category: defi
+    median_quote_volume: 11311497.1
+    first_candle: '2020-09-01'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 11300116.25
+    first_candle: '2020-09-17'
+  - symbol: IMXUSDT
+    category: l2
+    median_quote_volume: 10666295.51
+    first_candle: '2022-01-10'
+  - symbol: GMXUSDT
+    category: defi
+    median_quote_volume: 10408613.06
+    first_candle: '2022-10-05'
+  - symbol: ARUSDT
+    category: infra
+    median_quote_volume: 10227020.26
+    first_candle: '2021-05-14'
+  - symbol: OCEANUSDT
+    category: ai
+    median_quote_volume: 10052327.9
+    first_candle: '2020-08-19'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 9796862.66
+    first_candle: '2020-10-15'
+- period_start: '2023-07-01'
+  period_end: '2023-10-01'
+  volume_window:
+  - '2023-04-01'
+  - '2023-06-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 1
+    l2: 3
+    meme: 2
+    ai: 3
+    infra: 6
+    gaming: 9
+    defi: 6
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1205762341.97
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 674260851.49
+    first_candle: '2017-08-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 153553932.09
+    first_candle: '2018-05-04'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 118367527.82
+    first_candle: '2017-11-06'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 60589521.07
+    first_candle: '2020-08-11'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 54254929.86
+    first_candle: '2017-12-13'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 50132119.61
+    first_candle: '2019-04-26'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 47268607.64
+    first_candle: '2019-07-05'
+  - symbol: CFXUSDT
+    category: l1
+    median_quote_volume: 40751390.78
+    first_candle: '2021-03-29'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 32711487.16
+    first_candle: '2018-04-17'
+  - symbol: RNDRUSDT
+    category: ai
+    median_quote_volume: 30168647.52
+    first_candle: '2021-11-27'
+  - symbol: APTUSDT
+    category: l1
+    median_quote_volume: 28148514.24
+    first_candle: '2022-10-19'
+  - symbol: FTMUSDT
+    category: l1
+    median_quote_volume: 26917027.43
+    first_candle: '2019-06-11'
+  - symbol: INJUSDT
+    category: l1
+    median_quote_volume: 23645196.71
+    first_candle: '2020-10-21'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 23363331.16
+    first_candle: '2022-06-01'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 21690561.8
+    first_candle: '2020-10-15'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 20491825.37
+    first_candle: '2021-09-13'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 19899522.31
+    first_candle: '2019-01-16'
+  - symbol: LINAUSDT
+    category: defi
+    median_quote_volume: 18494499.34
+    first_candle: '2021-03-18'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 18360018.86
+    first_candle: '2021-05-10'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 16444970.0
+    first_candle: '2022-05-09'
+  - symbol: MASKUSDT
+    category: infra
+    median_quote_volume: 14438094.16
+    first_candle: '2021-05-25'
+  - symbol: AGIXUSDT
+    category: ai
+    median_quote_volume: 14345202.04
+    first_candle: '2023-02-17'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 13537322.15
+    first_candle: '2021-09-09'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 12778674.24
+    first_candle: '2020-08-14'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 11736946.91
+    first_candle: '2019-02-28'
+  - symbol: APEUSDT
+    category: gaming
+    median_quote_volume: 11352136.4
+    first_candle: '2022-03-17'
+  - symbol: STXUSDT
+    category: l2
+    median_quote_volume: 11178783.96
+    first_candle: '2019-10-25'
+  - symbol: COCOSUSDT
+    category: gaming
+    median_quote_volume: 10583331.64
+    first_candle: '2019-08-21'
+  - symbol: JASMYUSDT
+    category: infra
+    median_quote_volume: 8556648.03
+    first_candle: '2021-11-22'
+  - symbol: ARPAUSDT
+    category: infra
+    median_quote_volume: 8405402.86
+    first_candle: '2019-11-06'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 7739577.08
+    first_candle: '2020-12-17'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 7729489.3
+    first_candle: '2019-09-06'
+  - symbol: OGUSDT
+    category: gaming
+    median_quote_volume: 7678521.22
+    first_candle: '2020-12-30'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 7667519.73
+    first_candle: '2020-08-15'
+  - symbol: MANAUSDT
+    category: gaming
+    median_quote_volume: 6807908.66
+    first_candle: '2020-08-06'
+  - symbol: SXPUSDT
+    category: defi
+    median_quote_volume: 6298696.18
+    first_candle: '2020-07-20'
+  - symbol: AXSUSDT
+    category: gaming
+    median_quote_volume: 6214870.84
+    first_candle: '2020-11-04'
+  - symbol: GMTUSDT
+    category: gaming
+    median_quote_volume: 6075860.77
+    first_candle: '2022-03-09'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 5760329.14
+    first_candle: '2021-02-19'
+- period_start: '2023-10-01'
+  period_end: '2024-01-01'
+  volume_window:
+  - '2023-07-01'
+  - '2023-09-30'
+  n_pairs: 35
+  categories:
+    l1: 10
+    exchange: 2
+    meme: 3
+    l2: 3
+    infra: 2
+    defi: 10
+    gaming: 3
+    ai: 2
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 761005926.02
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 354713763.86
+    first_candle: '2017-08-17'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 151663798.7
+    first_candle: '2018-05-04'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 75080694.37
+    first_candle: '2017-11-06'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 67710662.66
+    first_candle: '2020-08-11'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 40999242.3
+    first_candle: '2017-12-13'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 39909136.45
+    first_candle: '2019-07-05'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 30872324.52
+    first_candle: '2023-03-23'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 29416221.78
+    first_candle: '2019-04-26'
+  - symbol: BCHUSDT
+    category: l1
+    median_quote_volume: 26308083.43
+    first_candle: '2019-11-28'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 23074364.74
+    first_candle: '2019-01-16'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 21544586.02
+    first_candle: '2022-06-01'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 19848584.52
+    first_candle: '2021-05-10'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 18096252.57
+    first_candle: '2018-04-17'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 16829017.46
+    first_candle: '2018-06-11'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 16284401.73
+    first_candle: '2023-05-05'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 15377770.87
+    first_candle: '2023-05-03'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 12575409.72
+    first_candle: '2020-09-22'
+  - symbol: MKRUSDT
+    category: defi
+    median_quote_volume: 11968821.98
+    first_candle: '2020-07-23'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 11182482.9
+    first_candle: '2020-10-15'
+  - symbol: APEUSDT
+    category: gaming
+    median_quote_volume: 10345764.55
+    first_candle: '2022-03-17'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 9739077.15
+    first_candle: '2021-09-13'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 9652083.45
+    first_candle: '2021-09-09'
+  - symbol: COMPUSDT
+    category: defi
+    median_quote_volume: 9374809.39
+    first_candle: '2020-06-25'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 8139632.97
+    first_candle: '2020-09-04'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 7564666.63
+    first_candle: '2019-02-28'
+  - symbol: SNXUSDT
+    category: defi
+    median_quote_volume: 7393358.57
+    first_candle: '2020-07-09'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 6808424.73
+    first_candle: '2020-08-15'
+  - symbol: RNDRUSDT
+    category: ai
+    median_quote_volume: 6576810.09
+    first_candle: '2021-11-27'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 6342616.22
+    first_candle: '2020-09-17'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 6175100.28
+    first_candle: '2020-10-15'
+  - symbol: FTTUSDT
+    category: exchange
+    median_quote_volume: 5806767.31
+    first_candle: '2019-12-20'
+  - symbol: SANDUSDT
+    category: gaming
+    median_quote_volume: 5467573.85
+    first_candle: '2020-08-14'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 5275368.78
+    first_candle: '2022-05-09'
+  - symbol: LINAUSDT
+    category: defi
+    median_quote_volume: 5206554.76
+    first_candle: '2021-03-18'
 - period_start: '2024-01-01'
-  period_end: '2025-01-01'
+  period_end: '2024-04-01'
   volume_window:
   - '2023-10-01'
   - '2023-12-31'
@@ -758,8 +2779,535 @@ periods:
     category: gaming
     median_quote_volume: 11287721.44
     first_candle: '2020-08-14'
+- period_start: '2024-04-01'
+  period_end: '2024-07-01'
+  volume_window:
+  - '2024-01-01'
+  - '2024-03-31'
+  n_pairs: 40
+  categories:
+    l1: 10
+    exchange: 1
+    l2: 4
+    meme: 5
+    infra: 7
+    defi: 6
+    ai: 4
+    gaming: 3
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 2059312948.65
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1172272660.98
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 627562058.7
+    first_candle: '2020-08-11'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 301098425.26
+    first_candle: '2017-11-06'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 232931615.32
+    first_candle: '2018-05-04'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 149270081.47
+    first_candle: '2023-03-23'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 120671794.47
+    first_candle: '2020-09-22'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 108448176.45
+    first_candle: '2023-05-03'
+  - symbol: ORDIUSDT
+    category: meme
+    median_quote_volume: 108255266.91
+    first_candle: '2023-11-07'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 102222096.05
+    first_candle: '2019-07-05'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 96794666.99
+    first_candle: '2019-01-16'
+  - symbol: SEIUSDT
+    category: l1
+    median_quote_volume: 91042139.52
+    first_candle: '2023-08-15'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 87039089.0
+    first_candle: '2020-10-15'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 84754376.81
+    first_candle: '2019-04-26'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 84628917.82
+    first_candle: '2018-04-17'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 80299605.67
+    first_candle: '2022-06-01'
+  - symbol: INJUSDT
+    category: l1
+    median_quote_volume: 71031139.21
+    first_candle: '2020-10-21'
+  - symbol: NEARUSDT
+    category: l1
+    median_quote_volume: 69300835.68
+    first_candle: '2020-10-14'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 68969036.69
+    first_candle: '2020-09-04'
+  - symbol: RNDRUSDT
+    category: ai
+    median_quote_volume: 62045140.38
+    first_candle: '2021-11-27'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 60806338.9
+    first_candle: '2023-07-24'
+  - symbol: TIAUSDT
+    category: infra
+    median_quote_volume: 59055112.69
+    first_candle: '2023-10-31'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 49647326.78
+    first_candle: '2019-02-28'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 43973176.76
+    first_candle: '2021-05-10'
+  - symbol: STXUSDT
+    category: l2
+    median_quote_volume: 42505422.18
+    first_candle: '2019-10-25'
+  - symbol: DYDXUSDT
+    category: defi
+    median_quote_volume: 32822563.82
+    first_candle: '2021-09-09'
+  - symbol: ENSUSDT
+    category: infra
+    median_quote_volume: 32748055.24
+    first_candle: '2021-11-10'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 29458812.87
+    first_candle: '2021-09-13'
+  - symbol: MEMEUSDT
+    category: meme
+    median_quote_volume: 28685620.67
+    first_candle: '2023-11-03'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 27246964.26
+    first_candle: '2022-05-09'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 26848919.33
+    first_candle: '2023-05-05'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 24582140.03
+    first_candle: '2019-09-06'
+  - symbol: GRTUSDT
+    category: infra
+    median_quote_volume: 24529461.62
+    first_candle: '2020-12-17'
+  - symbol: TRBUSDT
+    category: infra
+    median_quote_volume: 21689973.09
+    first_candle: '2020-08-29'
+  - symbol: AGIXUSDT
+    category: ai
+    median_quote_volume: 20783959.34
+    first_candle: '2023-02-17'
+  - symbol: PENDLEUSDT
+    category: defi
+    median_quote_volume: 20260746.6
+    first_candle: '2023-07-03'
+  - symbol: APEUSDT
+    category: gaming
+    median_quote_volume: 19522662.58
+    first_candle: '2022-03-17'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 19488043.06
+    first_candle: '2021-02-19'
+  - symbol: MASKUSDT
+    category: infra
+    median_quote_volume: 18690393.52
+    first_candle: '2021-05-25'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 18584377.94
+    first_candle: '2020-09-17'
+- period_start: '2024-07-01'
+  period_end: '2024-10-01'
+  volume_window:
+  - '2024-04-01'
+  - '2024-06-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    meme: 8
+    exchange: 1
+    defi: 5
+    ai: 5
+    l2: 5
+    infra: 4
+    gaming: 2
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1906438696.72
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1081409861.15
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 578946009.03
+    first_candle: '2020-08-11'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 358971919.86
+    first_candle: '2023-05-05'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 203098726.61
+    first_candle: '2019-07-05'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 189807512.15
+    first_candle: '2017-11-06'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 166014961.95
+    first_candle: '2018-05-04'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 117005117.25
+    first_candle: '2021-05-10'
+  - symbol: NEARUSDT
+    category: l1
+    median_quote_volume: 93599723.78
+    first_candle: '2020-10-14'
+  - symbol: FLOKIUSDT
+    category: meme
+    median_quote_volume: 81023324.42
+    first_candle: '2023-05-05'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 78849904.35
+    first_candle: '2020-09-04'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 70836484.42
+    first_candle: '2023-07-24'
+  - symbol: ORDIUSDT
+    category: meme
+    median_quote_volume: 70544611.18
+    first_candle: '2023-11-07'
+  - symbol: BONKUSDT
+    category: meme
+    median_quote_volume: 69157687.62
+    first_candle: '2023-12-15'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 68275491.77
+    first_candle: '2023-03-23'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 64168463.9
+    first_candle: '2019-02-28'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 62280204.56
+    first_candle: '2020-09-22'
+  - symbol: RNDRUSDT
+    category: ai
+    median_quote_volume: 56606670.26
+    first_candle: '2021-11-27'
+  - symbol: FTMUSDT
+    category: l1
+    median_quote_volume: 48106573.32
+    first_candle: '2019-06-11'
+  - symbol: PEOPLEUSDT
+    category: meme
+    median_quote_volume: 44366304.66
+    first_candle: '2021-12-23'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 44259723.52
+    first_candle: '2019-01-16'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 42605982.23
+    first_candle: '2022-06-01'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 42319196.15
+    first_candle: '2018-04-17'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 39517288.12
+    first_candle: '2019-04-26'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 39500693.51
+    first_candle: '2023-05-03'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 37067971.43
+    first_candle: '2017-12-13'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 35612507.21
+    first_candle: '2020-10-15'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 33567739.47
+    first_candle: '2021-09-13'
+  - symbol: JTOUSDT
+    category: defi
+    median_quote_volume: 33257238.63
+    first_candle: '2023-12-07'
+  - symbol: 1000SATSUSDT
+    category: meme
+    median_quote_volume: 32662902.89
+    first_candle: '2023-12-12'
+  - symbol: PENDLEUSDT
+    category: defi
+    median_quote_volume: 31239517.44
+    first_candle: '2023-07-03'
+  - symbol: TIAUSDT
+    category: infra
+    median_quote_volume: 29400045.52
+    first_candle: '2023-10-31'
+  - symbol: ARUSDT
+    category: infra
+    median_quote_volume: 28964674.55
+    first_candle: '2021-05-14'
+  - symbol: ARKMUSDT
+    category: ai
+    median_quote_volume: 26943315.41
+    first_candle: '2023-07-18'
+  - symbol: STRKUSDT
+    category: l2
+    median_quote_volume: 24132629.41
+    first_candle: '2024-02-20'
+  - symbol: JUPUSDT
+    category: defi
+    median_quote_volume: 23572696.34
+    first_candle: '2024-01-31'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 22567276.02
+    first_candle: '2022-05-09'
+  - symbol: STXUSDT
+    category: l2
+    median_quote_volume: 22088026.48
+    first_candle: '2019-10-25'
+  - symbol: AGIXUSDT
+    category: ai
+    median_quote_volume: 21010242.79
+    first_candle: '2023-02-17'
+  - symbol: PIXELUSDT
+    category: gaming
+    median_quote_volume: 20342587.57
+    first_candle: '2024-02-19'
+- period_start: '2024-10-01'
+  period_end: '2025-01-01'
+  volume_window:
+  - '2024-07-01'
+  - '2024-09-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    meme: 10
+    exchange: 1
+    ai: 4
+    defi: 8
+    l2: 4
+    infra: 3
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1612925432.16
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 754976047.52
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 477960264.88
+    first_candle: '2020-08-11'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 228678943.57
+    first_candle: '2023-05-05'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 147286092.08
+    first_candle: '2018-05-04'
+  - symbol: WIFUSDT
+    category: meme
+    median_quote_volume: 142041519.61
+    first_candle: '2024-03-05'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 125864594.41
+    first_candle: '2017-11-06'
+  - symbol: 1000SATSUSDT
+    category: meme
+    median_quote_volume: 79219203.78
+    first_candle: '2023-12-12'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 71540605.29
+    first_candle: '2019-07-05'
+  - symbol: NOTUSDT
+    category: meme
+    median_quote_volume: 59775640.43
+    first_candle: '2024-05-16'
+  - symbol: BOMEUSDT
+    category: meme
+    median_quote_volume: 49685789.47
+    first_candle: '2024-03-16'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 49131309.52
+    first_candle: '2023-05-03'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 47442984.52
+    first_candle: '2019-02-28'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 45632850.36
+    first_candle: '2020-09-22'
+  - symbol: FLOKIUSDT
+    category: meme
+    median_quote_volume: 45517698.42
+    first_candle: '2023-05-05'
+  - symbol: NEARUSDT
+    category: l1
+    median_quote_volume: 41494658.7
+    first_candle: '2020-10-14'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 40202052.06
+    first_candle: '2020-09-04'
+  - symbol: BONKUSDT
+    category: meme
+    median_quote_volume: 40004970.25
+    first_candle: '2023-12-15'
+  - symbol: ORDIUSDT
+    category: meme
+    median_quote_volume: 39269718.92
+    first_candle: '2023-11-07'
+  - symbol: PEOPLEUSDT
+    category: meme
+    median_quote_volume: 38148816.14
+    first_candle: '2021-12-23'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 37718341.77
+    first_candle: '2018-06-11'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 36519024.15
+    first_candle: '2023-07-24'
+  - symbol: RNDRUSDT
+    category: ai
+    median_quote_volume: 32920327.38
+    first_candle: '2021-11-27'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 32303806.19
+    first_candle: '2023-03-23'
+  - symbol: FTMUSDT
+    category: l1
+    median_quote_volume: 29695727.64
+    first_candle: '2019-06-11'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 29578889.41
+    first_candle: '2018-04-17'
+  - symbol: TIAUSDT
+    category: infra
+    median_quote_volume: 25847568.57
+    first_candle: '2023-10-31'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 25573072.26
+    first_candle: '2020-10-15'
+  - symbol: MATICUSDT
+    category: l2
+    median_quote_volume: 24993227.34
+    first_candle: '2019-04-26'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 23594963.83
+    first_candle: '2019-01-16'
+  - symbol: ENAUSDT
+    category: defi
+    median_quote_volume: 22838001.02
+    first_candle: '2024-04-02'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 22670619.04
+    first_candle: '2020-08-15'
+  - symbol: TAOUSDT
+    category: ai
+    median_quote_volume: 20494953.75
+    first_candle: '2024-04-11'
+  - symbol: ETHFIUSDT
+    category: defi
+    median_quote_volume: 19676296.77
+    first_candle: '2024-03-18'
+  - symbol: PENDLEUSDT
+    category: defi
+    median_quote_volume: 18956072.98
+    first_candle: '2023-07-03'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 18389871.59
+    first_candle: '2022-06-01'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 18011633.98
+    first_candle: '2020-10-15'
+  - symbol: JUPUSDT
+    category: defi
+    median_quote_volume: 17893031.19
+    first_candle: '2024-01-31'
+  - symbol: STRKUSDT
+    category: l2
+    median_quote_volume: 14524379.29
+    first_candle: '2024-02-20'
+  - symbol: MKRUSDT
+    category: defi
+    median_quote_volume: 14481631.29
+    first_candle: '2020-07-23'
 - period_start: '2025-01-01'
-  period_end: '2026-01-01'
+  period_end: '2025-04-01'
   volume_window:
   - '2024-10-01'
   - '2024-12-31'
@@ -934,8 +3482,535 @@ periods:
     category: defi
     median_quote_volume: 27906266.3
     first_candle: '2024-01-31'
+- period_start: '2025-04-01'
+  period_end: '2025-07-01'
+  volume_window:
+  - '2025-01-01'
+  - '2025-03-31'
+  n_pairs: 40
+  categories:
+    l1: 10
+    meme: 8
+    exchange: 1
+    defi: 10
+    infra: 3
+    ai: 5
+    l2: 2
+    gaming: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 2271522056.72
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1231913070.22
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 679378070.72
+    first_candle: '2020-08-11'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 595298086.59
+    first_candle: '2018-05-04'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 279483746.79
+    first_candle: '2019-07-05'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 224722597.05
+    first_candle: '2023-05-03'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 203623039.73
+    first_candle: '2017-11-06'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 197279365.81
+    first_candle: '2023-05-05'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 146614002.09
+    first_candle: '2018-04-17'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 124155086.37
+    first_candle: '2018-06-11'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 95591759.18
+    first_candle: '2017-12-13'
+  - symbol: ENAUSDT
+    category: defi
+    median_quote_volume: 93574006.5
+    first_candle: '2024-04-02'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 86726425.45
+    first_candle: '2019-01-16'
+  - symbol: HBARUSDT
+    category: l1
+    median_quote_volume: 81924850.29
+    first_candle: '2019-09-29'
+  - symbol: WIFUSDT
+    category: meme
+    median_quote_volume: 77198698.63
+    first_candle: '2024-03-05'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 58151966.09
+    first_candle: '2020-09-04'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 57528130.69
+    first_candle: '2020-09-22'
+  - symbol: TAOUSDT
+    category: ai
+    median_quote_volume: 57125393.0
+    first_candle: '2024-04-11'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 52884655.37
+    first_candle: '2020-10-15'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 52218171.42
+    first_candle: '2023-07-24'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 42214586.74
+    first_candle: '2021-05-10'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 33740749.72
+    first_candle: '2023-03-23'
+  - symbol: NEIROUSDT
+    category: meme
+    median_quote_volume: 33652450.73
+    first_candle: '2024-09-16'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 33192219.62
+    first_candle: '2020-09-17'
+  - symbol: FLOKIUSDT
+    category: meme
+    median_quote_volume: 31026094.23
+    first_candle: '2023-05-05'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 30702636.99
+    first_candle: '2019-02-28'
+  - symbol: OMUSDT
+    category: defi
+    median_quote_volume: 30038414.24
+    first_candle: '2021-03-08'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 29618979.87
+    first_candle: '2020-08-15'
+  - symbol: BONKUSDT
+    category: meme
+    median_quote_volume: 28847966.63
+    first_candle: '2023-12-15'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 28070009.7
+    first_candle: '2022-05-09'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 25757521.95
+    first_candle: '2020-10-15'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 25552290.76
+    first_candle: '2022-06-01'
+  - symbol: TIAUSDT
+    category: infra
+    median_quote_volume: 23801827.76
+    first_candle: '2023-10-31'
+  - symbol: EIGENUSDT
+    category: defi
+    median_quote_volume: 22694053.22
+    first_candle: '2024-10-01'
+  - symbol: RAYUSDT
+    category: defi
+    median_quote_volume: 21504960.63
+    first_candle: '2021-08-10'
+  - symbol: RENDERUSDT
+    category: ai
+    median_quote_volume: 21381204.33
+    first_candle: '2024-07-26'
+  - symbol: JUPUSDT
+    category: defi
+    median_quote_volume: 21139817.8
+    first_candle: '2024-01-31'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 20798184.12
+    first_candle: '2021-09-13'
+  - symbol: ARKMUSDT
+    category: ai
+    median_quote_volume: 17584316.09
+    first_candle: '2023-07-18'
+  - symbol: ORDIUSDT
+    category: meme
+    median_quote_volume: 17288275.96
+    first_candle: '2023-11-07'
+- period_start: '2025-07-01'
+  period_end: '2025-10-01'
+  volume_window:
+  - '2025-04-01'
+  - '2025-06-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    meme: 9
+    exchange: 1
+    defi: 10
+    infra: 3
+    ai: 4
+    l2: 2
+    gaming: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1753910031.2
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 1167664698.58
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 482908343.29
+    first_candle: '2020-08-11'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 280926951.97
+    first_candle: '2018-05-04'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 186416580.52
+    first_candle: '2023-05-05'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 178201055.57
+    first_candle: '2023-05-03'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 156871983.82
+    first_candle: '2019-07-05'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 110606139.47
+    first_candle: '2017-11-06'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 89460811.91
+    first_candle: '2018-06-11'
+  - symbol: TRUMPUSDT
+    category: meme
+    median_quote_volume: 86861269.92
+    first_candle: '2025-01-19'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 75021022.72
+    first_candle: '2018-04-17'
+  - symbol: ENAUSDT
+    category: defi
+    median_quote_volume: 51623151.96
+    first_candle: '2024-04-02'
+  - symbol: WIFUSDT
+    category: meme
+    median_quote_volume: 49220816.98
+    first_candle: '2024-03-05'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 42979769.13
+    first_candle: '2020-09-22'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 40484024.76
+    first_candle: '2019-01-16'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 39153522.59
+    first_candle: '2020-10-15'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 38460870.66
+    first_candle: '2020-09-17'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 36127053.44
+    first_candle: '2017-12-13'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 33938728.45
+    first_candle: '2023-07-24'
+  - symbol: TAOUSDT
+    category: ai
+    median_quote_volume: 33859527.3
+    first_candle: '2024-04-11'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 28015967.53
+    first_candle: '2020-08-15'
+  - symbol: EOSUSDT
+    category: l1
+    median_quote_volume: 27803559.25
+    first_candle: '2018-05-28'
+  - symbol: NEIROUSDT
+    category: meme
+    median_quote_volume: 26801645.06
+    first_candle: '2024-09-16'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 23511239.66
+    first_candle: '2019-02-28'
+  - symbol: BONKUSDT
+    category: meme
+    median_quote_volume: 23377865.91
+    first_candle: '2023-12-15'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 21247506.98
+    first_candle: '2023-03-23'
+  - symbol: PENGUUSDT
+    category: meme
+    median_quote_volume: 20843319.56
+    first_candle: '2024-12-17'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 19863726.1
+    first_candle: '2021-05-10'
+  - symbol: OMUSDT
+    category: defi
+    median_quote_volume: 17668296.33
+    first_candle: '2021-03-08'
+  - symbol: RENDERUSDT
+    category: ai
+    median_quote_volume: 17160382.87
+    first_candle: '2024-07-26'
+  - symbol: ETHFIUSDT
+    category: defi
+    median_quote_volume: 17119645.24
+    first_candle: '2024-03-18'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 16529655.24
+    first_candle: '2022-06-01'
+  - symbol: FLOKIUSDT
+    category: meme
+    median_quote_volume: 15965461.91
+    first_candle: '2023-05-05'
+  - symbol: TIAUSDT
+    category: infra
+    median_quote_volume: 14484828.76
+    first_candle: '2023-10-31'
+  - symbol: RUNEUSDT
+    category: defi
+    median_quote_volume: 14372478.62
+    first_candle: '2020-09-04'
+  - symbol: PENDLEUSDT
+    category: defi
+    median_quote_volume: 14281600.52
+    first_candle: '2023-07-03'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 13990854.43
+    first_candle: '2021-02-19'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 12630816.97
+    first_candle: '2020-10-15'
+  - symbol: RAYUSDT
+    category: defi
+    median_quote_volume: 11864651.71
+    first_candle: '2021-08-10'
+  - symbol: GALAUSDT
+    category: gaming
+    median_quote_volume: 10737214.17
+    first_candle: '2021-09-13'
+- period_start: '2025-10-01'
+  period_end: '2026-01-01'
+  volume_window:
+  - '2025-07-01'
+  - '2025-09-30'
+  n_pairs: 40
+  categories:
+    l1: 10
+    meme: 9
+    exchange: 1
+    defi: 10
+    infra: 3
+    l2: 3
+    ai: 4
+  pairs:
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 2076934348.95
+    first_candle: '2017-08-17'
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1559670030.45
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 715706978.49
+    first_candle: '2020-08-11'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 416952006.32
+    first_candle: '2018-05-04'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 296325115.79
+    first_candle: '2019-07-05'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 184434857.49
+    first_candle: '2017-11-06'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 149983883.2
+    first_candle: '2023-05-03'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 129774972.56
+    first_candle: '2018-06-11'
+  - symbol: ENAUSDT
+    category: defi
+    median_quote_volume: 129229897.26
+    first_candle: '2024-04-02'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 126951399.64
+    first_candle: '2023-05-05'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 117283478.93
+    first_candle: '2018-04-17'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 87094647.82
+    first_candle: '2019-01-16'
+  - symbol: PENGUUSDT
+    category: meme
+    median_quote_volume: 80311350.29
+    first_candle: '2024-12-17'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 76766365.44
+    first_candle: '2020-09-22'
+  - symbol: BONKUSDT
+    category: meme
+    median_quote_volume: 56408364.53
+    first_candle: '2023-12-15'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 55790842.37
+    first_candle: '2020-09-17'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 52898362.31
+    first_candle: '2017-12-13'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 45094960.67
+    first_candle: '2023-03-23'
+  - symbol: HBARUSDT
+    category: l1
+    median_quote_volume: 40865639.68
+    first_candle: '2019-09-29'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 39907147.03
+    first_candle: '2023-07-24'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 38704668.94
+    first_candle: '2020-10-15'
+  - symbol: WIFUSDT
+    category: meme
+    median_quote_volume: 38214184.72
+    first_candle: '2024-03-05'
+  - symbol: TRUMPUSDT
+    category: meme
+    median_quote_volume: 31550477.49
+    first_candle: '2025-01-19'
+  - symbol: CRVUSDT
+    category: defi
+    median_quote_volume: 25115449.11
+    first_candle: '2020-08-15'
+  - symbol: ETHFIUSDT
+    category: defi
+    median_quote_volume: 24534139.51
+    first_candle: '2024-03-18'
+  - symbol: FLOKIUSDT
+    category: meme
+    median_quote_volume: 23337688.89
+    first_candle: '2023-05-05'
+  - symbol: ONDOUSDT
+    category: defi
+    median_quote_volume: 23167745.44
+    first_candle: '2025-04-11'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 21734210.02
+    first_candle: '2022-06-01'
+  - symbol: TAOUSDT
+    category: ai
+    median_quote_volume: 21475084.96
+    first_candle: '2024-04-11'
+  - symbol: LDOUSDT
+    category: defi
+    median_quote_volume: 20797882.53
+    first_candle: '2022-05-09'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 18771770.29
+    first_candle: '2021-05-10'
+  - symbol: VIRTUALUSDT
+    category: ai
+    median_quote_volume: 18753959.76
+    first_candle: '2025-04-11'
+  - symbol: NEIROUSDT
+    category: meme
+    median_quote_volume: 17093471.23
+    first_candle: '2024-09-16'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 15717095.92
+    first_candle: '2020-10-15'
+  - symbol: TIAUSDT
+    category: infra
+    median_quote_volume: 15687478.91
+    first_candle: '2023-10-31'
+  - symbol: EIGENUSDT
+    category: defi
+    median_quote_volume: 14989633.05
+    first_candle: '2024-10-01'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 14819301.0
+    first_candle: '2019-02-28'
+  - symbol: PENDLEUSDT
+    category: defi
+    median_quote_volume: 14575157.6
+    first_candle: '2023-07-03'
+  - symbol: POLUSDT
+    category: l2
+    median_quote_volume: 14243729.33
+    first_candle: '2024-09-13'
+  - symbol: CAKEUSDT
+    category: defi
+    median_quote_volume: 12189651.35
+    first_candle: '2021-02-19'
 - period_start: '2026-01-01'
-  period_end: '2026-10-01'
+  period_end: '2026-04-01'
   volume_window:
   - '2025-10-01'
   - '2025-12-31'
@@ -943,9 +4018,9 @@ periods:
   categories:
     l1: 10
     exchange: 1
-    meme: 9
+    meme: 8
     infra: 3
-    defi: 9
+    defi: 10
     ai: 4
     l2: 4
   pairs:
@@ -1097,6 +4172,10 @@ periods:
     category: meme
     median_quote_volume: 9074310.18
     first_candle: '2023-05-05'
+  - symbol: ONDOUSDT
+    category: defi
+    median_quote_volume: 8431078.26
+    first_candle: '2025-04-11'
   - symbol: LDOUSDT
     category: defi
     median_quote_volume: 8182799.73
@@ -1105,7 +4184,315 @@ periods:
     category: l2
     median_quote_volume: 7990175.8
     first_candle: '2024-09-13'
-  - symbol: NEIROUSDT
+- period_start: '2026-04-01'
+  period_end: '2026-07-01'
+  volume_window:
+  - '2026-01-01'
+  - '2026-03-31'
+  n_pairs: 38
+  categories:
+    l1: 10
+    exchange: 1
+    meme: 9
+    infra: 3
+    ai: 6
+    defi: 5
+    l2: 3
+    gaming: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1485066674.86
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 918801697.64
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 301732016.46
+    first_candle: '2020-08-11'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 183064325.46
+    first_candle: '2018-05-04'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 91887079.73
+    first_candle: '2017-11-06'
+  - symbol: DOGEUSDT
     category: meme
-    median_quote_volume: 7015311.88
-    first_candle: '2024-09-16'
+    median_quote_volume: 88038217.28
+    first_candle: '2019-07-05'
+  - symbol: ZECUSDT
+    category: l1
+    median_quote_volume: 64500208.5
+    first_candle: '2019-03-21'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 47212065.15
+    first_candle: '2018-06-11'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 44172537.5
+    first_candle: '2023-05-03'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 40761968.8
+    first_candle: '2023-05-05'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 37231192.18
+    first_candle: '2018-04-17'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 27461575.58
+    first_candle: '2019-01-16'
+  - symbol: AVAXUSDT
+    category: l1
+    median_quote_volume: 26422633.19
+    first_candle: '2020-09-22'
+  - symbol: TAOUSDT
+    category: ai
+    median_quote_volume: 24385800.45
+    first_candle: '2024-04-11'
+  - symbol: ASTERUSDT
+    category: defi
+    median_quote_volume: 23065289.74
+    first_candle: '2025-10-06'
+  - symbol: LTCUSDT
+    category: l1
+    median_quote_volume: 20929038.49
+    first_candle: '2017-12-13'
+  - symbol: PUMPUSDT
+    category: meme
+    median_quote_volume: 18299775.91
+    first_candle: '2025-09-11'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 15054614.12
+    first_candle: '2020-09-17'
+  - symbol: ENAUSDT
+    category: defi
+    median_quote_volume: 14458667.4
+    first_candle: '2024-04-02'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 12694317.01
+    first_candle: '2020-10-15'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 12615648.82
+    first_candle: '2023-07-24'
+  - symbol: WLFIUSDT
+    category: defi
+    median_quote_volume: 12551163.91
+    first_candle: '2025-09-01'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 12329824.45
+    first_candle: '2020-10-15'
+  - symbol: PENGUUSDT
+    category: meme
+    median_quote_volume: 11491927.2
+    first_candle: '2024-12-17'
+  - symbol: KITEUSDT
+    category: ai
+    median_quote_volume: 10994892.99
+    first_candle: '2025-11-03'
+  - symbol: TRUMPUSDT
+    category: meme
+    median_quote_volume: 10732662.78
+    first_candle: '2025-01-19'
+  - symbol: VIRTUALUSDT
+    category: ai
+    median_quote_volume: 10531284.97
+    first_candle: '2025-04-11'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 9341391.38
+    first_candle: '2019-02-28'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 8962113.98
+    first_candle: '2023-03-23'
+  - symbol: WIFUSDT
+    category: meme
+    median_quote_volume: 8789085.07
+    first_candle: '2024-03-05'
+  - symbol: ZROUSDT
+    category: infra
+    median_quote_volume: 8615875.6
+    first_candle: '2024-06-20'
+  - symbol: SHIBUSDT
+    category: meme
+    median_quote_volume: 8251924.89
+    first_candle: '2021-05-10'
+  - symbol: RENDERUSDT
+    category: ai
+    median_quote_volume: 7981854.42
+    first_candle: '2024-07-26'
+  - symbol: BONKUSDT
+    category: meme
+    median_quote_volume: 7243340.94
+    first_candle: '2023-12-15'
+  - symbol: POLUSDT
+    category: l2
+    median_quote_volume: 6030302.7
+    first_candle: '2024-09-13'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 5636349.72
+    first_candle: '2019-09-06'
+  - symbol: OPUSDT
+    category: l2
+    median_quote_volume: 5316313.87
+    first_candle: '2022-06-01'
+  - symbol: GIGGLEUSDT
+    category: meme
+    median_quote_volume: 5117838.52
+    first_candle: '2025-10-25'
+- period_start: '2026-07-01'
+  period_end: '2026-10-01'
+  volume_window:
+  - '2026-04-01'
+  - '2026-06-30'
+  n_pairs: 32
+  categories:
+    l1: 10
+    exchange: 1
+    meme: 6
+    ai: 5
+    infra: 2
+    defi: 6
+    gaming: 1
+    l2: 1
+  pairs:
+  - symbol: BTCUSDT
+    category: l1
+    median_quote_volume: 1184929842.87
+    first_candle: '2017-08-17'
+  - symbol: ETHUSDT
+    category: l1
+    median_quote_volume: 579204959.8
+    first_candle: '2017-08-17'
+  - symbol: SOLUSDT
+    category: l1
+    median_quote_volume: 195747705.13
+    first_candle: '2020-08-11'
+  - symbol: XRPUSDT
+    category: l1
+    median_quote_volume: 117396721.33
+    first_candle: '2018-05-04'
+  - symbol: ZECUSDT
+    category: l1
+    median_quote_volume: 103222908.71
+    first_candle: '2019-03-21'
+  - symbol: BNBUSDT
+    category: exchange
+    median_quote_volume: 73178744.49
+    first_candle: '2017-11-06'
+  - symbol: DOGEUSDT
+    category: meme
+    median_quote_volume: 66076013.45
+    first_candle: '2019-07-05'
+  - symbol: TRXUSDT
+    category: l1
+    median_quote_volume: 36316922.41
+    first_candle: '2018-06-11'
+  - symbol: SUIUSDT
+    category: l1
+    median_quote_volume: 31750489.74
+    first_candle: '2023-05-03'
+  - symbol: NEARUSDT
+    category: l1
+    median_quote_volume: 30009653.63
+    first_candle: '2020-10-14'
+  - symbol: TAOUSDT
+    category: ai
+    median_quote_volume: 27276766.2
+    first_candle: '2024-04-11'
+  - symbol: ADAUSDT
+    category: l1
+    median_quote_volume: 26779008.69
+    first_candle: '2018-04-17'
+  - symbol: PEPEUSDT
+    category: meme
+    median_quote_volume: 25780885.63
+    first_candle: '2023-05-05'
+  - symbol: LINKUSDT
+    category: infra
+    median_quote_volume: 21401115.81
+    first_candle: '2019-01-16'
+  - symbol: WLDUSDT
+    category: ai
+    median_quote_volume: 20449101.8
+    first_candle: '2023-07-24'
+  - symbol: TONUSDT
+    category: l1
+    median_quote_volume: 19494376.46
+    first_candle: '2024-08-08'
+  - symbol: ENAUSDT
+    category: defi
+    median_quote_volume: 14888811.97
+    first_candle: '2024-04-02'
+  - symbol: AAVEUSDT
+    category: defi
+    median_quote_volume: 13830936.08
+    first_candle: '2020-10-15'
+  - symbol: FETUSDT
+    category: ai
+    median_quote_volume: 12202825.02
+    first_candle: '2019-02-28'
+  - symbol: 币安人生USDT
+    category: meme
+    median_quote_volume: 11244046.86
+    first_candle: '2026-01-07'
+  - symbol: UNIUSDT
+    category: defi
+    median_quote_volume: 10172241.24
+    first_candle: '2020-09-17'
+  - symbol: PENGUUSDT
+    category: meme
+    median_quote_volume: 10036298.89
+    first_candle: '2024-12-17'
+  - symbol: ASTERUSDT
+    category: defi
+    median_quote_volume: 10002531.68
+    first_candle: '2025-10-06'
+  - symbol: ONDOUSDT
+    category: defi
+    median_quote_volume: 9598332.62
+    first_candle: '2025-04-11'
+  - symbol: TRUMPUSDT
+    category: meme
+    median_quote_volume: 9031635.53
+    first_candle: '2025-01-19'
+  - symbol: FILUSDT
+    category: infra
+    median_quote_volume: 7039312.64
+    first_candle: '2020-10-15'
+  - symbol: WLFIUSDT
+    category: defi
+    median_quote_volume: 6587221.75
+    first_candle: '2025-09-01'
+  - symbol: PUMPUSDT
+    category: meme
+    median_quote_volume: 6219700.51
+    first_candle: '2025-09-11'
+  - symbol: RENDERUSDT
+    category: ai
+    median_quote_volume: 5814768.8
+    first_candle: '2024-07-26'
+  - symbol: CHZUSDT
+    category: gaming
+    median_quote_volume: 5667545.72
+    first_candle: '2019-09-06'
+  - symbol: ARBUSDT
+    category: l2
+    median_quote_volume: 5376247.72
+    first_candle: '2023-03-23'
+  - symbol: VIRTUALUSDT
+    category: ai
+    median_quote_volume: 5007217.22
+    first_candle: '2025-04-11'
