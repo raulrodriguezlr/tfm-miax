@@ -884,8 +884,10 @@ def _universe_frame(rows: Sequence[tuple[str, str, float, int]]) -> pd.DataFrame
 
 
 def test_real_universe_params_load() -> None:
-    """El universe_params.yaml real carga con los valores acordados (suelo de 5 M y 40 pares)."""
-    expected = dataclasses.replace(PARAMS, min_quote_volume=5_000_000.0, max_pairs=40)
+    """El universe_params.yaml real carga con los valores acordados (trimestral, 5 M y 40 pares)."""
+    expected = dataclasses.replace(
+        PARAMS, period_months=3, min_quote_volume=5_000_000.0, max_pairs=40
+    )
     assert load_universe_params() == expected
 
 

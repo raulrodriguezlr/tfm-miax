@@ -1,0 +1,31 @@
+# PRUEBA DE ROBUSTEZ (MIAX-198): periodos anuales, el universo original de MIAX-028.
+# Mismos parametros que el principal salvo period_months.
+# Cada periodo tiene su universo, elegido con una ventana de volumen inmediatamente anterior:
+# la seleccion nunca usa datos del propio periodo (D-14). Un unico periodo equivale a un universo
+# fijo.
+# Genera configs/universe_annual.yaml con:
+#   python -m miax.ingest universe --params universe_params_annual.yaml --out universe_annual.yaml
+#
+# Por que estos valores (detalle en docs/project/ESTADO.md, entrada MIAX-028):
+# - Desde 2018: Binance abrio en jul-2017 y sus pares USDT empezaron el 17-08-2017; los datos de
+#   2017 sirven de ventana para elegir el universo de 2018. Antes de 2021 hay pocos pares liquidos.
+# - Periodos anuales con ventana de 3 meses: el universo se revisa una vez al ano con la liquidez
+#   reciente (oct-dic del ano anterior), sin que el grafo cambie de nodos cada pocos meses.
+# - 30 dias de antiguedad antes de la ventana: deja fuera la euforia de lanzamiento sin vaciar
+#   2018 (con 90 dias ningun par cumplia).
+# - Suelo de 5 M y 40 pares: con un umbral absoluto de 10 M el tamano seguia al ciclo de mercado
+#   (25 pares en 2023 tras FTX, 50 en 2022 y 2025). Con 40 como objetivo el universo es estable
+#   desde 2022; 5 M es el suelo mas alto que llega a 40 en todos esos anos. Es un valor pragmatico,
+#   aun sin validar con la actividad por minuto (ver ESTADO).
+# - 10 por categoria y aviso por debajo de 4: diversidad sin que L1 lo copen todo.
+quote_asset: "USDT"
+first_period_start: "2018-01-01"   # la ventana del primer periodo usa los datos de 2017
+last_period_end: "2026-10-01"      # exclusivo; el ultimo periodo se recorta aqui
+period_months: 12
+volume_window_months: 3
+min_listing_days: 30               # dias cotizando antes del inicio de la ventana
+min_quote_volume: 5000000.0        # suelo de liquidez: mediana diaria en USDT dentro de la ventana
+max_per_category: 10
+max_pairs: 40                      # tamano objetivo: estable desde 2022 con el suelo de 5 M
+min_categories: 4                  # por debajo solo se avisa: los primeros anyos son casi todo L1
+categories_file: "categories.yaml"
