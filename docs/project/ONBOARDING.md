@@ -214,23 +214,16 @@ Si vas a contradecir una, se habla antes.
 
 ## 10. Reparto
 
-| Persona | Área | Épicas |
-|---|---|---|
-| **Raúl** | Datos e infraestructura | 0, 1, 2, 12 |
-| **Piettro** | Estructura del grafo | 3, 4, 5, 6 |
-| **Alonso** | Modelado y evaluación | 7, 8, 9, 10 |
-| Los tres | Dashboard y memoria | 11, 13 |
+**No hay reparto fijo: los tres hacemos de todo.** Cada uno coge el ticket más bajo disponible cuyas dependencias estén cerradas, sea de la épica que sea. El PR lo revisa otra persona del equipo.
 
-*Reparto provisional: se acuerda entre los tres antes de arrancar.*
-
-El área no es propiedad exclusiva: si estás bloqueado, coges un ticket de otra épica cuyas dependencias estén cerradas. Pero **el que conoce el área revisa el PR**.
+Las letras **A**, **B** y **C** del backlog (`Área: A`…) no son personas: son las tres etapas del pipeline (datos, grafo y modelado).
 
 ### Interfaces entre áreas
 
 El contrato que evita bloqueos. Si cambias una, **avisas antes, no después**:
 
-- **Datos → Grafo:** panel limpio de retornos alineados en Parquet.
-- **Grafo → Modelado:** matriz de adyacencia por *fold*.
+- **Datos → Grafo (A → B):** panel limpio de retornos alineados en Parquet.
+- **Grafo → Modelado (B → C):** matriz de adyacencia por *fold*.
 
 ---
 
