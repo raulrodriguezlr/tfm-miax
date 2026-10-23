@@ -16,6 +16,7 @@ from miax.features.gaps import (
     gap_runs,
     listings_from_universe,
 )
+from miax.features.panel import FEATURE_NAMES, Panel, build_panel, period_panels
 from miax.features.resample import (
     bar_factor,
     horizon_returns_from_cache,
@@ -29,10 +30,13 @@ from miax.features.validity import mask_invalid, return_validity, validity_mask
 from miax.features.volatility import realized_volatility, realized_volatility_from_cache
 
 __all__ = [
+    "FEATURE_NAMES",
     "GapCause",
+    "Panel",
     "align_frame",
     "align_klines",
     "bar_factor",
+    "build_panel",
     "build_time_grid",
     "cause_counts",
     "classify_klines",
@@ -46,6 +50,7 @@ __all__ = [
     "log_relative_to_past",
     "log_returns",
     "mask_invalid",
+    "period_panels",
     "realized_volatility",
     "realized_volatility_from_cache",
     "relative_activity_from_cache",
