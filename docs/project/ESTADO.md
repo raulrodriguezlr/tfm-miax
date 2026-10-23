@@ -88,6 +88,11 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-23 · Raúl · Reparto
+- **Hecho:** quitada la tabla de reparto por persona de `ONBOARDING.md` §10 y `WORKFLOW.md` §5. Los tres hacemos de todo: cada uno coge el ticket más bajo disponible, sea de la épica que sea, y el PR lo revisa otra persona.
+- **Ojo:** en el backlog, `Área: A/B/C` son etapas del pipeline (datos, grafo, modelado), no personas. Las interfaces `A → B` y `B → C` siguen igual.
+- **Decisión:** cambio de proceso pedido por Raúl; no es un ticket; va en el PR de MIAX-043 a petición de Raúl.
+
 ### 2026-10-23 · Raúl · MIAX-043
 - **Hecho:** `miax.features.panel_store`, exportado desde `miax.features`: `PANEL_DIR = "data/processed/panel"`, `PANEL_FORMAT_VERSION = 1`, `panel_path(interval, start_ms, end_ms, *, cache_dir=PANEL_DIR) -> Path`, `cache_fingerprint(symbols, interval, *, base_dir=DEFAULT_BASE_DIR) -> dict` (nombre y tamaño de cada fichero de mes de la caché de velas; vacío si el símbolo no tiene caché), `save_panel(panel, start_ms, end_ms, *, params, fingerprint, cache_dir=PANEL_DIR) -> Path` (`ValueError` si el índice no es exactamente `build_time_grid(start_ms, end_ms, interval)`), `load_panel(path, *, features=None, symbols=None) -> Panel` (lee solo lo pedido, en el orden pedido; `valid` siempre; `ValueError` si falta `meta.json` o un Parquet, o si un nombre no existe), `cached_panel(symbols, interval, start_ms, end_ms, *, base_dir, cache_dir, rebuild=False, vol_window=60, vol_min_valid_share=0.8, activity_window=10080, activity_min_valid_share=0.5) -> Panel` y `cached_period_panels(universe, interval, *, ...)`, generador como `period_panels` pero a través de la caché. CLI nueva: `python -m miax.features panel [--interval 1m] [--period YYYY-MM-DD ...] [--rebuild] [--base-dir ...] [--cache-dir ...]` construye y cachea todos los periodos del universo o los dados (0 bien, 1 falla la construcción, 2 argumentos o periodo inválido).
 - **Decisión:** D-?? (formato de la caché del panel: un directorio por periodo, un Parquet por feature, huella de la caché de velas, `meta.json` el último; ver §2). `float64` y `snappy` tal cual, para que la ida y vuelta sea idéntica bit a bit a `build_panel`. La carpeta de un periodo se nombra con fechas `YYYY-MM-DD` (con la hora si el rango no es de días enteros, para que dos rangos distintos no choquen).
