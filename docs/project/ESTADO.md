@@ -91,6 +91,11 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-10-23 · Raúl · Reparto
+- **Hecho:** quitada la tabla de reparto por persona de `ONBOARDING.md` §10 y `WORKFLOW.md` §5. Los tres hacemos de todo: cada uno coge el ticket más bajo disponible, sea de la épica que sea, y el PR lo revisa otra persona.
+- **Ojo:** en el backlog, `Área: A/B/C` son etapas del pipeline (datos, grafo, modelado), no personas. Las interfaces `A → B` y `B → C` siguen igual.
+- **Decisión:** cambio de proceso pedido por Raúl; no es un ticket, así que va en una rama `docs/`.
+
 ### 2026-10-22 · Alonso · MIAX-198
 - **Hecho:** tres universos congelados con la misma regla (ventana de volumen de 3 meses justo antes del periodo, suelo de 5 M, 40 pares, 10 por categoría) y distinto `period_months`: `configs/universe.yaml` (**trimestral, el principal**, parámetros en `universe_params.yaml`), `configs/universe_semiannual.yaml` y `configs/universe_annual.yaml` (robustez, parámetros en `universe_params_semiannual.yaml` y `universe_params_annual.yaml`). Se generan con `python -m miax.ingest universe` y, para los otros dos, `--params universe_params_<x>.yaml --out universe_<x>.yaml`. Sin cambios de código: `load_universe(path)` ya admitía otro fichero y `load_universe()` lee el principal.
 - **Cifras (generadas el 2026-10-22):** trimestral, 35 periodos y **147** monedas distintas; semestral, 18 periodos y **129**; anual, 9 periodos y **104**. Anual ⊂ semestral ⊂ trimestral (ninguna moneda es exclusiva del semestral ni del anual): el trimestral añade 43 monedas al anual y 18 al semestral. Pares por periodo: **40 en todos los periodos de 2022 a 2025 en los tres**, salvo el trimestral 2023T4, que tiene **35**. Antes de 2022 hay pocos líquidos (trimestral: 2018 `[2, 5, 6, 11]`, 2019 `[11, 9, 11, 9]`, 2020 `[10, 13, 13, 14]`, 2021 `[21, 40, 40, 40]`). **2026** (el último periodo se recorta a 2026-10-01): trimestral `[40, 38, 32]`, semestral `[40, 32]`, anual `[40]`. Entradas de monedas entre trimestres consecutivos desde 2022: entre 3 y 13.
