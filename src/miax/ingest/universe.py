@@ -305,7 +305,7 @@ class UniversePeriod(NamedTuple):
     period_end_ms: int  # exclusivo
 
 
-def _to_ms(timestamp: pd.Timestamp) -> int:
+def to_ms(timestamp: pd.Timestamp) -> int:
     """Milisegundos desde la epoca de un Timestamp UTC."""
     return int((timestamp - _EPOCH) // _MS)
 
@@ -375,14 +375,14 @@ def universe_periods(params: UniverseParams) -> list[UniversePeriod]:
         # El fin tambien se suma desde el origen: coincide con el inicio del siguiente, sin huecos.
         end = min(first + pd.DateOffset(months=(step + 1) * params.period_months), last_end)
         window_start = start - pd.DateOffset(months=params.volume_window_months)
-        period_start_ms = _to_ms(start)
+        period_start_ms = to_ms(start)
         # Sin fuga: la ventana acaba 1 ms antes del periodo, asi que su seleccion no ve nada de el.
         periods.append(
             UniversePeriod(
-                window_start_ms=_to_ms(window_start),
+                window_start_ms=to_ms(window_start),
                 window_end_ms=period_start_ms - 1,
                 period_start_ms=period_start_ms,
-                period_end_ms=_to_ms(end),
+                period_end_ms=to_ms(end),
             )
         )
         step += 1
