@@ -16,7 +16,14 @@ from pandas.testing import assert_frame_equal
 
 import miax.features.__main__ as cli
 import miax.features.panel_store as store_module
-from miax.features import FEATURE_NAMES, Panel, build_panel, build_time_grid, period_panels
+from miax.features import (
+    FEATURE_NAMES,
+    FEATURES_VERSION,
+    Panel,
+    build_panel,
+    build_time_grid,
+    period_panels,
+)
 from miax.features.panel_store import (
     META_FILE,
     cache_fingerprint,
@@ -268,6 +275,103 @@ def test_cached_panel_rebuilds_a_broken_cache(
     _assert_same(first, load_panel(directory))
     cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
     assert counter.calls == 2
+
+
+# --- version del calculo de features -----------------------------------------------------------
+
+
+def _set_features_version(directory: Path, value: object) -> None:
+    """Reescribe `features_version` del meta; si `value` es `...`, quita la clave."""
+    path = directory / META_FILE
+    meta = json.loads(path.read_text(encoding="utf-8"))
+    if value is ...:
+        meta.pop("features_version")
+    else:
+        meta["features_version"] = value
+    path.write_text(json.dumps(meta), encoding="utf-8")
+
+
+def test_meta_stores_features_version(world: tuple[Path, Path]) -> None:
+    """`save_panel` guarda `features_version` con el valor actual en el meta."""
+    _, directory = _saved(world)
+    meta = json.loads((directory / META_FILE).read_text(encoding="utf-8"))
+    assert meta["features_version"] == FEATURES_VERSION
+
+
+@pytest.mark.parametrize("stale", [FEATURES_VERSION + 1, FEATURES_VERSION - 1, "x", None])
+def test_load_rejects_other_features_version(world: tuple[Path, Path], stale: object) -> None:
+    """Una cache con otra `features_version` da `ValueError`."""
+    _, directory = _saved(world)
+    _set_features_version(directory, stale)
+    with pytest.raises(ValueError, match="features"):
+        load_panel(directory)
+
+
+def test_load_rejects_meta_without_features_version(world: tuple[Path, Path]) -> None:
+    """Un meta antiguo sin la clave `features_version` da `ValueError`."""
+    _, directory = _saved(world)
+    _set_features_version(directory, ...)
+    with pytest.raises(ValueError, match="features"):
+        load_panel(directory)
+
+
+@pytest.mark.parametrize("stale", [FEATURES_VERSION + 1, ...], ids=["other", "missing"])
+def test_cached_panel_rebuilds_on_other_features_version(
+    world: tuple[Path, Path], counter: Counter, stale: object
+) -> None:
+    """Con otra version (o sin ella), `cached_panel` reconstruye y deja la cache sana."""
+    base, cache = world
+    first = cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
+    assert counter.calls == 1
+    directory = panel_path("1m", _ms(START), _ms(END), cache_dir=cache)
+    _set_features_version(directory, stale)
+    second = cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
+    assert counter.calls == 2
+    _assert_same(first, second)
+    meta = json.loads((directory / META_FILE).read_text(encoding="utf-8"))
+    assert meta["features_version"] == FEATURES_VERSION
+    _assert_same(first, load_panel(directory))
+    cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
+    assert counter.calls == 2
+
+
+def test_cached_panel_rebuilds_when_code_version_changes(
+    world: tuple[Path, Path], counter: Counter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Subir `FEATURES_VERSION` en el codigo invalida la cache ya guardada."""
+    base, cache = world
+    cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
+    monkeypatch.setattr(store_module, "FEATURES_VERSION", FEATURES_VERSION + 1)
+    cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
+    assert counter.calls == 2
+    directory = panel_path("1m", _ms(START), _ms(END), cache_dir=cache)
+    meta = json.loads((directory / META_FILE).read_text(encoding="utf-8"))
+    assert meta["features_version"] == FEATURES_VERSION + 1
+    cached_panel(*_args(), base_dir=base, cache_dir=cache, **SMALL)
+    assert counter.calls == 2
+
+
+def test_cached_period_panels_rebuild_on_other_features_version(
+    tmp_path: Path, counter: Counter
+) -> None:
+    """Con otra version en el disco, una pasada de `cached_period_panels` reconstruye todo."""
+    base, cache = tmp_path / "klines", tmp_path / "panels"
+    for symbol, seed in (("A", 1), ("B", 2), ("C", 3)):
+        _cache(base, symbol, _data(seed, 3000), range(3000))
+    kwargs = {"base_dir": base, "cache_dir": cache, **SMALL}
+    first = list(cached_period_panels(_universe(), "1m", **kwargs))
+    assert counter.calls == 2
+    for folder in (cache / "1m").iterdir():
+        _set_features_version(folder, FEATURES_VERSION + 1)
+    second = list(cached_period_panels(_universe(), "1m", **kwargs))
+    assert counter.calls == 4
+    for (_, want), (_, got) in zip(first, second, strict=True):
+        _assert_same(want, got)
+    for folder in (cache / "1m").iterdir():
+        meta = json.loads((folder / META_FILE).read_text(encoding="utf-8"))
+        assert meta["features_version"] == FEATURES_VERSION
+    list(cached_period_panels(_universe(), "1m", **kwargs))
+    assert counter.calls == 4
 
 
 # --- cached_panel ------------------------------------------------------------------------------

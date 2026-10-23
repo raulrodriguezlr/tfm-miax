@@ -21,6 +21,8 @@ from miax.ingest.store import DEFAULT_BASE_DIR
 from miax.ingest.universe import to_ms
 
 FEATURE_NAMES: tuple[str, ...] = ("return", "realized_vol", "rel_volume", "rel_trades")
+# Se sube cada vez que cambia como se calcula alguna feature del panel o su validez.
+FEATURES_VERSION = 1
 
 
 @dataclass(frozen=True, eq=False)

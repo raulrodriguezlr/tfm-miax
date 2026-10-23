@@ -16,7 +16,7 @@ from miax.features.gaps import (
     gap_runs,
     listings_from_universe,
 )
-from miax.features.panel import FEATURE_NAMES, Panel, build_panel, period_panels
+from miax.features.panel import FEATURE_NAMES, FEATURES_VERSION, Panel, build_panel, period_panels
 from miax.features.panel_store import (
     PANEL_DIR,
     PANEL_FORMAT_VERSION,
@@ -40,6 +40,7 @@ from miax.features.validity import mask_invalid, return_validity, validity_mask
 from miax.features.volatility import realized_volatility, realized_volatility_from_cache
 
 __all__ = [
+    "FEATURES_VERSION",
     "FEATURE_NAMES",
     "PANEL_DIR",
     "PANEL_FORMAT_VERSION",

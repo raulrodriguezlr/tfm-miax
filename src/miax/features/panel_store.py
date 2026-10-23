@@ -14,7 +14,7 @@ import pandas as pd
 import pyarrow as pa
 
 from miax.features.alignment import build_time_grid
-from miax.features.panel import FEATURE_NAMES, Panel, build_panel
+from miax.features.panel import FEATURE_NAMES, FEATURES_VERSION, Panel, build_panel
 from miax.ingest.store import DEFAULT_BASE_DIR, month_files
 from miax.ingest.universe import to_ms
 from miax.utils.io import read_parquet, resolve_repo_path, write_parquet
@@ -81,7 +81,7 @@ def _write_meta(directory: Path, meta_text: str) -> None:
 
 
 def _read_meta(directory: Path) -> dict[str, Any]:
-    """Lee `meta.json`; `ValueError` si falta, no se entiende o es de otra version."""
+    """Lee `meta.json`; `ValueError` si falta, no se entiende o es de otro formato o calculo."""
     target = directory / META_FILE
     if not target.is_file():
         raise ValueError(f"{directory} no es una cache valida: falta {META_FILE}")
@@ -91,6 +91,10 @@ def _read_meta(directory: Path) -> dict[str, Any]:
         raise ValueError(f"{target} no se puede leer: {exc}") from exc
     if not isinstance(meta, dict) or meta.get("format_version") != PANEL_FORMAT_VERSION:
         raise ValueError(f"{target}: version de formato distinta de {PANEL_FORMAT_VERSION}")
+    if meta.get("features_version") != FEATURES_VERSION:
+        raise ValueError(
+            f"{target}: version del calculo de features distinta de {FEATURES_VERSION}"
+        )
     return meta
 
 
@@ -116,6 +120,7 @@ def save_panel(
     meta_text = json.dumps(
         {
             "format_version": PANEL_FORMAT_VERSION,
+            "features_version": FEATURES_VERSION,
             "interval": panel.interval,
             "start_ms": start_ms,
             "end_ms": end_ms,
