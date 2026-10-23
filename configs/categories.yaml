@@ -11,6 +11,11 @@
 # MIAX-028: se anaden los activos que fueron liquidos (mediana >= 10 M USDT/dia) en alguna
 # ventana anual desde 2017, incluidos los hoy deslistados (estado BREAK): sin ellos, el universo
 # de los primeros anyos quedaria sesgado hacia los supervivientes. Barrido del 2026-10-13.
+#
+# MIAX-198: clasificacion a mano (validada por Alonso el 2026-10-22) de los activos sin
+# categoria que superaban los 5 M USDT/dia de mediana en las ventanas de volumen de 2026
+# (ene-mar y abr-jun): ASTER, ONDO, PUMP, GIGGLE, XPL, KITE, 币安人生 y las stablecoins USD1,
+# RLUSD y U. Sin categoria el prefiltro los descartaba antes de mirar el volumen.
 
 l1: [
   BTC, ETH, SOL, ADA, AVAX, DOT, ATOM, NEAR, APT, SUI, TRX, XRP, LTC, BCH, ETC, XLM, ALGO,
@@ -21,6 +26,7 @@ l1: [
   LUNA,  # LUNAUSDT: Terra clasica hasta mayo de 2022 y Terra 2.0 despues (misma serie)
   LUNC,  # Terra clasica tras el renombrado
   XMR, ZEC, DASH, ZEN, RVN,  # privacidad y proof-of-work
+  XPL,  # Plasma (MIAX-198)
 ]
 l2: [ARB, OP, MATIC, POL, IMX, STRK, ZK, MANTA, METIS, LRC, OMG, CELR, SKL, LOOM, STX, ALT]
 defi: [
@@ -28,10 +34,12 @@ defi: [
   JTO, YFI, BAL,
   YFII, SRM, RAY, BAKE, DODO, SXP, JST, SUN, C98, LINA, REEF, RSR, EPS, UNFI, OGN, ETHFI,
   EIGEN, OM, WLFI,
+  ASTER, ONDO,  # MIAX-198: DEX de perpetuos y activos del mundo real tokenizados
 ]
 meme: [
   DOGE, SHIB, PEPE, FLOKI, BONK, WIF, BOME, MEME, PEOPLE, TURBO, NEIRO,
   1000SATS, ORDI, DOGS, NOT, PENGU, TRUMP,
+  PUMP, GIGGLE, 币安人生,  # MIAX-198: lanzador de memecoins y memecoins de BNB Chain
 ]
 gaming: [  # juegos, metaverso y tokens de aficionados
   SAND, MANA, AXS, SLP, ALICE, ENJ, TLM, GALA, APE, MBOX, GMT, PIXEL, BEAMX, SUPER, XAI,
@@ -43,6 +51,6 @@ infra: [
   THETA, TFUEL, HOT, SC, STORJ, ANKR, ARPA, CTSI, IOTX, HNT, QNT, ZRO, W, ENS, AUDIO, MASK,
   COTI, KEEP, NU, POND, ATA, TRB, BAT, FIDA, JASMY, DENT,
 ]
-ai: [FET, TAO, WLD, RNDR, RENDER, ARKM, IO, OCEAN, AGIX, VIRTUAL]
-stablecoin: [USDC, FDUSD, TUSD, BUSD, DAI, USDP, USDE, BFUSD, XUSD]
+ai: [FET, TAO, WLD, RNDR, RENDER, ARKM, IO, OCEAN, AGIX, VIRTUAL, KITE]
+stablecoin: [USDC, FDUSD, TUSD, BUSD, DAI, USDP, USDE, BFUSD, XUSD, USD1, RLUSD, U]
 pegged: [WBTC, WBETH, PAXG, EUR, AEUR, EURI, AUD, GBP]  # envueltos, oro y fiat: replican otro activo

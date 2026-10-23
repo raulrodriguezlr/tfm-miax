@@ -81,6 +81,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-031 | Documentar el sesgo de supervivencia como limitación declarada | 024 | Queda escrito qué pares faltan y por qué |
 | MIAX-032 | Tests de ingesta con fixtures, sin tocar la red | 018, 021 | `pytest` pasa sin conexión |
 | MIAX-197 | Guardar la cache de klines en data/raw/klines | 020 | Descarga, validación y cobertura usan data/raw/klines por defecto |
+| MIAX-198 | Universos trimestral (principal), semestral y anual (robustez) | 028 | Tres universos congelados; el trimestral es configs/universe.yaml |
 
 ---
 
