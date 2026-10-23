@@ -10,6 +10,7 @@ import pandas as pd
 import yaml
 
 from miax.features.panel_store import PANEL_DIR, cached_period_panels
+from miax.ingest.klines import interval_ms
 from miax.ingest.store import DEFAULT_BASE_DIR
 from miax.ingest.universe import DEFAULT_UNIVERSE_FILE, load_universe, to_ms
 from miax.utils import get_logger
@@ -76,6 +77,11 @@ def _run_panel(args: argparse.Namespace) -> int:
         return 2
     if universe.empty:
         logger.error("El universo no tiene ningun periodo con pares")
+        return 2
+    if interval_ms(args.interval) is None or args.interval != DEFAULT_INTERVAL:
+        logger.error(
+            "Intervalo no valido: %r; build_panel solo admite %s", args.interval, DEFAULT_INTERVAL
+        )
         return 2
     try:
         for period_start, panel in cached_period_panels(

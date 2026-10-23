@@ -9,7 +9,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
+import pyarrow as pa
 
 from miax.features.alignment import build_time_grid
 from miax.features.panel import FEATURE_NAMES, Panel, build_panel
@@ -25,12 +27,18 @@ PANEL_FORMAT_VERSION = 1
 META_FILE = "meta.json"
 VALID_FILE = "valid"
 _DAY_MS = 86_400_000
+_MINUTE_MS = 60_000
 
 
 def _stamp(ms: int) -> str:
     """Fecha `YYYY-MM-DD` de un instante UTC, con la hora si no cae en medianoche."""
     moment = pd.Timestamp(ms, unit="ms", tz="UTC")
-    return moment.strftime("%Y-%m-%d" if ms % _DAY_MS == 0 else "%Y-%m-%dT%H%M")
+    if ms % _DAY_MS == 0:
+        return moment.strftime("%Y-%m-%d")
+    # Con segundos y ms si no es minuto exacto: dos limites distintos no comparten carpeta.
+    if ms % _MINUTE_MS == 0:
+        return moment.strftime("%Y-%m-%dT%H%M")
+    return moment.strftime("%Y-%m-%dT%H%M%S") + f"{ms % 1000:03d}"
 
 
 def panel_path(
@@ -52,12 +60,19 @@ def cache_fingerprint(
     return result
 
 
-def _write_meta(directory: Path, meta: dict[str, Any]) -> None:
-    """Escribe `meta.json` de forma atomica."""
+def _native(value: object) -> int | float | bool | str:
+    """Convierte escalares de numpy a int/float nativos para `json.dumps`."""
+    if isinstance(value, np.generic):
+        return value.item()
+    raise TypeError(f"{type(value).__name__} no es serializable en meta.json")
+
+
+def _write_meta(directory: Path, meta_text: str) -> None:
+    """Escribe `meta.json` (ya serializado) de forma atomica."""
     target = directory / META_FILE
     tmp = target.with_name(target.name + ".tmp")
     try:
-        tmp.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        tmp.write_text(meta_text, encoding="utf-8")
         # os.replace es atomico: sin meta.json completo, el directorio no es una cache valida.
         os.replace(tmp, target)
     except BaseException:
@@ -92,15 +107,13 @@ def save_panel(
     grid = build_time_grid(start_ms, end_ms, panel.interval)
     if not panel.index.equals(grid):
         raise ValueError("el indice del panel no coincide con la rejilla de [start_ms, end_ms)")
-    directory = panel_path(panel.interval, start_ms, end_ms, cache_dir=cache_dir)
-    directory.mkdir(parents=True, exist_ok=True)
-    # Sin meta.json la carpeta no es cache: se borra antes de tocar nada, por si hay una anterior.
-    (directory / META_FILE).unlink(missing_ok=True)
-    for name, frame in panel.features.items():
-        write_parquet(frame, directory / f"{name}.parquet")
-    write_parquet(panel.valid, directory / f"{VALID_FILE}.parquet")
-    _write_meta(
-        directory,
+    if set(fingerprint) != set(panel.symbols):
+        raise ValueError(
+            f"la huella no coincide con los simbolos del panel: {sorted(fingerprint)} "
+            f"frente a {sorted(panel.symbols)}"
+        )
+    # El meta se serializa ANTES de escribir nada: un fallo aqui no deja Parquets sin meta.json.
+    meta_text = json.dumps(
         {
             "format_version": PANEL_FORMAT_VERSION,
             "interval": panel.interval,
@@ -112,7 +125,17 @@ def save_panel(
             "created_at": datetime.now(UTC).isoformat(),
             "fingerprint": fingerprint,
         },
+        indent=2,
+        default=_native,
     )
+    directory = panel_path(panel.interval, start_ms, end_ms, cache_dir=cache_dir)
+    directory.mkdir(parents=True, exist_ok=True)
+    # Sin meta.json la carpeta no es cache: se borra antes de tocar nada, por si hay una anterior.
+    (directory / META_FILE).unlink(missing_ok=True)
+    for name, frame in panel.features.items():
+        write_parquet(frame, directory / f"{name}.parquet")
+    write_parquet(panel.valid, directory / f"{VALID_FILE}.parquet")
+    _write_meta(directory, meta_text)
     logger.info("Panel guardado en %s", directory)
     return directory
 
@@ -153,8 +176,12 @@ def load_panel(
         # Parquet lee solo esas columnas; se reordenan por si el orden de lectura difiriese.
         return read_parquet(directory / f"{stem}.parquet", columns=selected)[selected]
 
-    frames = {name: read(name) for name in names}
-    valid = read(VALID_FILE)
+    try:
+        frames = {name: read(name) for name in names}
+        valid = read(VALID_FILE)
+    except (KeyError, OSError, pa.ArrowException) as exc:
+        # Para que `cached_panel` (que captura ValueError) reconstruya en vez de dar traceback.
+        raise ValueError(f"{directory} esta incompleta o corrupta: {exc!r}") from exc
     grid = build_time_grid(int(meta["start_ms"]), int(meta["end_ms"]), meta["interval"])
     if not valid.index.equals(grid):
         raise ValueError(f"{directory}: el indice guardado no coincide con la rejilla del meta")
