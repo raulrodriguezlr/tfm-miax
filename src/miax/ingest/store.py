@@ -29,13 +29,17 @@ def _validate_segment(name: str) -> str:
     return name
 
 
-def _month_files(symbol: str, interval: str, base_dir: str | Path) -> tuple[Path, list[Path]]:
+def month_files(symbol: str, interval: str, base_dir: str | Path) -> tuple[Path, list[Path]]:
     """Devuelve la carpeta de `symbol`/`interval` y sus ficheros de mes ordenados."""
     directory = (
         resolve_repo_path(base_dir) / _validate_segment(symbol) / _validate_segment(interval)
     )
     paths = sorted(p for p in directory.glob("*.parquet") if _MONTH_STEM.fullmatch(p.stem))
     return directory, paths
+
+
+# Alias para los usos previos al refactor (integrity.py y los tests).
+_month_files = month_files
 
 
 def _month_bounds_ms(month: str) -> tuple[int, int]:
@@ -80,7 +84,7 @@ def cache_bounds(
     symbol: str, interval: str, *, base_dir: str | Path = DEFAULT_BASE_DIR
 ) -> tuple[int, int] | None:
     """Da el primer y el ultimo `open_time` cacheados, o None; lee solo los ficheros extremos."""
-    _, paths = _month_files(symbol, interval, base_dir)
+    _, paths = month_files(symbol, interval, base_dir)
     # Los meses van ordenados por nombre: el minimo esta en el primer fichero con velas y el
     # maximo en el ultimo, asi que no hace falta leer el historico entero.
     first: int | None = None
