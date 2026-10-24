@@ -51,6 +51,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 - `relative_volume_from_cache` delega en la nueva `relative_activity_from_cache` para no duplicar la lectura de la caché con el número de operaciones, sin cambiar el comportamiento (MIAX-040)
 - El universo principal (`configs/universe.yaml`) pasa de periodos anuales a trimestrales, decidido antes de ver resultados de lead-lag; los mismos parámetros (suelo de 5 M, 40 pares, 10 por categoría) con `period_months: 3` (MIAX-198)
 - La caché de klines admite nombres de símbolo no latinos (`币安人生USDT`) sin dejar de prohibir separadores, `:` y `..`, y el bucle de `download_symbols` (orden, cortacircuitos y clasificación de errores) pasa a `run_symbol_batch` en `miax.ingest.batch` para que lo comparta `sync`, sin cambiar el comportamiento (MIAX-211)
+- El universo solo admite pares que cotizaban al cierre de su ventana de volumen (volumen en el último día, `recent_trading_days: 1`): antes un par que dejaba de cotizar dentro de la ventana conservaba su mediana y entraba en un periodo sin velas (BCC, BCHABC, HNT, FTT, COCOS, MATIC, RNDR, EOS). Los tres universos se regeneran: el trimestral pasa de 1000 a 996 par-periodo (entran SNX, AR, GALA y S), el semestral de 506 a 502 y el anual de 244 a 240 (MIAX-212)
 
 ---
 

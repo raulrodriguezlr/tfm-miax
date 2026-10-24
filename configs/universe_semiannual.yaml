@@ -1,5 +1,5 @@
 # Generado por `python -m miax.ingest universe` (MIAX-028). No editar a mano: regenerar.
-generated_at: '2026-10-22T19:04:30Z'
+generated_at: '2026-10-24T13:08:03Z'
 params:
   quote_asset: USDT
   first_period_start: '2018-01-01'
@@ -12,6 +12,7 @@ params:
   max_pairs: 40
   min_categories: 4
   categories_file: categories.yaml
+  recent_trading_days: 1
 periods:
 - period_start: '2018-01-01'
   period_end: '2018-07-01'
@@ -69,9 +70,9 @@ periods:
   volume_window:
   - '2018-10-01'
   - '2018-12-31'
-  n_pairs: 11
+  n_pairs: 10
   categories:
-    l1: 10
+    l1: 9
     exchange: 1
   pairs:
   - symbol: BTCUSDT
@@ -90,10 +91,6 @@ periods:
     category: l1
     median_quote_volume: 24526438.81
     first_candle: '2018-05-28'
-  - symbol: BCCUSDT
-    category: l1
-    median_quote_volume: 20281757.74
-    first_candle: '2017-11-11'
   - symbol: TRXUSDT
     category: l1
     median_quote_volume: 9192298.08
@@ -178,9 +175,9 @@ periods:
   volume_window:
   - '2019-10-01'
   - '2019-12-31'
-  n_pairs: 10
+  n_pairs: 9
   categories:
-    l1: 8
+    l1: 7
     exchange: 1
     infra: 1
   pairs:
@@ -196,10 +193,6 @@ periods:
     category: exchange
     median_quote_volume: 22999856.67
     first_candle: '2017-11-06'
-  - symbol: BCHABCUSDT
-    category: l1
-    median_quote_volume: 22095523.08
-    first_candle: '2018-11-16'
   - symbol: XRPUSDT
     category: l1
     median_quote_volume: 20600523.0
@@ -915,14 +908,14 @@ periods:
   volume_window:
   - '2022-10-01'
   - '2022-12-31'
-  n_pairs: 40
+  n_pairs: 38
   categories:
     l1: 10
     meme: 3
-    exchange: 3
+    exchange: 2
     l2: 2
     gaming: 7
-    infra: 8
+    infra: 7
     defi: 7
   pairs:
   - symbol: BTCUSDT
@@ -1061,14 +1054,6 @@ periods:
     category: defi
     median_quote_volume: 7305083.09
     first_candle: '2020-10-15'
-  - symbol: HNTUSDT
-    category: infra
-    median_quote_volume: 6910369.09
-    first_candle: '2020-09-24'
-  - symbol: FTTUSDT
-    category: exchange
-    median_quote_volume: 6818491.49
-    first_candle: '2019-12-20'
   - symbol: MANAUSDT
     category: gaming
     median_quote_volume: 6364828.91
@@ -1098,8 +1083,8 @@ periods:
     meme: 2
     ai: 3
     infra: 6
-    gaming: 9
-    defi: 6
+    gaming: 8
+    defi: 7
   pairs:
   - symbol: BTCUSDT
     category: l1
@@ -1213,10 +1198,6 @@ periods:
     category: l2
     median_quote_volume: 11178783.96
     first_candle: '2019-10-25'
-  - symbol: COCOSUSDT
-    category: gaming
-    median_quote_volume: 10583331.64
-    first_candle: '2019-08-21'
   - symbol: JASMYUSDT
     category: infra
     median_quote_volume: 8556648.03
@@ -1261,6 +1242,10 @@ periods:
     category: defi
     median_quote_volume: 5760329.14
     first_candle: '2021-02-19'
+  - symbol: SNXUSDT
+    category: defi
+    median_quote_volume: 5375771.66
+    first_candle: '2020-07-09'
 - period_start: '2024-01-01'
   period_end: '2024-07-01'
   volume_window:
@@ -1889,14 +1874,14 @@ periods:
     category: defi
     median_quote_volume: 28015967.53
     first_candle: '2020-08-15'
-  - symbol: EOSUSDT
-    category: l1
-    median_quote_volume: 27803559.25
-    first_candle: '2018-05-28'
   - symbol: NEIROUSDT
     category: meme
     median_quote_volume: 26801645.06
     first_candle: '2024-09-16'
+  - symbol: SUSDT
+    category: l1
+    median_quote_volume: 25599247.63
+    first_candle: '2025-01-16'
   - symbol: FETUSDT
     category: ai
     median_quote_volume: 23511239.66

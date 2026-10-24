@@ -16,12 +16,16 @@ import yaml
 
 from miax.ingest import universe
 from miax.ingest.universe import (
+    DEFAULT_RECENT_TRADING_DAYS,
+    LAST_TRADED_COLUMN,
     MAX_LOGGED_UNCATEGORIZED,
     UNIVERSE_HEADER,
+    VOLUME_COLUMN,
     UniverseParams,
     UniversePeriod,
     diversify_universe,
     filter_by_listing_age,
+    filter_by_recent_trading,
     filter_by_volume,
     first_candle_time,
     load_categories,
@@ -32,6 +36,7 @@ from miax.ingest.universe import (
     prefilter_by_category,
     select_period_universe,
     universe_periods,
+    window_volume_stats,
     write_universe,
 )
 from miax.utils.config import CONFIGS_DIR, ConfigError
@@ -222,6 +227,96 @@ def test_candle_closing_exactly_at_end_counts() -> None:
     fake = _FakeBinance({"AAA": [10.0, 20.0, 30.0, 1e15]})
     result = median_daily_quote_volume(["AAA"], DAY0, _end_of_day(3), client=fake)  # type: ignore[arg-type]
     assert result["AAA"] == (20.0 + 30.0) / 2
+
+
+# --- MIAX-212: estadisticas de la ventana (mediana y ultimo dia con volumen) ---
+
+
+def test_stats_columns_dtypes_and_index_order_without_duplicates() -> None:
+    """DataFrame indexado por simbolo (orden de entrada, sin repetidos) con float64 e Int64."""
+    fake = _FakeBinance({"AAA": [1.0, 2.0], "BBB": [3.0, 4.0]})
+    stats = window_volume_stats(["BBB", "AAA", "BBB", "ZZZ"], DAY0, _end_of_day(1), client=fake)  # type: ignore[arg-type]
+    assert isinstance(stats, pd.DataFrame)
+    assert list(stats.columns) == [VOLUME_COLUMN, LAST_TRADED_COLUMN]
+    assert list(stats.columns) == ["median_quote_volume", "last_traded_ms"]
+    assert list(stats.index) == ["BBB", "AAA", "ZZZ"]
+    assert stats.index.is_unique
+    assert stats[VOLUME_COLUMN].dtype == "float64"
+    assert stats[LAST_TRADED_COLUMN].dtype == "Int64"
+
+
+def test_stats_last_traded_is_open_time_of_last_candle_with_volume() -> None:
+    """last_traded_ms es el open_time de la ultima vela con volumen > 0, no de la ultima vela."""
+    fake = _FakeBinance({"AAA": [5.0, 0.0, 3.0, 0.0, 0.0], "BBB": [1.0, 2.0, 3.0, 4.0, 5.0]})
+    stats = window_volume_stats(["AAA", "BBB"], DAY0, _end_of_day(4), client=fake)  # type: ignore[arg-type]
+    assert stats.loc["AAA", LAST_TRADED_COLUMN] == DAY0 + 2 * DAY_MS
+    assert stats.loc["BBB", LAST_TRADED_COLUMN] == DAY0 + 4 * DAY_MS
+
+
+def test_stats_last_traded_is_na_without_candles_and_median_is_nan() -> None:
+    """Un simbolo sin velas en la ventana da mediana NaN y last_traded_ms NA."""
+    fake = _FakeBinance({"AAA": [1.0, 2.0]})
+    stats = window_volume_stats(["AAA", "ZZZ"], DAY0, _end_of_day(1), client=fake)  # type: ignore[arg-type]
+    assert math.isnan(stats.loc["ZZZ", VOLUME_COLUMN])
+    assert pd.isna(stats.loc["ZZZ", LAST_TRADED_COLUMN])
+    assert stats.loc["AAA", LAST_TRADED_COLUMN] == DAY0 + DAY_MS
+
+
+def test_stats_last_traded_is_na_when_every_candle_has_zero_volume() -> None:
+    """Con todas las velas a volumen 0 no hay ultimo dia cotizado, aunque la mediana exista."""
+    fake = _FakeBinance({"AAA": [0.0, 0.0, 0.0]})
+    stats = window_volume_stats(["AAA"], DAY0, _end_of_day(2), client=fake)  # type: ignore[arg-type]
+    assert stats.loc["AAA", VOLUME_COLUMN] == 0.0
+    assert pd.isna(stats.loc["AAA", LAST_TRADED_COLUMN])
+    assert stats[LAST_TRADED_COLUMN].dtype == "Int64"
+
+
+def test_stats_no_leak_candle_closing_after_end_does_not_set_last_traded() -> None:
+    """ANTIFUGA: la vela que cierra tras end_ms no cuenta para last_traded_ms."""
+    midday = DAY0 + 3 * DAY_MS + 12 * 3_600_000  # 12:00 UTC del cuarto dia
+    fake = _FakeBinance({"AAA": [10.0, 20.0, 30.0, 1e15], "BBB": [5.0]}, start_days={"BBB": 3})
+    stats = window_volume_stats(["AAA", "BBB"], DAY0, midday, client=fake)  # type: ignore[arg-type]
+    assert stats.loc["AAA", LAST_TRADED_COLUMN] == DAY0 + 2 * DAY_MS  # no el cuarto dia
+    assert pd.isna(stats.loc["BBB", LAST_TRADED_COLUMN])  # su unica vela es posterior a la ventana
+
+
+def test_stats_candle_closing_exactly_at_end_counts_for_last_traded() -> None:
+    """Con end_ms en el ultimo ms del dia, la vela de ese dia ya esta cerrada y cuenta."""
+    fake = _FakeBinance({"AAA": [10.0, 20.0, 30.0, 40.0]})
+    stats = window_volume_stats(["AAA"], DAY0, _end_of_day(3), client=fake)  # type: ignore[arg-type]
+    assert stats.loc["AAA", LAST_TRADED_COLUMN] == DAY0 + 3 * DAY_MS
+
+
+def test_stats_one_download_per_symbol(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mediana y ultimo dia salen de una sola descarga por simbolo, sin repetidos."""
+    fake = _FakeBinance({"AAA": [1.0, 2.0], "BBB": [3.0, 4.0]})
+    downloaded: list[str] = []
+    real = universe.download_klines
+
+    def counting(symbol: str, *args: object, **kwargs: object) -> pd.DataFrame:
+        downloaded.append(symbol)
+        return real(symbol, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(universe, "download_klines", counting)
+    window_volume_stats(["AAA", "BBB", "AAA"], DAY0, _end_of_day(1), client=fake)  # type: ignore[arg-type]
+    assert sorted(downloaded) == ["AAA", "BBB"]
+
+
+def test_stats_start_after_end_raises() -> None:
+    """Una ventana invertida es un error tambien en window_volume_stats."""
+    fake = _FakeBinance({"AAA": [1.0]})
+    with pytest.raises(ValueError, match="start_ms"):
+        window_volume_stats(["AAA"], DAY0 + 1, DAY0, client=fake)  # type: ignore[arg-type]
+
+
+def test_median_daily_quote_volume_matches_stats_column() -> None:
+    """median_daily_quote_volume es exactamente la columna de mediana de window_volume_stats."""
+    volumes = {"AAA": [1.0, 5.0, 3.0], "BBB": [10.0, 0.0, 30.0]}
+    symbols = ["AAA", "BBB", "ZZZ"]
+    stats = window_volume_stats(symbols, DAY0, _end_of_day(2), client=_FakeBinance(volumes))  # type: ignore[arg-type]
+    series = median_daily_quote_volume(symbols, DAY0, _end_of_day(2), client=_FakeBinance(volumes))  # type: ignore[arg-type]
+    pd.testing.assert_series_equal(series, stats[VOLUME_COLUMN])
+    assert series.name == "median_quote_volume"
 
 
 def _pairs() -> pd.DataFrame:
@@ -488,6 +583,114 @@ def test_arb_like_token_listed_inside_volume_window_is_dropped() -> None:
     assert pd.isna(first["ARB"])  # abre tras la referencia: ni se ve
     out = filter_by_listing_age(pairs, first, window_start)
     assert list(out["symbol"]) == ["OLD"]
+
+
+# --- MIAX-212: filtro por cotizacion al cierre de la ventana ---
+
+TRADING_WINDOW_END_MS = DAY0 + 100 * DAY_MS - 1
+TRADING_CUTOFF_MS = TRADING_WINDOW_END_MS + 1 - DAY_MS  # inicio del ultimo dia de la ventana
+
+
+def test_recent_trading_cutoff_is_inclusive_and_one_ms_earlier_is_out() -> None:
+    """ANTIFUGA: last_traded == corte entra; un ms antes queda fuera; el corte cae en la ventana."""
+    assert TRADING_CUTOFF_MS <= TRADING_WINDOW_END_MS
+    last = pd.Series(
+        {
+            "AAA": TRADING_CUTOFF_MS,
+            "BBB": TRADING_CUTOFF_MS - 1,
+            "CCC": TRADING_CUTOFF_MS + 1,
+            "DDD": TRADING_WINDOW_END_MS,
+        },
+        dtype="Int64",
+    )
+    out = filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS)
+    assert list(out["symbol"]) == ["AAA", "CCC", "DDD"]
+
+
+def test_recent_trading_default_is_one_day() -> None:
+    """El valor por defecto exige cotizar en el ultimo dia de la ventana."""
+    assert DEFAULT_RECENT_TRADING_DAYS == 1
+
+
+def test_recent_trading_two_days_widens_cutoff_by_one_day() -> None:
+    """Con N=2 el corte retrocede un dia y el borde sigue siendo inclusivo a +-1 ms."""
+    edge = TRADING_CUTOFF_MS - DAY_MS
+    last = pd.Series(
+        {"AAA": edge, "BBB": edge - 1, "CCC": TRADING_CUTOFF_MS - 1, "DDD": edge + 1},
+        dtype="Int64",
+    )
+    one_day = filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS, 1)
+    two_days = filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS, 2)
+    assert one_day.empty
+    assert list(two_days["symbol"]) == ["AAA", "CCC", "DDD"]
+
+
+def test_recent_trading_drops_na_and_missing_symbols() -> None:
+    """Los last_traded NA y los simbolos ausentes de last_traded se descartan."""
+    last = pd.Series({"AAA": pd.NA, "BBB": TRADING_CUTOFF_MS}, dtype="Int64")  # CCC y DDD ausentes
+    out = filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS)
+    assert list(out["symbol"]) == ["BBB"]
+
+
+def test_recent_trading_keeps_input_order_columns_and_adds_last_traded() -> None:
+    """Conserva el orden de entrada, indice 0..n-1, columnas de pairs y last_traded_ms Int64."""
+    pairs = _pairs().iloc[::-1].reset_index(drop=True)  # DDD, CCC, BBB, AAA
+    last = pd.Series({s: TRADING_CUTOFF_MS for s in ("AAA", "BBB", "CCC", "DDD")}, dtype="Int64")
+    out = filter_by_recent_trading(pairs, last, TRADING_WINDOW_END_MS)
+    assert list(out["symbol"]) == ["DDD", "CCC", "BBB", "AAA"]
+    assert list(out.index) == [0, 1, 2, 3]
+    assert list(out.columns) == ["symbol", "base_asset", "last_traded_ms"]
+    assert out["last_traded_ms"].dtype == "Int64"
+
+
+def test_recent_trading_nothing_passes_returns_empty_with_columns() -> None:
+    """Si nadie cotiza al cierre, DataFrame vacio pero con columnas."""
+    last = pd.Series({s: DAY0 for s in ("AAA", "BBB", "CCC", "DDD")}, dtype="Int64")
+    out = filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS)
+    assert out.empty
+    assert list(out.columns) == ["symbol", "base_asset", "last_traded_ms"]
+
+
+def test_recent_trading_empty_pairs_returns_empty_with_columns() -> None:
+    """Un catalogo vacio da vacio sin lanzar."""
+    pairs = pd.DataFrame({"symbol": [], "base_asset": []})
+    out = filter_by_recent_trading(pairs, pd.Series({}, dtype="Int64"), TRADING_WINDOW_END_MS)
+    assert out.empty
+    assert list(out.columns) == ["symbol", "base_asset", "last_traded_ms"]
+
+
+def test_recent_trading_does_not_mutate_input() -> None:
+    """Ni pairs ni last_traded se modifican."""
+    pairs = _pairs()
+    before = pairs.copy()
+    last = pd.Series({"AAA": TRADING_CUTOFF_MS, "BBB": DAY0}, dtype="Int64")
+    last_before = last.copy()
+    filter_by_recent_trading(pairs, last, TRADING_WINDOW_END_MS)
+    pd.testing.assert_frame_equal(pairs, before)
+    pd.testing.assert_series_equal(last, last_before)
+
+
+@pytest.mark.parametrize("days", [0, -1])
+def test_recent_trading_days_below_one_raises(days: int) -> None:
+    """recent_trading_days < 1 es un error."""
+    last = pd.Series({"AAA": TRADING_CUTOFF_MS}, dtype="Int64")
+    with pytest.raises(ValueError, match="recent_trading_days"):
+        filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS, days)
+
+
+def test_recent_trading_without_symbol_column_raises() -> None:
+    """Sin columna symbol no se puede cruzar."""
+    with pytest.raises(ValueError, match="symbol"):
+        filter_by_recent_trading(
+            pd.DataFrame({"x": [1]}), pd.Series({"AAA": DAY0}, dtype="Int64"), TRADING_WINDOW_END_MS
+        )
+
+
+def test_recent_trading_duplicate_index_in_last_traded_raises() -> None:
+    """Un indice repetido en last_traded es un error en vez de resolverse en silencio."""
+    last = pd.Series([DAY0, DAY0 + DAY_MS], index=["AAA", "AAA"], dtype="Int64")
+    with pytest.raises(ValueError, match="repetidos"):
+        filter_by_recent_trading(_pairs(), last, TRADING_WINDOW_END_MS)
 
 
 # --- MIAX-027: diversificacion del universo por categoria ---
@@ -868,6 +1071,11 @@ def _selection_inputs(
     return pairs, first, volumes
 
 
+def _traded_at_close(symbols: Sequence[str], period: UniversePeriod = PERIOD) -> pd.Series:
+    """Ultima vela con volumen de cada simbolo: la del ultimo dia de la ventana (todos cotizan)."""
+    return pd.Series(period.window_end_ms + 1 - DAY_MS, index=list(symbols), dtype="Int64")
+
+
 def _universe_frame(rows: Sequence[tuple[str, str, float, int]]) -> pd.DataFrame:
     """DataFrame de un universo con las columnas que escribe write_universe."""
     return pd.DataFrame(
@@ -922,6 +1130,8 @@ def test_load_universe_params_missing_file_raises(tmp_path: Path) -> None:
         ("volume_window_months", 0),
         ("min_listing_days", -1),
         ("min_quote_volume", -0.01),
+        ("recent_trading_days", 0),
+        ("recent_trading_days", -1),
         ("max_per_category", 0),
         ("max_pairs", 0),
         ("min_categories", 0),
@@ -965,6 +1175,37 @@ def test_load_universe_params_boundary_values_are_accepted(tmp_path: Path) -> No
         last_period_end="2018-01-02",
     )
     assert load_universe_params(path).min_listing_days == 0
+
+
+def test_load_universe_params_recent_trading_days_minimum_is_accepted(tmp_path: Path) -> None:
+    """recent_trading_days = 1 es el minimo valido y se lee tal cual; 3 tambien."""
+    assert (
+        load_universe_params(_params_file(tmp_path, recent_trading_days=1)).recent_trading_days == 1
+    )
+    assert (
+        load_universe_params(_params_file(tmp_path, recent_trading_days=3)).recent_trading_days == 3
+    )
+
+
+def test_load_universe_params_without_recent_trading_days_uses_default(tmp_path: Path) -> None:
+    """Un YAML sin recent_trading_days (anterior a MIAX-212) usa el valor por defecto, 1."""
+    values = {**dataclasses.asdict(PARAMS)}
+    del values["recent_trading_days"]
+    path = tmp_path / "old_params.yaml"
+    path.write_text(yaml.safe_dump(values, sort_keys=False), encoding="utf-8")
+    assert "recent_trading_days" not in path.read_text(encoding="utf-8")
+    assert load_universe_params(path).recent_trading_days == DEFAULT_RECENT_TRADING_DAYS == 1
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["universe_params.yaml", "universe_params_semiannual.yaml", "universe_params_annual.yaml"],
+)
+def test_real_universe_params_files_set_recent_trading_days_to_one(name: str) -> None:
+    """Los tres ficheros reales de configs declaran recent_trading_days: 1."""
+    path = CONFIGS_DIR / name
+    assert "recent_trading_days" in yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert load_universe_params(path).recent_trading_days == 1
 
 
 def test_load_universe_params_wrong_type_or_unknown_field_raises(tmp_path: Path) -> None:
@@ -1137,7 +1378,9 @@ def test_select_applies_listing_age_with_window_start_reference_at_the_edge() ->
     pairs, first, volumes = _selection_inputs(
         {"AUSDT": AGE_CUTOFF, "BUSDT": AGE_CUTOFF + 1, "CUSDT": AGE_CUTOFF - 1}
     )
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     symbols = set(out["symbol"])
     assert {"AUSDT", "CUSDT"} <= symbols
     assert "BUSDT" not in symbols
@@ -1147,14 +1390,18 @@ def test_select_token_listed_inside_volume_window_is_dropped_despite_huge_volume
     """Un token lanzado dentro de la ventana no entra aunque tenga muchisimo volumen."""
     pairs, first, volumes = _selection_inputs({"AUSDT": PERIOD.window_start_ms + 10 * DAY_MS})
     volumes["AUSDT"] = 1e15
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert "AUSDT" not in set(out["symbol"])
 
 
 def test_select_first_candle_after_the_period_is_dropped() -> None:
     """Una primera vela posterior al periodo (consulta 'de hoy') tampoco entra."""
     pairs, first, volumes = _selection_inputs({"AUSDT": PERIOD.period_end_ms + 5 * DAY_MS})
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert "AUSDT" not in set(out["symbol"])
 
 
@@ -1172,7 +1419,9 @@ def test_select_applies_volume_threshold_and_orders_by_volume() -> None:
             "USDCUSDT": 99e9,
         }
     )
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert list(out["symbol"]) == ["DUSDT", "EUSDT", "AUSDT", "BUSDT"]
     assert list(out.index) == [0, 1, 2, 3]
     for column in ("symbol", "base_asset", "category", "median_quote_volume", "first_candle_ms"):
@@ -1183,10 +1432,14 @@ def test_select_applies_category_and_total_caps() -> None:
     """Respeta max_per_category y max_pairs conservando el orden de volumen."""
     pairs, first, volumes = _selection_inputs()
     capped = dataclasses.replace(PARAMS, max_per_category=1)
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, capped)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, capped, last_traded=_traded_at_close(first.index)
+    )
     assert list(out["symbol"]) == ["AUSDT", "DUSDT", "EUSDT", "FUSDT"]
     total = dataclasses.replace(PARAMS, max_pairs=2)
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, total)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, total, last_traded=_traded_at_close(first.index)
+    )
     assert list(out["symbol"]) == ["AUSDT", "BUSDT"]
 
 
@@ -1198,7 +1451,9 @@ def test_select_warns_but_does_not_raise_below_min_categories(
     pairs = pd.DataFrame({"symbol": [f"{a}USDT" for a in assets], "base_asset": assets})
     first = pd.Series({f"{a}USDT": DAY0 for a in assets}, dtype="Int64")
     volumes = pd.Series({f"{a}USDT": 5e7 for a in assets})
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert len(out) == 3
     warnings = [r for r in universe_log.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
@@ -1213,7 +1468,9 @@ def test_select_does_not_warn_when_min_categories_is_met(
 ) -> None:
     """Con categorias suficientes no hay avisos."""
     pairs, first, volumes = _selection_inputs()
-    select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert [r for r in universe_log.records if r.levelno == logging.WARNING] == []
 
 
@@ -1223,7 +1480,9 @@ def test_select_returns_empty_when_nothing_survives(
     """Si ningun par supera los filtros devuelve vacio con columnas, avisa y no lanza."""
     pairs, first, _ = _selection_inputs()
     volumes = pd.Series({f"{a}USDT": 1.0 for a in "ABCDEF"})
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert out.empty
     assert "symbol" in out.columns
     assert "category" in out.columns
@@ -1237,7 +1496,9 @@ def test_select_returns_empty_when_everything_is_uncategorized_or_excluded(
     pairs = pd.DataFrame({"symbol": ["ZZZUSDT", "USDCUSDT"], "base_asset": ["ZZZ", "USDC"]})
     first = pd.Series({"ZZZUSDT": DAY0, "USDCUSDT": DAY0}, dtype="Int64")
     volumes = pd.Series({"ZZZUSDT": 5e8, "USDCUSDT": 5e8})
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     assert out.empty
     assert "category" in out.columns
     assert any(r.levelno == logging.WARNING for r in universe_log.records)
@@ -1248,19 +1509,110 @@ def test_select_empty_pairs_returns_empty_without_raising() -> None:
     pairs = pd.DataFrame({"symbol": [], "base_asset": []})
     first = pd.Series({}, dtype="Int64")
     volumes = pd.Series({}, dtype="float64")
-    assert select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS).empty
+    assert select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    ).empty
 
 
 def test_select_does_not_mutate_inputs_and_is_deterministic() -> None:
     """No muta las entradas y repetir da el mismo resultado."""
     pairs, first, volumes = _selection_inputs()
     before = (pairs.copy(), first.copy(), volumes.copy())
-    one = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
-    two = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    one = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
+    two = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     pd.testing.assert_frame_equal(one, two)
     pd.testing.assert_frame_equal(pairs, before[0])
     pd.testing.assert_series_equal(first, before[1])
     pd.testing.assert_series_equal(volumes, before[2])
+
+
+def _traded_with(overrides: Mapping[str, Any]) -> pd.Series:
+    """last_traded de _selection_inputs (todos al cierre) con `overrides` sustituidos."""
+    symbols = [f"{a}USDT" for a in ["A", "B", "C", "D", "E", "F", "USDC"]]
+    base = {s: PERIOD.window_end_ms + 1 - DAY_MS for s in symbols}
+    return pd.Series({**base, **overrides}, dtype="Int64")
+
+
+def test_select_pair_that_stopped_trading_before_last_window_day_is_replaced_by_next() -> None:
+    """Caso MATIC/EOS: con mucho volumen pero sin cotizar al cierre, lo sustituye el siguiente."""
+    pairs, first, volumes = _selection_inputs()
+    capped = dataclasses.replace(PARAMS, max_pairs=2)
+    baseline = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, capped, last_traded=_traded_with({})
+    )
+    assert list(baseline["symbol"]) == ["AUSDT", "BUSDT"]
+    stopped = {"AUSDT": PERIOD.window_end_ms + 1 - DAY_MS - 1}  # dejo de cotizar el dia anterior
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, capped, last_traded=_traded_with(stopped)
+    )
+    assert list(out["symbol"]) == ["BUSDT", "CUSDT"]
+
+
+def test_select_recent_trading_filter_runs_before_the_pair_cap() -> None:
+    """El filtro de cotizacion se aplica antes del tope de pares: el tope se llena con los vivos."""
+    pairs, first, volumes = _selection_inputs()
+    capped = dataclasses.replace(PARAMS, max_pairs=2)
+    stopped = {
+        "AUSDT": PERIOD.window_start_ms,
+        "BUSDT": PERIOD.window_start_ms,
+    }  # los dos de mas volumen dejaron de cotizar
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, capped, last_traded=_traded_with(stopped)
+    )
+    assert list(out["symbol"]) == ["CUSDT", "DUSDT"]
+
+
+def test_select_recent_trading_edge_is_inclusive_within_one_ms() -> None:
+    """ANTIFUGA: cotizar justo al inicio del ultimo dia de la ventana entra; un ms antes, no."""
+    pairs, first, volumes = _selection_inputs()
+    cutoff = PERIOD.window_end_ms + 1 - DAY_MS
+    assert cutoff <= PERIOD.window_end_ms < PERIOD.period_start_ms
+    last = _traded_with({"AUSDT": cutoff, "BUSDT": cutoff - 1, "CUSDT": cutoff + 1})
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=last
+    )
+    symbols = set(out["symbol"])
+    assert {"AUSDT", "CUSDT"} <= symbols
+    assert "BUSDT" not in symbols
+
+
+def test_select_pair_with_na_or_missing_last_traded_is_dropped() -> None:
+    """Un par sin last_traded (NA o ausente) no entra aunque tenga volumen de sobra."""
+    pairs, first, volumes = _selection_inputs()
+    last = _traded_with({"AUSDT": pd.NA}).drop("BUSDT")
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=last
+    )
+    symbols = set(out["symbol"])
+    assert "AUSDT" not in symbols
+    assert "BUSDT" not in symbols
+    assert {"CUSDT", "DUSDT"} <= symbols
+
+
+def test_select_uses_recent_trading_days_from_params() -> None:
+    """Con recent_trading_days=2 un par que cotizo hace dos dias entra; con 1 no."""
+    pairs, first, volumes = _selection_inputs()
+    last = _traded_with({"AUSDT": PERIOD.window_end_ms + 1 - 2 * DAY_MS})
+    one = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=last
+    )
+    wider = dataclasses.replace(PARAMS, recent_trading_days=2)
+    two = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, wider, last_traded=last)
+    assert "AUSDT" not in set(one["symbol"])
+    assert "AUSDT" in set(two["symbol"])
+
+
+def test_select_does_not_mutate_last_traded() -> None:
+    """last_traded no se modifica."""
+    pairs, first, volumes = _selection_inputs()
+    last = _traded_with({"AUSDT": pd.NA})
+    before = last.copy()
+    select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=last)
+    pd.testing.assert_series_equal(last, before)
 
 
 def test_leak_no_selected_pair_is_listed_after_age_cutoff_in_any_real_period() -> None:
@@ -1274,7 +1626,15 @@ def test_leak_no_selected_pair_is_listed_after_age_cutoff_in_any_real_period() -
     volumes = pd.Series({f"{a}USDT": 5e7 for a in assets})
     for period in universe_periods(PARAMS):
         cutoff = period.window_start_ms - PARAMS.min_listing_days * DAY_MS
-        out = select_period_universe(pairs, first, volumes, CATEGORIES, period, PARAMS)
+        out = select_period_universe(
+            pairs,
+            first,
+            volumes,
+            CATEGORIES,
+            period,
+            PARAMS,
+            last_traded=_traded_at_close(first.index, period),
+        )
         assert (out["first_candle_ms"] <= cutoff).all()
         assert (out["first_candle_ms"] < period.period_start_ms).all()
         assert all(first[s] <= cutoff for s in period_candidates(first, period, PARAMS))
@@ -1534,7 +1894,9 @@ def test_load_universe_malformed_raises_config_error(tmp_path: Path, text: str) 
 def test_roundtrip_of_select_period_universe_output(tmp_path: Path) -> None:
     """La salida real de select_period_universe se puede escribir y volver a leer."""
     pairs, first, volumes = _selection_inputs()
-    out = select_period_universe(pairs, first, volumes, CATEGORIES, PERIOD, PARAMS)
+    out = select_period_universe(
+        pairs, first, volumes, CATEGORIES, PERIOD, PARAMS, last_traded=_traded_at_close(first.index)
+    )
     write_universe([(PERIOD, out)], PARAMS, tmp_path / "u.yaml")
     loaded = load_universe(tmp_path / "u.yaml")
     assert list(loaded["symbol"]) == list(out["symbol"])
@@ -1570,13 +1932,18 @@ def test_build_universe_orchestrates_without_network(
         dates = {"AUSDT": "2019-01-01", "BUSDT": "2020-12-01", "DUSDT": "2018-05-01"}
         return pd.Series({s: _ms(dates[s]) for s in symbols}, dtype="Int64")
 
-    def fake_volume(symbols: Sequence[str], start: int, end: int, **kwargs: object) -> pd.Series:
+    def fake_stats(symbols: Sequence[str], start: int, end: int, **kwargs: object) -> pd.DataFrame:
         calls["volume"].append((list(symbols), start, end, kwargs))
-        return pd.Series({s: 5e7 for s in symbols}, dtype="float64")
+        return pd.DataFrame(
+            {
+                "median_quote_volume": pd.Series({s: 5e7 for s in symbols}, dtype="float64"),
+                "last_traded_ms": pd.Series({s: end + 1 - DAY_MS for s in symbols}, dtype="Int64"),
+            }
+        )
 
     monkeypatch.setattr(universe, "list_pairs", fake_list_pairs)
     monkeypatch.setattr(universe, "first_candle_time", fake_first)
-    monkeypatch.setattr(universe, "median_daily_quote_volume", fake_volume)
+    monkeypatch.setattr(universe, "window_volume_stats", fake_stats)
 
     result = universe.build_universe(
         params, categories, client=client, now_ms=now_ms, base_url=base_url
@@ -1623,8 +1990,13 @@ def test_build_universe_does_not_write_any_file(
     )
     monkeypatch.setattr(
         universe,
-        "median_daily_quote_volume",
-        lambda symbols, start, end, **kwargs: pd.Series({s: 5e7 for s in symbols}),
+        "window_volume_stats",
+        lambda symbols, start, end, **kwargs: pd.DataFrame(
+            {
+                "median_quote_volume": pd.Series({s: 5e7 for s in symbols}, dtype="float64"),
+                "last_traded_ms": pd.Series({s: end + 1 - DAY_MS for s in symbols}, dtype="Int64"),
+            }
+        ),
     )
     params = dataclasses.replace(PARAMS, min_categories=1)
     result = universe.build_universe(params, {"A": "l1"}, client=object(), now_ms=_ms("2026-10-13"))
