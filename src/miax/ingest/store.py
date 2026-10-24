@@ -16,7 +16,9 @@ logger = get_logger(__name__)
 DEFAULT_BASE_DIR = "data/raw/klines"
 _MONTH_FORMAT = "%Y-%m"
 _MONTH_STEM = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
-_SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9_.-]+$")
+# `\w` es Unicode con `str` (hay simbolos de Binance no latinos, p. ej. 币安人生USDT) y sigue sin
+# admitir separadores de ruta ni ':'; el vacio, '.' y '..' se rechazan aparte.
+_SAFE_SEGMENT = re.compile(r"^[\w.-]+$")
 
 
 def _validate_segment(name: str) -> str:

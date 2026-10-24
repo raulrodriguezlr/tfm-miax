@@ -1,4 +1,4 @@
-"""CLI de la ingesta: `python -m miax.ingest [download|validate|coverage|pairs|universe]`."""
+"""CLI de la ingesta: `python -m miax.ingest [download|validate|coverage|pairs|universe|sync]`."""
 
 from __future__ import annotations
 
@@ -11,14 +11,16 @@ import pandas as pd
 import requests
 import yaml
 
+from miax.ingest.batch import DEFAULT_MAX_CONSECUTIVE_FAILURES, NOT_PROCESSED, run_symbol_batch
 from miax.ingest.coverage import coverage_report, universe_coverage
 from miax.ingest.exchange_info import list_pairs
-from miax.ingest.http import HttpClient, HttpError, RetriesExhaustedError
+from miax.ingest.http import HttpClient, HttpError
 from miax.ingest.integrity import ERROR, count_month_files, validate_klines
 from miax.ingest.klines import DAY_MS, DEFAULT_BASE_URL, candle_offset_ms, interval_ms
 from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import update_symbol
 from miax.ingest.store import DEFAULT_BASE_DIR
+from miax.ingest.sync import sync_universe, universe_download_ranges
 from miax.ingest.universe import (
     DEFAULT_UNIVERSE_FILE,
     DEFAULT_UNIVERSE_PARAMS_FILE,
@@ -36,9 +38,7 @@ logger = get_logger(__name__)
 
 DEFAULT_INTERVAL = "1m"
 DEFAULT_LOOKBACK_DAYS = 30
-DEFAULT_MAX_CONSECUTIVE_FAILURES = 3
-# Marca de un simbolo no intentado porque el cortacircuitos corto la tanda (distinta de None).
-NOT_PROCESSED = -1
+DEFAULT_WARMUP_DAYS = 7
 _MAX_UNCACHED_EXAMPLES = 10
 _DATE_FORMAT = "%Y-%m-%d"
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
@@ -77,7 +77,8 @@ def _add_download_parser(subparsers: argparse._SubParsersAction) -> None:
         description=(
             "Descarga klines de Binance y los cachea en Parquet, reanudando lo ya bajado. "
             "Otros subcomandos: validate (integridad de la cache), coverage (cobertura temporal), "
-            "pairs (catalogo de pares), universe (congela el universo por periodos)."
+            "pairs (catalogo de pares), universe (congela el universo por periodos), "
+            "sync (completa la cache con lo que necesitan los universos)."
         ),
     )
     parser.add_argument(
@@ -202,6 +203,34 @@ def _add_universe_parser(subparsers: argparse._SubParsersAction) -> None:
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="URL base de la API.")
 
 
+def _add_sync_parser(subparsers: argparse._SubParsersAction) -> None:
+    """Anade el subcomando `sync`."""
+    parser = subparsers.add_parser(
+        "sync",
+        description=(
+            "Completa la cache de klines con lo que necesitan los universos: por simbolo, un "
+            "tramo continuo desde su primer periodo menos el calentamiento hasta el final de su "
+            "ultimo periodo, por delante y por detras de lo cacheado y sin repetir."
+        ),
+    )
+    parser.add_argument(
+        "--universe-files",
+        default=DEFAULT_UNIVERSE_FILE,
+        help="YAML del universo (relativo a configs/), o varios separados por comas.",
+    )
+    parser.add_argument(
+        "--warmup-days",
+        type=int,
+        default=DEFAULT_WARMUP_DAYS,
+        help=f"Dias previos al primer periodo de cada par (por defecto {DEFAULT_WARMUP_DAYS}).",
+    )
+    parser.add_argument(
+        "--interval", default=DEFAULT_INTERVAL, help="Intervalo de las velas (por defecto 1m)."
+    )
+    parser.add_argument("--base-url", default=DEFAULT_BASE_URL, help="URL base de la API.")
+    parser.add_argument("--base-dir", default=DEFAULT_BASE_DIR, help="Carpeta de la cache.")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """Construye el parser de argumentos de la CLI, con un subcomando por comando."""
     parser = argparse.ArgumentParser(prog="python -m miax.ingest")
@@ -211,12 +240,18 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_coverage_parser(subparsers)
     _add_pairs_parser(subparsers)
     _add_universe_parser(subparsers)
+    _add_sync_parser(subparsers)
     return parser
 
 
 def _parse_symbols(text: str) -> list[str]:
     """Separa simbolos por comas, en mayusculas, sin espacios ni vacios ni repetidos, en orden."""
     return list(dict.fromkeys(item.strip().upper() for item in text.split(",") if item.strip()))
+
+
+def _parse_files(text: str) -> list[str]:
+    """Separa nombres de fichero por comas, sin espacios ni vacios ni repetidos, en orden."""
+    return list(dict.fromkeys(item.strip() for item in text.split(",") if item.strip()))
 
 
 def download_symbols(
@@ -231,64 +266,20 @@ def download_symbols(
     max_consecutive_failures: int = DEFAULT_MAX_CONSECUTIVE_FAILURES,
 ) -> dict[str, int | None]:
     """Baja los simbolos en orden con un mismo cliente; None si falla, NOT_PROCESSED si se corta."""
-    results: dict[str, int | None] = {}
-    total = len(symbols)
-    systemic_failures = 0
-    for position, symbol in enumerate(symbols, start=1):
-        if systemic_failures >= max_consecutive_failures:
-            # Cortacircuitos: tras N fallos sistemicos seguidos (429/418 o red caida) seguir
-            # golpeando la API solo alargaria un posible baneo de la IP.
-            logger.error(
-                "Tanda cortada: %d fallos sistemicos consecutivos (reintentos agotados); "
-                "quedan sin procesar %d simbolos",
-                systemic_failures,
-                total - position + 1,
-            )
-            for pending in symbols[position - 1 :]:
-                results[pending] = NOT_PROCESSED
-            break
-        logger.info("[%d/%d] %s: descargando %s", position, total, symbol, interval)
-        # Un unico cliente (y su limitador) para todos: el presupuesto de peso es por IP.
-        try:
-            new = update_symbol(
-                symbol,
-                interval,
-                start_ms,
-                end_ms,
-                client=client,
-                base_dir=base_dir,
-                base_url=base_url,
-            )
-        except RetriesExhaustedError as exc:
-            # Fallo sistemico: cuenta para el cortacircuitos (solo si son consecutivos).
-            systemic_failures += 1
-            logger.error(
-                "[%d/%d] Fallo la descarga de %s %s: %s", position, total, symbol, interval, exc
-            )
-            results[symbol] = None
-            continue
-        except (HttpError, ValueError, OSError, requests.exceptions.RequestException) as exc:
-            # Fallo propio del simbolo: no aborta la tanda y resetea el contador sistemico.
-            systemic_failures = 0
-            logger.error(
-                "[%d/%d] Fallo la descarga de %s %s: %s", position, total, symbol, interval, exc
-            )
-            results[symbol] = None
-            continue
-        systemic_failures = 0
-        logger.info("[%d/%d] %s: %d velas nuevas", position, total, symbol, new)
-        results[symbol] = new
 
-    failed = [symbol for symbol, new in results.items() if new is None]
-    skipped = [symbol for symbol, new in results.items() if new == NOT_PROCESSED]
-    logger.info(
-        "Resumen: %d simbolos OK, %d fallidos%s%s",
-        total - len(failed) - len(skipped),
-        len(failed),
-        f" ({', '.join(failed)})" if failed else "",
-        f", {len(skipped)} sin procesar ({', '.join(skipped)})" if skipped else "",
+    def fetch_one(symbol: str) -> int:
+        # Un unico cliente (y su limitador) para todos: el presupuesto de peso es por IP.
+        return update_symbol(
+            symbol, interval, start_ms, end_ms, client=client, base_dir=base_dir, base_url=base_url
+        )
+
+    return run_symbol_batch(
+        symbols,
+        fetch_one,
+        interval=interval,
+        max_consecutive_failures=max_consecutive_failures,
+        log=logger,
     )
-    return results
 
 
 def _run_download(args: argparse.Namespace) -> int:
@@ -558,6 +549,53 @@ def _run_universe(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_sync(args: argparse.Namespace) -> int:
+    """Subcomando `sync`: completa la cache; 2 si los argumentos no valen, 1 si falla algo."""
+    files = _parse_files(args.universe_files)
+    if not files:
+        logger.error("--universe-files no contiene ningun fichero")
+        return 2
+    last_closed_ms = _last_closed_ms(args.interval, _to_ms(_utc_now()))
+    if last_closed_ms is None:
+        logger.error(
+            "El intervalo %s no tiene duracion fija: no se puede sincronizar", args.interval
+        )
+        return 2
+    try:
+        universes = [load_universe(name) for name in files]
+        ranges = universe_download_ranges(universes, warmup_days=args.warmup_days)
+    except (ConfigError, yaml.YAMLError) as exc:
+        logger.error("Universo no valido: %s", exc)
+        return 2
+    except ValueError as exc:
+        logger.error("Argumentos no validos: %s", exc)
+        return 2
+    if ranges.empty:
+        logger.error("Los universos no tienen ningun par: nada que sincronizar")
+        return 2
+
+    logger.info(
+        "Sincronizando %d simbolos de %d universos (%s), calentamiento %d dias, hasta %d ms UTC",
+        len(ranges),
+        len(files),
+        args.interval,
+        args.warmup_days,
+        last_closed_ms,
+    )
+    # Un solo cliente con su limitador para toda la tanda; se cierra al terminar.
+    with HttpClient(rate_limiter=RateLimiter()) as client:
+        results = sync_universe(
+            ranges,
+            args.interval,
+            client=client,
+            base_dir=args.base_dir,
+            base_url=args.base_url,
+            end_cap_ms=last_closed_ms,
+        )
+    ok = all(new is not None and new != NOT_PROCESSED for new in results.values())
+    return 0 if ok else 1
+
+
 # Registro de subcomandos: uno nuevo es una entrada mas (y su parser en `_build_parser`).
 _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "download": _run_download,
@@ -565,6 +603,7 @@ _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "coverage": _run_coverage,
     "pairs": _run_pairs,
     "universe": _run_universe,
+    "sync": _run_sync,
 }
 
 
