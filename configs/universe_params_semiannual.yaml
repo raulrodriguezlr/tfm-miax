@@ -19,6 +19,8 @@
 #   desde 2022; 5 M es el suelo mas alto que llega a 40 en todos esos anos. Es un valor pragmatico,
 #   aun sin validar con la actividad por minuto (ver ESTADO).
 # - 10 por categoria y aviso por debajo de 4: diversidad sin que L1 lo copen todo.
+# - Cotizar al cierre de la ventana (MIAX-212): sin esta regla un par que deja de cotizar dentro
+#   de su ventana conserva su mediana y entra en un periodo en el que ya no tiene velas.
 quote_asset: "USDT"
 first_period_start: "2018-01-01"   # la ventana del primer periodo usa los datos de 2017
 last_period_end: "2026-10-01"      # exclusivo; el ultimo periodo se recorta aqui
@@ -26,6 +28,7 @@ period_months: 6
 volume_window_months: 3
 min_listing_days: 30               # dias cotizando antes del inicio de la ventana
 min_quote_volume: 5000000.0        # suelo de liquidez: mediana diaria en USDT dentro de la ventana
+recent_trading_days: 1             # el par debe tener volumen en el ultimo dia de la ventana (MIAX-212)
 max_per_category: 10
 max_pairs: 40                      # tamano objetivo: estable desde 2022 con el suelo de 5 M
 min_categories: 4                  # por debajo solo se avisa: los primeros anyos son casi todo L1
