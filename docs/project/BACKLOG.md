@@ -82,6 +82,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-032 | Tests de ingesta con fixtures, sin tocar la red | 018, 021 | `pytest` pasa sin conexión |
 | MIAX-197 | Guardar la cache de klines en data/raw/klines | 020 | Descarga, validación y cobertura usan data/raw/klines por defecto |
 | MIAX-198 | Universos trimestral (principal), semestral y anual (robustez) | 028 | Tres universos congelados; el trimestral es configs/universe.yaml |
+| MIAX-212 | Excluir del universo los pares que no cotizan al cierre de su ventana de volumen | 198, 211 | Los tres universos regenerados no tienen ningún par-periodo sin velas salvo los que dejan de cotizar ya dentro del periodo |
 
 ---
 

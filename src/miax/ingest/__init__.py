@@ -9,11 +9,13 @@ from miax.ingest.ratelimit import RateLimiter
 from miax.ingest.resume import cached_last_open_time, update_symbol
 from miax.ingest.store import cache_bounds, load_klines, save_klines
 from miax.ingest.universe import (
+    DEFAULT_RECENT_TRADING_DAYS,
     UniverseParams,
     UniversePeriod,
     build_universe,
     diversify_universe,
     filter_by_listing_age,
+    filter_by_recent_trading,
     filter_by_volume,
     first_candle_time,
     load_categories,
@@ -24,10 +26,12 @@ from miax.ingest.universe import (
     prefilter_by_category,
     select_period_universe,
     universe_periods,
+    window_volume_stats,
     write_universe,
 )
 
 __all__ = [
+    "DEFAULT_RECENT_TRADING_DAYS",
     "ClientError",
     "HttpClient",
     "HttpError",
@@ -46,6 +50,7 @@ __all__ = [
     "download_klines",
     "fetch_exchange_info",
     "filter_by_listing_age",
+    "filter_by_recent_trading",
     "filter_by_volume",
     "find_gaps",
     "first_candle_time",
@@ -66,5 +71,6 @@ __all__ = [
     "universe_periods",
     "update_symbol",
     "validate_klines",
+    "window_volume_stats",
     "write_universe",
 ]
