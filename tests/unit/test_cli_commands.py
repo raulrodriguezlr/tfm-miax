@@ -388,12 +388,19 @@ def test_universe_end_to_end_with_network_functions_patched(
     def fake_first(symbols: Sequence[str], reference_ms: int, **kwargs: object) -> pd.Series:
         return pd.Series({s: 1_400_000_000_000 for s in symbols}, dtype="Int64")
 
-    def fake_volume(symbols: Sequence[str], start: int, end: int, **kwargs: object) -> pd.Series:
-        return pd.Series({s: 5e7 for s in symbols}, dtype="float64")
+    def fake_stats(symbols: Sequence[str], start: int, end: int, **kwargs: object) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "median_quote_volume": pd.Series({s: 5e7 for s in symbols}, dtype="float64"),
+                "last_traded_ms": pd.Series(
+                    {s: end + 1 - 86_400_000 for s in symbols}, dtype="Int64"
+                ),
+            }
+        )
 
     monkeypatch.setattr(universe_module, "list_pairs", fake_pairs)
     monkeypatch.setattr(universe_module, "first_candle_time", fake_first)
-    monkeypatch.setattr(universe_module, "median_daily_quote_volume", fake_volume)
+    monkeypatch.setattr(universe_module, "window_volume_stats", fake_stats)
 
     assert cli.main(_universe_argv(params, out)) == 0
     loaded = load_universe(out)

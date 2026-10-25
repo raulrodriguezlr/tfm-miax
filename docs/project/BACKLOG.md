@@ -84,6 +84,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-198 | Universos trimestral (principal), semestral y anual (robustez) | 028 | Tres universos congelados; el trimestral es configs/universe.yaml |
 | MIAX-211 | Descargar las velas 1m de los pares nuevos de los tres universos (trimestral, semestral y anual), con su calentamiento | 198 | `coverage --universe` no muestra ningún par del universo sin caché; el zip compartido se regenera |
 | MIAX-209 | [EXPLORATORIO] Adaptador de ingesta de una fuente externa no cripto (p. ej. Polymarket 5m), con el mismo contrato que las klines | 016, 020 | Una serie externa se descarga, se cachea en Parquet y se relee como un símbolo de Binance |
+| MIAX-212 | Excluir del universo los pares que no cotizan al cierre de su ventana de volumen | 198, 211 | Los tres universos regenerados no tienen ningún par-periodo sin velas salvo los que dejan de cotizar ya dentro del periodo |
 
 ---
 

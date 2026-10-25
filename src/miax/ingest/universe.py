@@ -32,6 +32,8 @@ logger = get_logger(__name__)
 DEFAULT_MIN_QUOTE_VOLUME = 10_000_000.0  # USDT por dia (mediana)
 VOLUME_INTERVAL = "1d"
 VOLUME_COLUMN = "median_quote_volume"
+DEFAULT_RECENT_TRADING_DAYS = 1  # dias finales de la ventana en los que el par debe cotizar
+LAST_TRADED_COLUMN = "last_traded_ms"
 
 DEFAULT_MIN_LISTING_DAYS = 90  # dias de cotizacion exigidos antes de la referencia
 LISTING_INTERVAL = "1d"
@@ -46,20 +48,21 @@ DEFAULT_EXCLUDED_CATEGORIES = ("stablecoin", "pegged")  # precio plano o replica
 MAX_LOGGED_UNCATEGORIZED = 20  # activos sin categoria que se listan en el log
 
 
-def median_daily_quote_volume(
+def window_volume_stats(
     symbols: Sequence[str],
     start_ms: int,
     end_ms: int,
     *,
     client: HttpClient | None = None,
     base_url: str = DEFAULT_BASE_URL,
-) -> pd.Series:
-    """Mediana del volumen diario en USDT de cada simbolo en la ventana; NaN si no hay velas."""
+) -> pd.DataFrame:
+    """Mediana del volumen diario en USDT y ultimo dia con volumen de cada simbolo en la ventana."""
     if start_ms > end_ms:
         raise ValueError(f"start_ms ({start_ms}) no puede ser mayor que end_ms ({end_ms})")
     own_client = client is None
     http = HttpClient(rate_limiter=RateLimiter()) if client is None else client
     medians: dict[str, float] = {}
+    last_traded: dict[str, int | pd.NAType] = {}
     try:
         # La ventana debe ser anterior al periodo de estudio: asi la seleccion no mira al futuro.
         for symbol in dict.fromkeys(symbols):  # sin duplicados, conserva el orden
@@ -70,12 +73,33 @@ def median_daily_quote_volume(
             candles = candles[candles["close_time"] <= end_ms]
             if candles.empty:
                 medians[symbol] = float("nan")
+                last_traded[symbol] = pd.NA
             else:
                 medians[symbol] = float(candles["quote_asset_volume"].median())
+                traded = candles.loc[candles["quote_asset_volume"] > 0, "open_time"]
+                last_traded[symbol] = pd.NA if traded.empty else int(traded.max())
     finally:
         if own_client:
             http.close()
-    return pd.Series(medians, name=VOLUME_COLUMN, dtype="float64")
+    return pd.DataFrame(
+        {
+            VOLUME_COLUMN: pd.Series(medians, dtype="float64"),
+            LAST_TRADED_COLUMN: pd.Series(last_traded, dtype="Int64"),
+        }
+    )
+
+
+def median_daily_quote_volume(
+    symbols: Sequence[str],
+    start_ms: int,
+    end_ms: int,
+    *,
+    client: HttpClient | None = None,
+    base_url: str = DEFAULT_BASE_URL,
+) -> pd.Series:
+    """Mediana del volumen diario en USDT de cada simbolo en la ventana; NaN si no hay velas."""
+    stats = window_volume_stats(symbols, start_ms, end_ms, client=client, base_url=base_url)
+    return stats[VOLUME_COLUMN]
 
 
 def filter_by_volume(
@@ -101,6 +125,35 @@ def filter_by_volume(
         len(kept),
         int(below.sum()),
         int(no_candles.sum()),
+    )
+    return kept
+
+
+def filter_by_recent_trading(
+    pairs: pd.DataFrame,
+    last_traded: pd.Series,
+    window_end_ms: int,
+    recent_trading_days: int = DEFAULT_RECENT_TRADING_DAYS,
+) -> pd.DataFrame:
+    """Conserva los pares con volumen en los ultimos recent_trading_days dias de la ventana."""
+    if recent_trading_days < 1:
+        raise ValueError(f"recent_trading_days debe ser >= 1, recibido {recent_trading_days}")
+    if "symbol" not in pairs.columns:
+        raise ValueError(f"pairs necesita la columna 'symbol'; columnas: {list(pairs.columns)}")
+    if not last_traded.index.is_unique:
+        raise ValueError("last_traded tiene simbolos repetidos en el indice")
+    joined = pairs.copy()
+    joined[LAST_TRADED_COLUMN] = joined["symbol"].map(last_traded).astype("Int64")
+    # El corte cae dentro de la ventana, que acaba 1 ms antes del periodo: no hay fuga.
+    cutoff = window_end_ms + 1 - recent_trading_days * DAY_MS
+    stopped = joined[LAST_TRADED_COLUMN].isna() | (joined[LAST_TRADED_COLUMN] < cutoff)
+    kept = joined[~stopped.astype(bool)].reset_index(drop=True)
+    logger.info(
+        "Universo por cotizacion al cierre (ultimos %d dias): %d entran, %d descartados por no "
+        "cotizar al cierre de la ventana",
+        recent_trading_days,
+        len(kept),
+        int(stopped.sum()),
     )
     return kept
 
@@ -294,6 +347,7 @@ class UniverseParams:
     max_pairs: int
     min_categories: int
     categories_file: str
+    recent_trading_days: int = DEFAULT_RECENT_TRADING_DAYS
 
 
 class UniversePeriod(NamedTuple):
@@ -341,6 +395,7 @@ def load_universe_params(path: str | Path = DEFAULT_UNIVERSE_PARAMS_FILE) -> Uni
         "volume_window_months": (params.volume_window_months, 1),
         "min_listing_days": (params.min_listing_days, 0),
         "min_quote_volume": (params.min_quote_volume, 0),
+        "recent_trading_days": (params.recent_trading_days, 1),
         "max_per_category": (params.max_per_category, 1),
         "max_pairs": (params.max_pairs, 1),
         "min_categories": (params.min_categories, 1),
@@ -421,6 +476,8 @@ def select_period_universe(
     categories: Mapping[str, str],
     period: UniversePeriod,
     params: UniverseParams,
+    *,
+    last_traded: pd.Series,
 ) -> pd.DataFrame:
     """Elige el universo de un periodo con antiguedad y volumen medidos antes de que empiece."""
     # first_candles puede venir consultado con una referencia posterior (p. ej. hoy): no hay fuga
@@ -429,7 +486,11 @@ def select_period_universe(
     aged = filter_by_listing_age(
         pairs, first_candles, period.window_start_ms, params.min_listing_days
     )
-    liquid = filter_by_volume(aged, volumes, params.min_quote_volume)
+    # Debe cotizar al cierre de su ventana; last_traded sale de la ventana, anterior al periodo.
+    trading = filter_by_recent_trading(
+        aged, last_traded, period.window_end_ms, params.recent_trading_days
+    )
+    liquid = filter_by_volume(trading, volumes, params.min_quote_volume)
 
     normalized = {str(k).strip().upper(): v for k, v in categories.items()}
     labels = liquid["base_asset"].astype(str).str.upper().map(normalized)
@@ -494,7 +555,7 @@ def build_universe(
     universes: list[tuple[UniversePeriod, pd.DataFrame]] = []
     for period in periods:
         # La ventana de volumen acaba 1 ms antes del periodo: no se mira nada del periodo.
-        volumes = median_daily_quote_volume(
+        stats = window_volume_stats(
             period_candidates(first_candles, period, params),
             period.window_start_ms,
             period.window_end_ms,
@@ -502,7 +563,13 @@ def build_universe(
             base_url=base_url,
         )
         selected = select_period_universe(
-            candidates, first_candles, volumes, categories, period, params
+            candidates,
+            first_candles,
+            stats[VOLUME_COLUMN],
+            categories,
+            period,
+            params,
+            last_traded=stats[LAST_TRADED_COLUMN],
         )
         counts = selected[CATEGORY_COLUMN].value_counts().to_dict()
         logger.info(
