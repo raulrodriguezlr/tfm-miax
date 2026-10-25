@@ -222,7 +222,7 @@ Las letras **A**, **B** y **C** del backlog (`Área: A`…) no son personas: son
 
 El contrato que evita bloqueos. Si cambias una, **avisas antes, no después**:
 
-- **Datos → Grafo (A → B):** panel limpio de retornos alineados en Parquet.
+- **Datos → Grafo (A → B):** un panel por periodo (objeto `Panel`, con caché en Parquet); el contrato está en [`docs/datos/contrato-a-b.md`](../datos/contrato-a-b.md).
 - **Grafo → Modelado (B → C):** matriz de adyacencia por *fold*.
 
 ---

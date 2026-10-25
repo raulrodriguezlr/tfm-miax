@@ -15,6 +15,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ## [Sin publicar]
 
+### Añadido · Épica 2 (panel y preprocesado)
+- Contrato de la interfaz `A → B`: `docs/datos/contrato-a-b.md` explica qué es cada feature del panel, en qué unidades está, cómo se leen el tiempo y los huecos y qué no debe hacer quien lo consume, y `validate_panel` lo comprueba automáticamente al construir y al cargar cada panel (sin `inf`, `NaN` en los huecos, sin retornos que salten un hueco, volatilidad no negativa, rejilla regular en UTC) (MIAX-044)
+
 ---
 
 ## [v0.2.0] — 2026-10-23

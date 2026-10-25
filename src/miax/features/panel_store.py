@@ -14,6 +14,7 @@ import pandas as pd
 import pyarrow as pa
 
 from miax.features.alignment import build_time_grid
+from miax.features.contract import validate_panel
 from miax.features.panel import FEATURE_NAMES, FEATURES_VERSION, Panel, build_panel
 from miax.ingest.store import DEFAULT_BASE_DIR, month_files
 from miax.ingest.universe import to_ms
@@ -190,7 +191,10 @@ def load_panel(
     grid = build_time_grid(int(meta["start_ms"]), int(meta["end_ms"]), meta["interval"])
     if not valid.index.equals(grid):
         raise ValueError(f"{directory}: el indice guardado no coincide con la rejilla del meta")
-    return Panel(features=frames, valid=valid, interval=meta["interval"], symbols=tuple(selected))
+    panel = Panel(features=frames, valid=valid, interval=meta["interval"], symbols=tuple(selected))
+    # `ValueError` si el significado no cumple el contrato: `cached_panel` reconstruye.
+    validate_panel(panel)
+    return panel
 
 
 def _stale_reason(meta: dict[str, Any], expected: dict[str, Any]) -> str | None:

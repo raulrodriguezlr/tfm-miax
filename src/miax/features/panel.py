@@ -12,6 +12,7 @@ import pandas as pd
 
 from miax.features.activity import log_relative_to_past
 from miax.features.alignment import align_klines, build_time_grid, shift_to_close
+from miax.features.contract import validate_panel
 from miax.features.gaps import classify_klines
 from miax.features.returns import log_returns
 from miax.features.validity import validity_mask
@@ -189,7 +190,9 @@ def build_panel(
     for name, frame in {**features, "valid": valid}.items():
         if not frame.index.equals(grid):
             raise RuntimeError(f"el indice de {name} no coincide con la rejilla del rango")
-    return Panel(features=features, valid=valid, interval=interval, symbols=names)
+    panel = Panel(features=features, valid=valid, interval=interval, symbols=names)
+    validate_panel(panel)
+    return panel
 
 
 def period_panels(
