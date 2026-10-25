@@ -7,6 +7,7 @@ from miax.features.activity import (
     relative_volume_from_cache,
 )
 from miax.features.alignment import align_frame, align_klines, build_time_grid, shift_to_close
+from miax.features.contract import FEATURE_SPECS, FeatureSpec, validate_panel
 from miax.features.gaps import (
     GapCause,
     cause_counts,
@@ -42,8 +43,10 @@ from miax.features.volatility import realized_volatility, realized_volatility_fr
 __all__ = [
     "FEATURES_VERSION",
     "FEATURE_NAMES",
+    "FEATURE_SPECS",
     "PANEL_DIR",
     "PANEL_FORMAT_VERSION",
+    "FeatureSpec",
     "GapCause",
     "Panel",
     "align_frame",
@@ -82,5 +85,6 @@ __all__ = [
     "save_panel",
     "shift_to_close",
     "tail_report",
+    "validate_panel",
     "validity_mask",
 ]

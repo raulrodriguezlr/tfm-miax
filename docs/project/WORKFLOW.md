@@ -133,7 +133,7 @@ Las letras **A**, **B** y **C** del backlog son etapas del pipeline, no personas
 
 Son el contrato que evita que unos bloqueen a otros:
 
-- **A → B:** panel limpio de retornos alineados en Parquet.
+- **A → B:** un panel por periodo (objeto `Panel`, con caché en Parquet); el contrato está en [`docs/datos/contrato-a-b.md`](../datos/contrato-a-b.md).
 - **B → C:** matriz de adyacencia por *fold*.
 
 Si la interfaz cambia, se avisa antes, no después.
