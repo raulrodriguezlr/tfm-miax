@@ -17,6 +17,7 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ### Añadido · Épica 2 (panel y preprocesado)
 - Contrato de la interfaz `A → B`: `docs/datos/contrato-a-b.md` explica qué es cada feature del panel, en qué unidades está, cómo se leen el tiempo y los huecos y qué no debe hacer quien lo consume, y `validate_panel` lo comprueba automáticamente al construir y al cargar cada panel (sin `inf`, `NaN` en los huecos, sin retornos que salten un hueco, volatilidad no negativa, rejilla regular en UTC) (MIAX-044)
+- Red de seguridad del tratamiento de huecos: una prueba de punta a punta recorre la cadena de la caché de velas al panel sobre un escenario sintético con todos los tipos de hueco (vela suelta, minutos sin operaciones, listado tardío, deslistado, caída general y un hueco a caballo de un cambio de mes) y la compara minuto a minuto con un cálculo independiente; estropear a propósito el tratamiento (rellenar con ceros, dar por válidos los minutos sin operaciones, saltarse el hueco, desalinear un minuto) hace fallar los tests (MIAX-045)
 
 ---
 
