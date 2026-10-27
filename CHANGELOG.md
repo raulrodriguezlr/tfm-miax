@@ -15,6 +15,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ## [Sin publicar]
 
+### Añadido · Épica 3 (residualización)
+- Interfaz común `FactorModel` (`fit` solo con train, `transform` y `factors` sin reajustar, mismos símbolos, `NaN` propagado y estado ajustado vigilado contra fugas) y el modelo de referencia `NoFactor`, para intercambiar las definiciones de factor sin tocar el código que las usa (MIAX-047)
+
 ---
 
 ## [v0.3.0] — 2026-10-27
