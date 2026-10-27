@@ -125,20 +125,15 @@ Comentarios de revisión: una línea, ubicación, problema, arreglo. Sin párraf
 
 ## 5. Reparto
 
-| Persona | Área principal | Épicas |
-|---|---|---|
-| **A** | Datos e infraestructura | 0, 1, 2, 12 |
-| **B** | Estructura del grafo | 3, 4, 5, 6 |
-| **C** | Modelado y evaluación | 7, 8, 9, 10 |
-| **Los tres** | Dashboard y memoria | 11, 13 |
+**No hay reparto fijo: los tres hacemos de todo.** Cada uno coge el ticket más bajo disponible cuyas dependencias estén cerradas, sea de la épica que sea, y el PR lo revisa otra persona.
 
-El área principal no es propiedad exclusiva: si estás bloqueado, coges un ticket de otra épica cuyas dependencias estén cerradas. Pero el que conoce el área revisa el PR.
+Las letras **A**, **B** y **C** del backlog son etapas del pipeline, no personas: **A** datos e infraestructura (épicas 0, 1, 2, 12), **B** estructura del grafo (3, 4, 5, 6) y **C** modelado y evaluación (7, 8, 9, 10). Dashboard y memoria (11, 13) también son de todos.
 
 ### Interfaces entre áreas
 
 Son el contrato que evita que unos bloqueen a otros:
 
-- **A → B:** panel limpio de retornos alineados en Parquet.
+- **A → B:** un panel por periodo (objeto `Panel`, con caché en Parquet); el contrato está en [`docs/datos/contrato-a-b.md`](../datos/contrato-a-b.md).
 - **B → C:** matriz de adyacencia por *fold*.
 
 Si la interfaz cambia, se avisa antes, no después.

@@ -8,10 +8,18 @@ import pandas as pd
 import pytest
 
 from miax.ingest import download_klines
-from miax.ingest.klines import KLINE_COLUMNS, KLINE_DTYPES
+from miax.ingest.klines import (
+    KLINE_COLUMNS,
+    KLINE_DTYPES,
+    KLINES_WEIGHT,
+    candle_offset_ms,
+    interval_ms,
+    slot_bounds,
+)
 
 STEP_MS = 60_000
 T0 = 1_700_000_000_000
+T0_ALIGNED = 1_767_225_600_000  # 2026-01-01T00:00:00Z (jueves), multiplo de un minuto
 
 
 def _candle(open_time: int) -> list[Any]:
@@ -55,7 +63,7 @@ class _FakeBinance:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.closed = False
 
-    def get(self, url: str, params: dict[str, Any] | None = None) -> _FakeResponse:
+    def get(self, url: str, params: dict[str, Any] | None = None, weight: int = 1) -> _FakeResponse:
         """Registra la llamada y devuelve el bloque que Binance serviria."""
         assert params is not None
         self.calls.append((url, dict(params)))
@@ -152,7 +160,9 @@ def test_stops_when_cursor_does_not_advance() -> None:
 
         calls = 0
 
-        def get(self, url: str, params: dict[str, Any] | None = None) -> _FakeResponse:
+        def get(
+            self, url: str, params: dict[str, Any] | None = None, weight: int = 1
+        ) -> _FakeResponse:
             """Devuelve `limit` velas cuya ultima es anterior a startTime."""
             type(self).calls += 1
             assert params is not None
@@ -214,3 +224,96 @@ def test_injected_client_is_not_closed_but_default_one_is(
     df = download_klines("BTCUSDT", "1m", T0, _end_of(3))
     assert created.closed is True
     assert len(df) == 3
+
+
+class _WeightSpy:
+    """Cliente falso que anota el peso con que se llama a `get`."""
+
+    def __init__(self) -> None:
+        """Inicia la lista de pesos vista."""
+        self.weights: list[int] = []
+
+    def get(self, url: str, params: dict[str, Any] | None = None, weight: int = 1) -> _FakeResponse:
+        """Anota el peso y devuelve una respuesta vacia."""
+        self.weights.append(weight)
+        return _FakeResponse([])
+
+
+def test_download_klines_passes_klines_weight() -> None:
+    """Cada llamada a /klines declara el peso 2 al limitador."""
+    spy = _WeightSpy()
+    download_klines("BTCUSDT", "1m", T0, T0 + STEP_MS, client=spy)  # type: ignore[arg-type]
+    assert KLINES_WEIGHT == 2
+    assert spy.weights == [2]
+
+
+@pytest.mark.parametrize(
+    ("interval", "expected"),
+    [
+        ("1s", 1_000),
+        ("1m", 60_000),
+        ("5m", 300_000),
+        ("1h", 3_600_000),
+        ("1d", 86_400_000),
+        ("1w", 604_800_000),
+        ("1M", None),
+        ("0m", None),
+        ("abc", None),
+        ("", None),
+        ("m1", None),
+    ],
+)
+def test_interval_ms(interval: str, expected: int | None) -> None:
+    """La duracion en ms sale de `<n><unidad>`; sin duracion fija o 0 da None."""
+    assert interval_ms(interval) == expected
+
+
+def test_candle_offset_ms_only_for_weekly() -> None:
+    """Solo las velas semanales llevan desfase (lunes); el resto abre en la rejilla de la epoca."""
+    assert candle_offset_ms("1w") == 4 * 86_400_000
+    for interval in ("1s", "1m", "1h", "1d", "1M"):
+        assert candle_offset_ms(interval) == 0
+
+
+def test_slot_bounds_aligned_range() -> None:
+    """Un rango alineado de 10 slots da primer slot, ultimo slot y `expected = 10`."""
+    assert slot_bounds(T0_ALIGNED, T0_ALIGNED + 10 * STEP_MS, "1m") == (
+        T0_ALIGNED,
+        T0_ALIGNED + 9 * STEP_MS,
+        10,
+    )
+
+
+def test_slot_bounds_unaligned_start_moves_to_next_slot() -> None:
+    """Un `start` entre dos slots empieza en el siguiente y no cuenta el anterior."""
+    first, last, expected = slot_bounds(T0_ALIGNED + 1, T0_ALIGNED + 5 * STEP_MS, "1m")
+    assert (first, last, expected) == (T0_ALIGNED + STEP_MS, T0_ALIGNED + 4 * STEP_MS, 4)
+
+
+def test_slot_bounds_range_without_slot_has_zero_expected() -> None:
+    """Si no cabe ningun slot, `expected` es 0 y `last_slot` queda por debajo de `first_slot`."""
+    first, last, expected = slot_bounds(T0_ALIGNED + 1, T0_ALIGNED + STEP_MS - 1, "1m")
+    assert expected == 0
+    assert last < first
+
+
+def test_slot_bounds_weekly_uses_monday_offset() -> None:
+    """Con velas semanales los slots caen en lunes, no en jueves como la epoca."""
+    week = 604_800_000
+    monday = T0_ALIGNED + candle_offset_ms("1w")  # T0_ALIGNED es jueves: +4 dias es lunes
+    first, last, expected = slot_bounds(T0_ALIGNED, monday + 2 * week, "1w")
+    assert (first, last, expected) == (monday, monday + week, 2)
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "interval"),
+    [
+        (T0_ALIGNED, T0_ALIGNED + STEP_MS, "1M"),
+        (T0_ALIGNED, T0_ALIGNED, "1m"),
+        (T0_ALIGNED + STEP_MS, T0_ALIGNED, "1m"),
+    ],
+)
+def test_slot_bounds_invalid_raises(start: int, end: int, interval: str) -> None:
+    """Un intervalo sin paso fijo, un rango vacio o uno invertido dan `ValueError`."""
+    with pytest.raises(ValueError):
+        slot_bounds(start, end, interval)

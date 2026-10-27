@@ -11,7 +11,11 @@ import pytest
 from pandas.testing import assert_frame_equal
 
 from miax.ingest import load_klines, save_klines
+from miax.ingest import store as store_module
 from miax.ingest.klines import KLINE_COLUMNS, KLINE_DTYPES
+from miax.ingest.store import DEFAULT_BASE_DIR, cache_bounds
+from miax.utils.config import REPO_ROOT
+from miax.utils.io import resolve_repo_path, write_parquet
 
 HOUR_MS = 3_600_000
 SYMBOL = "BTCUSDT"
@@ -267,3 +271,111 @@ def test_absolute_path_segment_is_rejected(tmp_path: Path) -> None:
         load_klines(str(outside), INTERVAL, base_dir=base)
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_default_base_dir_lives_under_data_raw() -> None:
+    """El directorio por defecto de la cache cuelga de `data/raw` en la raiz del repo."""
+    resolved: Path = resolve_repo_path(DEFAULT_BASE_DIR)
+
+    assert resolved == REPO_ROOT / "data" / "raw" / "klines"
+    assert (REPO_ROOT / "data" / "raw") in resolved.parents
+
+
+def test_columns_reads_only_requested_plus_open_time(tmp_path: Path) -> None:
+    """Con `columns` solo vuelven esas mas `open_time`; sin el parametro, las 12 de siempre."""
+    df = _frame(n=35)
+    save_klines(df, SYMBOL, INTERVAL, base_dir=tmp_path)
+
+    subset = load_klines(SYMBOL, INTERVAL, base_dir=tmp_path, columns=["close", "num_trades"])
+    full = load_klines(SYMBOL, INTERVAL, base_dir=tmp_path)
+
+    assert list(subset.columns) == ["open_time", "close", "num_trades"]
+    assert list(full.columns) == KLINE_COLUMNS
+    assert_frame_equal(subset, full[["open_time", "close", "num_trades"]])
+    empty = load_klines("NOPEUSDT", INTERVAL, base_dir=tmp_path, columns=["close"])
+    assert list(empty.columns) == ["open_time", "close"]
+    with pytest.raises(ValueError, match="desconocidas"):
+        load_klines(SYMBOL, INTERVAL, base_dir=tmp_path, columns=["nope"])
+
+
+# --- cache_bounds ------------------------------------------------------------------------------
+
+
+def test_cache_bounds_gives_first_and_last_open_time_across_months(tmp_path: Path) -> None:
+    """Con velas en tres meses, devuelve la primera y la ultima `open_time`."""
+    df = _frame(n=35)  # enero, febrero y marzo de 2024
+    save_klines(df, SYMBOL, INTERVAL, base_dir=tmp_path)
+
+    assert cache_bounds(SYMBOL, INTERVAL, base_dir=tmp_path) == (
+        int(df["open_time"].min()),
+        int(df["open_time"].max()),
+    )
+
+
+def test_cache_bounds_without_cache_is_none(tmp_path: Path) -> None:
+    """Sin cache del simbolo, del intervalo, o con solo ficheros ajenos, da `None`."""
+    save_klines(_frame(n=3), SYMBOL, INTERVAL, base_dir=tmp_path)
+    (tmp_path / "ONLYFOREIGN" / INTERVAL).mkdir(parents=True)
+    (tmp_path / "ONLYFOREIGN" / INTERVAL / "notes.parquet").write_bytes(b"no es un mes")
+
+    assert cache_bounds("NOPEUSDT", INTERVAL, base_dir=tmp_path) is None
+    assert cache_bounds(SYMBOL, "1m", base_dir=tmp_path) is None
+    assert cache_bounds("ONLYFOREIGN", INTERVAL, base_dir=tmp_path) is None
+
+
+def test_cache_bounds_skips_empty_edge_months(tmp_path: Path) -> None:
+    """Un mes vacio al principio o al final se salta: los limites son los de meses con velas."""
+    df = _frame(n=35)
+    save_klines(df, SYMBOL, INTERVAL, base_dir=tmp_path)
+    empty = pd.DataFrame({c: pd.Series(dtype=KLINE_DTYPES[c]) for c in KLINE_COLUMNS})
+    directory = tmp_path / SYMBOL / INTERVAL
+    write_parquet(empty, directory / "2023-12.parquet")
+    write_parquet(empty, directory / "2024-04.parquet")
+
+    assert cache_bounds(SYMBOL, INTERVAL, base_dir=tmp_path) == (
+        int(df["open_time"].min()),
+        int(df["open_time"].max()),
+    )
+
+
+def test_cache_bounds_with_only_empty_months_is_none(tmp_path: Path) -> None:
+    """Si todos los meses estan vacios no hay limites: `None`."""
+    empty = pd.DataFrame({c: pd.Series(dtype=KLINE_DTYPES[c]) for c in KLINE_COLUMNS})
+    write_parquet(empty, tmp_path / SYMBOL / INTERVAL / "2024-01.parquet")
+
+    assert cache_bounds(SYMBOL, INTERVAL, base_dir=tmp_path) is None
+
+
+def test_cache_bounds_reads_only_first_and_last_month_and_only_open_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Solo abre el primer y el ultimo fichero de mes y solo la columna `open_time`."""
+    save_klines(_frame(n=35), SYMBOL, INTERVAL, base_dir=tmp_path)  # 2024-01, 2024-02, 2024-03
+    reads: list[tuple[str, list[str] | None]] = []
+    real_read = store_module.read_parquet
+
+    def spy(path: str | Path, columns: list[str] | None = None) -> pd.DataFrame:
+        reads.append((Path(path).stem, columns))
+        return real_read(path, columns=columns)
+
+    monkeypatch.setattr(store_module, "read_parquet", spy)
+
+    cache_bounds(SYMBOL, INTERVAL, base_dir=tmp_path)
+
+    assert sorted(stem for stem, _ in reads) == ["2024-01", "2024-03"]
+    assert all(columns == ["open_time"] for _, columns in reads)
+
+
+def test_cache_bounds_single_month_and_single_candle(tmp_path: Path) -> None:
+    """Con una sola vela, primera y ultima coinciden."""
+    df = _frame(n=1)
+    save_klines(df, SYMBOL, INTERVAL, base_dir=tmp_path)
+    open_time = int(df["open_time"].iloc[0])
+
+    assert cache_bounds(SYMBOL, INTERVAL, base_dir=tmp_path) == (open_time, open_time)
+
+
+def test_cache_bounds_rejects_unsafe_segments(tmp_path: Path) -> None:
+    """Un simbolo con separadores o `..` da `ValueError`, como el resto de la cache."""
+    with pytest.raises(ValueError, match="no valido"):
+        cache_bounds("../x", INTERVAL, base_dir=tmp_path)

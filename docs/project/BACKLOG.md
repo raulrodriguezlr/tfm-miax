@@ -17,10 +17,10 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | Épica | Tickets | Área | Qué deja hecho |
 |---|---|---|---|
 | [0. Fundación](#épica-0--fundación-del-proyecto) | 001–015 | A | Repo, reglas, entorno, CI |
-| [1. Ingesta](#épica-1--ingesta-de-datos) | 016–032 | A | Histórico de Binance en local |
-| [2. Panel y preprocesado](#épica-2--panel-y-preprocesado) | 033–046 | A | Panel limpio de retornos |
+| [1. Ingesta](#épica-1--ingesta-de-datos) | 016–032, 197, 198, 211 (+209 exploratorio) | A | Histórico de Binance en local |
+| [2. Panel y preprocesado](#épica-2--panel-y-preprocesado) | 033–046 (+210 exploratorio) | A | Panel limpio de retornos |
 | [3. Residualización](#épica-3--residualización-del-factor-común) | 047–060 | B | Retornos idiosincráticos |
-| [4. Lead-lag](#épica-4--lead-lag-línea-base) | 061–076 | B | Grafo dirigido con FDR |
+| [4. Lead-lag](#épica-4--lead-lag-línea-base) | 061–076 (+199 exploratorio) | B | Grafo dirigido con FDR |
 | [5. Descubrimiento causal](#épica-5--descubrimiento-causal) | 077–090 | B | Grafo causal con PCMCI |
 | [6. Estabilidad](#épica-6--estabilidad-del-grafo) | 091–100 | B | ¿Aguanta el grafo en el tiempo? |
 | [7. Baselines](#épica-7--baselines-predictivos) | 101–114 | C | Los rivales del GNN |
@@ -29,7 +29,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | [10. Test económico](#épica-10--test-económico) | 143–158 | C | ¿Sobrevive a los costes? |
 | [11. Dashboard](#épica-11--dashboard) | 159–172 | Todos | Interfaz de resultados |
 | [12. Reproducibilidad](#épica-12--reproducibilidad) | 173–182 | A | Que se pueda replicar |
-| [13. Memoria y defensa](#épica-13--memoria-y-defensa) | 183–196 | Todos | El documento y el pitch |
+| [13. Memoria y defensa](#épica-13--memoria-y-defensa) | 183–196 (+200 exploratorio) | Todos | El documento y el pitch |
 
 ---
 
@@ -80,6 +80,11 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-030 | Informe de cobertura temporal por símbolo | 029 | Tabla de fecha inicial, final y % de velas presentes |
 | MIAX-031 | Documentar el sesgo de supervivencia como limitación declarada | 024 | Queda escrito qué pares faltan y por qué |
 | MIAX-032 | Tests de ingesta con fixtures, sin tocar la red | 018, 021 | `pytest` pasa sin conexión |
+| MIAX-197 | Guardar la cache de klines en data/raw/klines | 020 | Descarga, validación y cobertura usan data/raw/klines por defecto |
+| MIAX-198 | Universos trimestral (principal), semestral y anual (robustez) | 028 | Tres universos congelados; el trimestral es configs/universe.yaml |
+| MIAX-211 | Descargar las velas 1m de los pares nuevos de los tres universos (trimestral, semestral y anual), con su calentamiento | 198 | `coverage --universe` no muestra ningún par del universo sin caché; el zip compartido se regenera |
+| MIAX-209 | [EXPLORATORIO] Adaptador de ingesta de una fuente externa no cripto (p. ej. Polymarket 5m), con el mismo contrato que las klines | 016, 020 | Una serie externa se descarga, se cachea en Parquet y se relee como un símbolo de Binance |
+| MIAX-212 | Excluir del universo los pares que no cotizan al cierre de su ventana de volumen | 198, 211 | Los tres universos regenerados no tienen ningún par-periodo sin velas salvo los que dejan de cotizar ya dentro del periodo |
 
 ---
 
@@ -103,6 +108,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-044 | Contrato de la interfaz `A → B`: esquema y validación | 041 | B puede consumir el panel sin preguntar |
 | MIAX-045 | Tests de preprocesado, con foco en huecos y alineación | 035, 036 | Un hueco mal tratado hace fallar un test |
 | MIAX-046 | EDA del panel y figura de correlación cruda para la memoria | 041 | Figura en `reports/figures/` |
+| MIAX-210 | [EXPLORATORIO] Reloj event-time para series que no cotizan 24/7, sin rellenar huecos | 035, 041, 209 | Dos series con cobertura distinta se alinean sin `fillna`, con máscara, y queda documentado |
 
 ---
 
@@ -151,6 +157,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-074 | Contrato de la interfaz `B → C`: formato de adyacencia por fold | 067 | C puede consumirla sin preguntar |
 | MIAX-075 | Tests del estimador de lead-lag con series de retardo conocido | 061, 063 | Detecta un retardo inyectado a propósito |
 | MIAX-076 | Figura de memoria: grafo de lead-lag | 068, 073 | Figura en `reports/figures/` |
+| MIAX-199 | [EXPLORATORIO] Lead-lag entre series asíncronas solo en ventanas de solape (Hayashi-Yoshida + FDR) | 069, 065, 210 | Lead-lag cripto ↔ serie externa sin sesgo por huecos, con p-valores corregidos y figura |
 
 ---
 
@@ -352,6 +359,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-194 | Figuras y tablas finales unificadas de estilo | 158, 099 | Mismo estilo en todas |
 | MIAX-195 | Revisión cruzada entre los tres integrantes | 192, 193, 194 | Cada uno ha leído el capítulo de los otros |
 | MIAX-196 | Presentación de defensa y ensayo con preguntas previsibles | 195 | Ensayo cronometrado hecho |
+| MIAX-200 | [EXPLORATORIO] Experimento y sección de extensiones de la memoria: lead-lag cripto frente a no cripto | 199, 076 | Figura y párrafo de extensión, con las limitaciones declaradas y separado del resultado central |
 
 ---
 

@@ -18,11 +18,13 @@ TFM sobre relaciones de *lead-lag* entre criptoactivos. Contexto completo en [RE
 
 > **Una IA no hace el proyecto. Una IA hace *una tarea*.**
 
-Si a un agente se le da una tarea acotada, la coge, la hace y se acaba ahí. No continúa con la siguiente. No "aprovecha para" refactorizar otra cosa. No inventa alcance.
+Si a un agente se le da una tarea acotada, la coge, la hace y se acaba ahí. No continúa con la siguiente. No inventa alcance.
+
+**Refactorizar sí, a lo loco no.** El código está vivo y avanza: si para hacer bien el ticket hace falta tocar código de un ticket ya cerrado, se refactoriza en lugar de meter una chapuza o duplicar código (ver §6.5). Lo que no se hace es convertir un ticket en mil líneas cambiadas porque "ya que estaba".
 
 **Prohibido:**
 - Pedir "implementa el pipeline entero".
-- Aceptar un PR que toca más de un ticket.
+- Aceptar un PR que toca más de un ticket. Un refactor que el ticket necesita, contado en el PR, no cuenta como otro ticket.
 - Dejar que un agente decida qué hacer después.
 
 **Obligatorio:**
@@ -152,13 +154,18 @@ MIAX-092: medir similitud de adyacencia entre ventanas
 
 Un commit debe poder explicarse en una línea. Si no puedes, son dos commits.
 
+**Sin atribución a Claude:** los commits no llevan la línea `Co-Authored-By: Claude ...`. El trabajo es del equipo.
+
 ### 4.5. Pull requests
 
 - Base del PR: **`develop`**, nunca `main`.
 - Título: `MIAX-XXX: título del ticket`.
 - El cuerpo dice: qué hace, cómo se ha comprobado, qué queda fuera, y si hay riesgo de fuga de datos.
+- **Sin el pie "🤖 Generated with Claude Code"** en el cuerpo.
+- Si el código habla con Binance o con datos reales, el cuerpo incluye el resultado de la **prueba de humo real** (§6.4).
+- Si el PR incluye un refactor de código de otro ticket (§6.5), se dice explícitamente.
 - **Lo revisa una persona del equipo, no un agente.** El auditor ya pasó antes; el PR es control humano.
-- No se mergea con tests en rojo.
+- No se mergea con tests en rojo. El CI lo impide: la rama exige el check `Lint y tests`.
 
 ### 4.6. Antes de cada push
 
@@ -167,6 +174,16 @@ Tres cosas, siempre, sin excepción:
 1. Actualizar [docs/project/ESTADO.md](docs/project/ESTADO.md) con lo que has hecho (§5).
 2. Añadir tu línea al [CHANGELOG.md](CHANGELOG.md) bajo `[Sin publicar]`.
 3. Pasar los tests y el lint: `pytest`, `ruff check .` y `ruff format --check .`.
+
+### 4.7. Al mergear
+
+Quien mergea cierra el ticket. Siempre, sin dejar nada colgando:
+
+1. Mergear con **squash**: un commit por PR en `develop`. El repo ya está configurado para que el mensaje del squash reúna los mensajes de todos los commits de la rama, así que los commits de la rama tienen que estar bien escritos (§4.4). Si el mensaje sale pobre, se edita en el botón antes de confirmar.
+   - Tras un squash, git no reconoce la rama como contenida en `develop`. Para borrarla, comprueba antes con `gh pr view <n>` que el PR está `MERGED`.
+2. Mover la tarjeta a ✅ **Done** (§7.4).
+3. Borrar la rama, en GitHub y en local.
+4. Si hay una decisión `D-??` en ESTADO, ponerle su número en el siguiente PR que toque ESTADO (§5).
 
 ---
 
@@ -180,6 +197,7 @@ Somos tres personas con tres Claudes distintos que no se ven entre sí. [docs/pr
 - **Actualízalo antes de que tu humano haga push.** Tu entrada dice: qué ticket, qué has tocado, qué decisión no obvia has tomado, y qué queda pendiente.
 - **No borres entradas de otros.** El fichero crece; ya se podará al cerrar cada épica.
 - **Si hay conflicto de merge en `ESTADO.md`, se quedan las dos versiones.** Nunca se descarta la entrada de otro.
+- **Decisiones nuevas como `D-??`.** En tu rama no pongas número: dos ramas en paralelo cogerían el mismo. El número definitivo es el siguiente libre en `develop` y se pone al integrar (§4.7). La regla completa está en ESTADO §2.
 
 Sin esto, tres personas resuelven el mismo problema tres veces y de tres maneras distintas.
 
@@ -241,6 +259,23 @@ Los notebooks exploran. **La lógica vive en `src/`.** Si un notebook tiene una 
 - Todo lo de `src/` que no sea I/O puro lleva test.
 - Los que tocan fugas de datos (purga, embargo, `shift`) llevan test **sí o sí**. Es el riesgo número uno del proyecto.
 - `pytest` desde la raíz. Nada de tests que necesiten red.
+- **Prueba de humo real antes del PR.** Los tests nunca tocan la red, pero el código que habla con Binance o con datos reales se prueba **una vez de verdad**, a mano y fuera de los tests (una llamada, unos pocos símbolos, una carpeta temporal). El resultado va en el cuerpo del PR. Los datos reales enseñan lo que un cliente falso no: así se descubrió que los pares deslistados conservan su histórico.
+
+### 6.5. Refactorizar sin pasarse
+
+- Si tu ticket necesita código que ya existe pero está mal ubicado o es privado de otro módulo, **se refactoriza** (se hace público, se mueve a su sitio) en lugar de duplicarlo. Duplicar es la chapuza que se paga después.
+- Vale para código de **tickets ya cerrados**, sean de quien sean. **Nunca** se toca código de un ticket **en curso** de otro: mira *In Progress* en Trello, ESTADO §1 y las ramas remotas antes.
+- **Comportamiento idéntico:** un refactor no cambia lo que hace el código, y los tests existentes pasan **sin tocarlos**. Si un test tiene que cambiar, eso ya no es un refactor y se discute.
+- **Bugs pequeños de otros tickets** que te encuentres por el camino (una línea más su test): se arreglan en tu PR y se dicen. Si el arreglo es grande, va a ticket propio.
+- El límite es el sentido común: si el refactor es más grande que el ticket, para y pregunta.
+
+### 6.6. CLI y pipeline
+
+- **La lógica vive en funciones de `src/`.** La CLI es una capa fina por encima: no tiene lógica propia.
+- Cada paquete con CLI usa **subcomandos**: `python -m miax.<paquete> <comando>`, con un registro `{nombre: función}` en `__main__.py`. Una operación nueva es un subcomando más.
+- **Códigos de salida:** `0` bien, `1` ha fallado algo del trabajo, `2` argumentos inválidos. Nunca un traceback por un error esperado.
+- **Sin `print`** (D-11): todo va por el logger.
+- **El pipeline completo llama a las funciones, no a la terminal.** Los subcomandos son para usar y depurar a mano.
 
 ---
 
@@ -296,7 +331,7 @@ Si tienes el conector activo:
 1. **Al empezar:** lee *Sprint actual*, comprueba dependencias y propone el ticket más bajo disponible.
 2. **Al arrancar el ticket:** mueve la tarjeta a *In Progress* y le pone **tu etiqueta**. Para saber quién eres, lee tu perfil de Trello (`trelloReadMember` → `get_me`) y busca en el tablero la etiqueta con tu nombre (`trelloReadBoard` → `list_labels`). Si no la encuentra, para y avisa; no pone una al azar.
 3. **Al abrir el PR:** mueve la tarjeta a *Review* y añade al final de la descripción una línea `**PR:** <url>`. Antes lee la descripción actual (`trelloReadCard`), porque `update` la sustituye entera y no se puede perder lo que ya había.
-4. **Nunca mueve a *Done* por su cuenta.** Eso lo hace una persona tras aprobar y mergear.
+4. **Nunca mueve a *Done* por su cuenta.** Solo cuando su humano le dice que el PR está mergeado, y tras comprobarlo con `gh pr view`. Entonces hace el cierre completo de §4.7.
 
 - **Una etiqueta de persona por tarjeta.** Si otro retoma un ticket, se quita la etiqueta anterior (`detach_label`) y se pone la suya.
 - **La etiqueta se queda** al pasar a *Review* y *Done*: así queda registro de quién hizo qué.

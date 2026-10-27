@@ -73,7 +73,7 @@ def test_defaults_call_update_symbol_with_last_30_days(spy: _Spy) -> None:
     (args, kwargs) = spy.calls[0]
     # NOW cae justo en el cambio de minuto: la vela de las 12:00 aun esta en curso.
     assert args == ("BTCUSDT", "1m", NOW_MS - 30 * DAY_MS, NOW_MS - 1)
-    assert kwargs["base_dir"] == "data/klines"
+    assert kwargs["base_dir"] == "data/raw/klines"
     assert kwargs["base_url"] == "https://api.binance.com"
 
 

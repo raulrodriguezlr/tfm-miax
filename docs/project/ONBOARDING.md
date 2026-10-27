@@ -75,7 +75,9 @@ Sin ella no puedes abrir PR desde Claude. Tres pasos: `winget install --id GitHu
 
 > **Una IA no hace el proyecto. Una IA hace *una tarea*.**
 
-Si le das una tarea acotada, la coge, la hace y para. No sigue con la siguiente. No "aprovecha para" refactorizar otra cosa.
+Si le das una tarea acotada, la coge, la hace y para. No sigue con la siguiente.
+
+**Refactorizar sí, a lo loco no.** Si el ticket necesita tocar código de un ticket ya cerrado, se refactoriza antes que hacer una chapuza o duplicar. Lo que no vale es cambiar mil líneas por ticket. Detalle en `CLAUDE.md` §6.5.
 
 **Prohibido:**
 - Pedir "implementa el pipeline entero".
@@ -99,8 +101,9 @@ Cada ticket recorre esto. Sin atajos.
  5. Ejecutas CON SONNET       coder → auditor → fixer → tester
  6. Revisas el diff TÚ        no delegues esto
  7. Actualizas ESTADO.md      y CHANGELOG.md, antes del push
- 8. Abres el PR               base develop
- 9. Un compañero aprueba      merge → snapshot
+ 8. Abres el PR               base develop, con la prueba de humo real si toca datos
+ 9. Un compañero aprueba      squash, con el mensaje de todos los commits → snapshot
+10. Quien mergea cierra       tarjeta a Done y rama borrada (CLAUDE.md §4.7)
 ```
 
 ### Los cuatro subagentes
@@ -128,7 +131,7 @@ Están en `.claude/agents/`, versionados en el repo. No hay que configurar nada.
 
 - **Nunca se escribe directo en `main` ni en `develop`.** Todo por PR.
 - Rama = el ticket: `feature/MIAX-014`. Sin descripción, el ticket ya la tiene.
-- Commit: `MIAX-014: qué hace, en imperativo`.
+- Commit: `MIAX-014: qué hace, en imperativo`. Sin `Co-Authored-By` de Claude, y los PR sin el pie "Generated with Claude Code".
 - Cada merge a `develop` = snapshot. Cada merge a `main` = release con tag.
 - `MINOR` sube al cerrar una épica. `v1.0.0` = entrega al tribunal.
 
@@ -211,23 +214,16 @@ Si vas a contradecir una, se habla antes.
 
 ## 10. Reparto
 
-| Persona | Área | Épicas |
-|---|---|---|
-| **Raúl** | Datos e infraestructura | 0, 1, 2, 12 |
-| **Piettro** | Estructura del grafo | 3, 4, 5, 6 |
-| **Alonso** | Modelado y evaluación | 7, 8, 9, 10 |
-| Los tres | Dashboard y memoria | 11, 13 |
+**No hay reparto fijo: los tres hacemos de todo.** Cada uno coge el ticket más bajo disponible cuyas dependencias estén cerradas, sea de la épica que sea. El PR lo revisa otra persona del equipo.
 
-*Reparto provisional: se acuerda entre los tres antes de arrancar.*
-
-El área no es propiedad exclusiva: si estás bloqueado, coges un ticket de otra épica cuyas dependencias estén cerradas. Pero **el que conoce el área revisa el PR**.
+Las letras **A**, **B** y **C** del backlog (`Área: A`…) no son personas: son las tres etapas del pipeline (datos, grafo y modelado).
 
 ### Interfaces entre áreas
 
 El contrato que evita bloqueos. Si cambias una, **avisas antes, no después**:
 
-- **Datos → Grafo:** panel limpio de retornos alineados en Parquet.
-- **Grafo → Modelado:** matriz de adyacencia por *fold*.
+- **Datos → Grafo (A → B):** un panel por periodo (objeto `Panel`, con caché en Parquet); el contrato está en [`docs/datos/contrato-a-b.md`](../datos/contrato-a-b.md).
+- **Grafo → Modelado (B → C):** matriz de adyacencia por *fold*.
 
 ---
 
@@ -253,6 +249,8 @@ El contrato que evita bloqueos. Si cambias una, **avisas antes, no después**:
 | Qué hace cada uno ahora | [ESTADO.md](ESTADO.md) |
 | Qué hace cada versión | [CHANGELOG.md](../../CHANGELOG.md) |
 | El tablero | https://trello.com/b/PBzf0gtT/tfm-miax-lead-lag-cripto |
+
+**Los datos no van por Git.** La cache de klines vive en `data/raw/klines/<SÍMBOLO>/<intervalo>/AAAA-MM.parquet` y `data/` está ignorado. Para tenerla, copia la carpeta `klines` del Drive dentro de `data/raw/` y comprueba que se lee con `python -m miax.ingest validate --symbol BTCUSDT`.
 
 ---
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -14,6 +15,7 @@ logger = get_logger(__name__)
 DEFAULT_BASE_URL = "https://api.binance.com"
 KLINES_PATH = "/api/v3/klines"
 MAX_LIMIT = 1000  # maximo de velas por llamada que admite Binance
+KLINES_WEIGHT = 2  # peso de /klines segun Binance (limit <= 1000), para el limitador
 
 # Columnas crudas de Binance, en el orden de la respuesta, con su dtype.
 KLINE_DTYPES: dict[str, str] = {
@@ -31,6 +33,55 @@ KLINE_DTYPES: dict[str, str] = {
     "ignore": "float64",
 }
 KLINE_COLUMNS = list(KLINE_DTYPES)
+
+DAY_MS = 24 * 60 * 60 * 1000
+INTERVAL_PATTERN = re.compile(r"^(\d+)([smhdw])$")
+UNIT_MS = {
+    "s": 1000,
+    "m": 60 * 1000,
+    "h": 60 * 60 * 1000,
+    "d": DAY_MS,
+    "w": 7 * DAY_MS,
+}
+# La epoca (jueves) no cae en lunes: las velas semanales de Binance abren en lunes 00:00 UTC.
+WEEK_OFFSET_MS = 4 * DAY_MS
+
+
+def interval_ms(interval: str) -> int | None:
+    """Devuelve la duracion de `interval` en ms, o None si no tiene duracion fija o es 0."""
+    match = INTERVAL_PATTERN.match(interval)
+    if match is None:
+        return None
+    step = int(match.group(1)) * UNIT_MS[match.group(2)]
+    return step or None
+
+
+def candle_offset_ms(interval: str) -> int:
+    """Devuelve el desfase respecto a la epoca en que abren las velas: lunes para `w`, 0 si no."""
+    # Las velas semanales abren en lunes y la epoca es jueves.
+    return WEEK_OFFSET_MS if interval.endswith("w") else 0
+
+
+def slot_bounds(start_ms: int, end_ms: int, interval: str) -> tuple[int, int, int]:
+    """Da el primer y el ultimo slot de `interval` en `[start_ms, end_ms)` y cuantos hay.
+
+    Si no cabe ningun slot, `expected` es 0 y `last_slot` queda por debajo de `first_slot`.
+    """
+    step = interval_ms(interval)
+    if step is None:
+        raise ValueError(f"El intervalo {interval!r} no tiene duracion fija")
+    if start_ms >= end_ms:
+        raise ValueError(f"Rango vacio o invertido: [{start_ms}, {end_ms})")
+    offset = candle_offset_ms(interval)
+    # Rango semiabierto: el primer slot es el primero >= start_ms y el ultimo el ultimo < end_ms.
+    first_k = _ceil_div(start_ms - offset, step)
+    last_k = _ceil_div(end_ms - offset, step) - 1
+    return offset + first_k * step, offset + last_k * step, max(0, last_k - first_k + 1)
+
+
+def _ceil_div(numerator: int, denominator: int) -> int:
+    """Division entera redondeada hacia arriba (denominador positivo)."""
+    return -(-numerator // denominator)
 
 
 def _to_frame(rows: list[list[Any]]) -> pd.DataFrame:
@@ -67,7 +118,7 @@ def download_klines(
                 "endTime": end_ms,
                 "limit": limit,
             }
-            block = http.get(url, params=params).json()
+            block = http.get(url, params=params, weight=KLINES_WEIGHT).json()
             if not block:
                 break
             last_open_time = int(block[-1][0])

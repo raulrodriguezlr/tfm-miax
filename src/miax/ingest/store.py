@@ -13,10 +13,12 @@ from miax.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-DEFAULT_BASE_DIR = "data/klines"
+DEFAULT_BASE_DIR = "data/raw/klines"
 _MONTH_FORMAT = "%Y-%m"
 _MONTH_STEM = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
-_SAFE_SEGMENT = re.compile(r"^[A-Za-z0-9_.-]+$")
+# `\w` es Unicode con `str` (hay simbolos de Binance no latinos, p. ej. 币安人生USDT) y sigue sin
+# admitir separadores de ruta ni ':'; el vacio, '.' y '..' se rechazan aparte.
+_SAFE_SEGMENT = re.compile(r"^[\w.-]+$")
 
 
 def _validate_segment(name: str) -> str:
@@ -27,6 +29,19 @@ def _validate_segment(name: str) -> str:
             "sin separadores, ':' ni '..')"
         )
     return name
+
+
+def month_files(symbol: str, interval: str, base_dir: str | Path) -> tuple[Path, list[Path]]:
+    """Devuelve la carpeta de `symbol`/`interval` y sus ficheros de mes ordenados."""
+    directory = (
+        resolve_repo_path(base_dir) / _validate_segment(symbol) / _validate_segment(interval)
+    )
+    paths = sorted(p for p in directory.glob("*.parquet") if _MONTH_STEM.fullmatch(p.stem))
+    return directory, paths
+
+
+# Alias para los usos previos al refactor (integrity.py y los tests).
+_month_files = month_files
 
 
 def _month_bounds_ms(month: str) -> tuple[int, int]:
@@ -67,6 +82,28 @@ def save_klines(
     return paths
 
 
+def cache_bounds(
+    symbol: str, interval: str, *, base_dir: str | Path = DEFAULT_BASE_DIR
+) -> tuple[int, int] | None:
+    """Da el primer y el ultimo `open_time` cacheados, o None; lee solo los ficheros extremos."""
+    _, paths = month_files(symbol, interval, base_dir)
+    # Los meses van ordenados por nombre: el minimo esta en el primer fichero con velas y el
+    # maximo en el ultimo, asi que no hace falta leer el historico entero.
+    first: int | None = None
+    for path in paths:
+        opens = read_parquet(path, columns=["open_time"])["open_time"]
+        if len(opens):
+            first = int(opens.min())
+            break
+    if first is None:
+        return None
+    for path in reversed(paths):
+        opens = read_parquet(path, columns=["open_time"])["open_time"]
+        if len(opens):
+            return first, int(opens.max())
+    return None
+
+
 def load_klines(
     symbol: str,
     interval: str,
@@ -74,8 +111,20 @@ def load_klines(
     base_dir: str | Path = DEFAULT_BASE_DIR,
     start_ms: int | None = None,
     end_ms: int | None = None,
+    columns: list[str] | None = None,
 ) -> pd.DataFrame:
-    """Lee las klines cacheadas (solo las de [start_ms, end_ms] si se indica), por `open_time`."""
+    """Lee las klines cacheadas (solo las de [start_ms, end_ms] si se indica), por `open_time`.
+
+    Con `columns` lee solo esas (mas `open_time`, siempre); por defecto devuelve las 12.
+    """
+    if columns is None:
+        selected = KLINE_COLUMNS
+    else:
+        unknown = [c for c in columns if c not in KLINE_COLUMNS]
+        if unknown:
+            raise ValueError(f"Columnas de klines desconocidas: {unknown}")
+        # `open_time` va siempre: es la clave por la que se ordena y se filtra el rango.
+        selected = ["open_time", *dict.fromkeys(c for c in columns if c != "open_time")]
     directory = (
         resolve_repo_path(base_dir) / _validate_segment(symbol) / _validate_segment(interval)
     )
@@ -90,14 +139,14 @@ def load_klines(
             continue
         if start_ms is not None and month_end <= start_ms:
             continue
-        frames.append(read_parquet(path))
+        frames.append(read_parquet(path, columns=selected))
 
     if not frames:
-        return pd.DataFrame({c: pd.Series(dtype=t) for c, t in KLINE_DTYPES.items()})
+        return pd.DataFrame({c: pd.Series(dtype=KLINE_DTYPES[c]) for c in selected})
 
     result = pd.concat(frames, ignore_index=True).sort_values("open_time", kind="stable")
     if start_ms is not None:
         result = result[result["open_time"] >= start_ms]
     if end_ms is not None:
         result = result[result["open_time"] <= end_ms]
-    return result.reset_index(drop=True)[KLINE_COLUMNS]
+    return result.reset_index(drop=True)[selected]

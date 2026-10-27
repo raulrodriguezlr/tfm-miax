@@ -51,7 +51,7 @@ class _SpyBinance:
         self.candles = [_row(T0 + i * HOUR_MS) for i in range(n_candles)]
         self.calls: list[dict[str, Any]] = []
 
-    def get(self, url: str, params: dict[str, Any] | None = None) -> _FakeResponse:
+    def get(self, url: str, params: dict[str, Any] | None = None, weight: int = 1) -> _FakeResponse:
         """Registra la llamada y devuelve el bloque que Binance serviria."""
         assert params is not None
         self.calls.append(dict(params))
