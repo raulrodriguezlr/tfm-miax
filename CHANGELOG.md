@@ -15,7 +15,13 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ## [Sin publicar]
 
-### Añadido · Épica 2 (panel y preprocesado)
+---
+
+## [v0.3.0] — 2026-10-27
+
+Cierra la Épica 2 (panel y preprocesado): el contrato de la interfaz `A → B` que valida el panel al construirlo y cargarlo, la prueba de punta a punta del tratamiento de huecos y la figura de correlación cruda, la foto del «antes» del espejismo de factor que se comparará tras residualizar (Épica 3).
+
+### Añadido · Épica 2 (panel y preprocesado, cierre)
 - Figura de correlación cruda entre activos (mapa de calor ordenado por categoría, correlación con BTC y varianza de cada componente principal) y tablas con sus cifras, regenerables con `python -m miax.viz raw-correlation`; es la foto del «antes» de residualizar (MIAX-046)
 - Contrato de la interfaz `A → B`: `docs/datos/contrato-a-b.md` explica qué es cada feature del panel, en qué unidades está, cómo se leen el tiempo y los huecos y qué no debe hacer quien lo consume, y `validate_panel` lo comprueba automáticamente al construir y al cargar cada panel (sin `inf`, `NaN` en los huecos, sin retornos que salten un hueco, volatilidad no negativa, rejilla regular en UTC) (MIAX-044)
 - Red de seguridad del tratamiento de huecos: una prueba de punta a punta recorre la cadena de la caché de velas al panel sobre un escenario sintético con todos los tipos de hueco (vela suelta, minutos sin operaciones, listado tardío, deslistado, caída general y un hueco a caballo de un cambio de mes) y la compara minuto a minuto con un cálculo independiente; estropear a propósito el tratamiento (rellenar con ceros, dar por válidos los minutos sin operaciones, saltarse el hueco, desalinear un minuto) hace fallar los tests (MIAX-045)
@@ -113,6 +119,7 @@ Primera release. Cierra la Épica 0: entorno fijado, paquete instalable, lint, t
 ### Cambiado
 - Las tarjetas de Trello se asignan con una etiqueta por persona y la URL del PR se añade a la descripción, porque el conector de Trello no puede asignar miembros ni comentar (MIAX-005)
 
-[Sin publicar]: https://github.com/raulrodriguezlr/tfm-miax/compare/v0.2.0...develop
+[Sin publicar]: https://github.com/raulrodriguezlr/tfm-miax/compare/v0.3.0...develop
+[v0.3.0]: https://github.com/raulrodriguezlr/tfm-miax/releases/tag/v0.3.0
 [v0.2.0]: https://github.com/raulrodriguezlr/tfm-miax/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/raulrodriguezlr/tfm-miax/releases/tag/v0.1.0
