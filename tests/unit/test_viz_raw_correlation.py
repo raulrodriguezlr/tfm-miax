@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
+import matplotlib
 import numpy as np
 import pandas as pd
 import pytest
+from matplotlib.figure import Figure
 
 import miax.viz.__main__ as cli
 from miax.ingest import save_klines
@@ -22,6 +26,7 @@ from miax.viz import (
     plot_raw_correlation,
     raw_correlation,
     save_figure,
+    symbols_without_data,
 )
 
 MIN_MS = 60_000
@@ -512,3 +517,438 @@ def test_cli_period_not_in_universe_exits_1(capsys: pytest.CaptureFixture[str]) 
 def test_cli_registry_maps_names_to_functions() -> None:
     """El registro de subcomandos tiene `raw-correlation`."""
     assert set(cli._COMMANDS) == {"raw-correlation"}
+
+
+# --- monedas sin datos en el periodo (MIAX-213) ---
+
+GREY = (217, 217, 217)  # "#d9d9d9", el color de las casillas sin dato
+
+
+def _no_data_returns() -> pd.DataFrame:
+    """Retornos con una constante (S1), una con pocos datos (S2) y una toda NaN (S3)."""
+    returns = _one_factor(30, 400, 5, 0.6)
+    returns["S1"] = 0.0
+    returns["S2"] = np.where(np.arange(400) < 50, returns["S2"], np.nan)
+    returns["S3"] = np.nan
+    return returns
+
+
+def test_symbols_without_data_finds_all_nan_constant_and_short_in_matrix_order() -> None:
+    """Columna toda NaN, constante y con menos de `min_periods`: salen, en el orden de la matriz."""
+    corr = raw_correlation(_no_data_returns(), min_periods=100)
+    assert symbols_without_data(corr) == ["S1", "S2", "S3"]
+    order = ["S3", "S0", "S2", "S4", "S1"]
+    assert symbols_without_data(corr.loc[order, order]) == ["S3", "S2", "S1"]
+
+
+def test_symbols_without_data_is_empty_when_every_diagonal_is_valid() -> None:
+    """Sin ninguna diagonal NaN devuelve una lista vacia (y es una lista)."""
+    corr = raw_correlation(_one_factor(31, 300, 4, 0.5), min_periods=10)
+    result = symbols_without_data(corr)
+    assert result == [] and isinstance(result, list)
+
+
+def test_symbols_without_data_ignores_valid_diagonal_without_valid_pairs() -> None:
+    """Una moneda con datos propios sin solape NO se aparta (decision documentada)."""
+    returns = _one_factor(32, 400, 4, 0.6)
+    returns.loc[150:, "S3"] = np.nan  # S3 tiene 150 datos...
+    returns.loc[:149, ["S0", "S1", "S2"]] = np.nan  # ...y ninguna fila comun con las demas
+    corr = raw_correlation(returns, min_periods=100)
+    assert corr.loc["S3", "S3"] == 1.0 and corr.loc["S3"].drop("S3").isna().all()
+    assert symbols_without_data(corr) == []
+
+
+def _write_klines_from(base_dir: Path, symbol: str, close: np.ndarray, first_minute: int) -> None:
+    """Como `_write_klines` pero empezando en el minuto `first_minute` del dia."""
+    n = len(close)
+    open_times = [T0 + (first_minute + k) * MIN_MS for k in range(n)]
+    frame = pd.DataFrame(
+        {
+            "open_time": open_times,
+            "open": close,
+            "high": close,
+            "low": close,
+            "close": close,
+            "volume": [1.0] * n,
+            "close_time": [t + MIN_MS - 1 for t in open_times],
+            "quote_asset_volume": [10.0] * n,
+            "num_trades": [5] * n,
+            "taker_buy_base": [0.5] * n,
+            "taker_buy_quote": [5.0] * n,
+            "ignore": [0.0] * n,
+        },
+        columns=KLINE_COLUMNS,
+    ).astype(KLINE_DTYPES)
+    save_klines(frame, symbol, "1m", base_dir=base_dir)
+
+
+EXTRA_CATEGORIES = {
+    "NEWUSDT": "ai",
+    "ZETAUSDT": "ai",
+    "OLDUSDT": "gaming",
+    "LASTUSDT": "zk",
+    "SHORTUSDT": "ai",
+}
+
+
+def _universe_frame(categories: dict[str, str]) -> pd.DataFrame:
+    """Universo de un periodo (2024-01-01 a 2024-01-02) con esos simbolos y categorias."""
+    rows = [("2024-01-01", "2024-01-02", s, c) for s, c in categories.items()]
+    universe = pd.DataFrame(rows, columns=["period_start", "period_end", "symbol", "category"])
+    for column in ("period_start", "period_end"):
+        universe[column] = pd.to_datetime(universe[column], utc=True).astype("datetime64[us, UTC]")
+    return universe
+
+
+def _dead_world(
+    base_dir: Path,
+    *,
+    dead: Sequence[str] = (),
+    drop: Sequence[str] = (),
+    short: Sequence[str] = (),
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """El mundo de `_world` mas monedas sin velas (`dead`) y con 50 velas (`short`).
+
+    Las de `drop` estan en el universo pero no tienen velas. Devuelve el universo y los retornos
+    de las cinco monedas de `SYMBOLS` (los mismos que `_world`: misma semilla).
+    """
+    rng = np.random.default_rng(11)
+    factor = rng.standard_normal(MINUTES)
+    returns = {}
+    for symbol, (_, beta_shift) in SYMBOLS.items():
+        beta = 0.9 - 0.1 * beta_shift
+        r = 0.001 * (beta * factor + np.sqrt(1 - beta**2) * rng.standard_normal(MINUTES))
+        returns[symbol] = r
+        if symbol not in drop:
+            _write_klines_from(base_dir, symbol, 100.0 * np.exp(np.cumsum(r)), 0)
+    for symbol in short:
+        walk = 100.0 * np.exp(np.cumsum(0.001 * rng.standard_normal(50)))
+        _write_klines_from(base_dir, symbol, walk, 0)
+    categories = {s: c for s, (c, _) in SYMBOLS.items()}
+    categories.update({s: EXTRA_CATEGORIES[s] for s in (*dead, *short)})
+    return _universe_frame(categories), pd.DataFrame(returns)
+
+
+def _report(tmp_path: Path, name: str, universe: pd.DataFrame, **kwargs: object) -> ReportPaths:
+    """Informe con base, cache y salidas en `tmp_path / name` (varias ejecuciones por test)."""
+    return build_raw_correlation_report(
+        "2024-01-01",
+        universe=universe,
+        min_periods=100,
+        base_dir=tmp_path / name / "klines",
+        cache_dir=tmp_path / name / "panels",
+        out_dir=tmp_path / name / "figures",
+        tables_dir=tmp_path / name / "tables",
+        **kwargs,
+    )
+
+
+class _SpyPlot:
+    """Sustituto de `plot_raw_correlation` que recuerda los argumentos y llama al original."""
+
+    def __init__(self) -> None:
+        self.title = ""
+        self.without_data: Sequence[str] = ()
+
+    def __call__(self, *args: object, **kwargs: object) -> object:
+        self.title = str(kwargs["title"])
+        self.without_data = kwargs["without_data"]  # type: ignore[assignment]
+        return plot_raw_correlation(*args, **kwargs)  # type: ignore[arg-type]
+
+
+@pytest.fixture
+def spy_plot(monkeypatch: pytest.MonkeyPatch) -> _SpyPlot:
+    """Intercepta el titulo y las monedas apartadas que `build_raw_correlation_report` dibuja."""
+    spy = _SpyPlot()
+    # `miax.viz.raw_correlation` como atributo del paquete es la funcion: se pide el modulo.
+    module = sys.modules["miax.viz.raw_correlation"]
+    monkeypatch.setattr(module, "plot_raw_correlation", spy)
+    return spy
+
+
+@pytest.fixture
+def miax_warnings(caplog: pytest.LogCaptureFixture) -> Iterator[pytest.LogCaptureFixture]:
+    """`caplog` enganchado al logger del modulo (el logger de miax no propaga al raiz)."""
+    module_logger = logging.getLogger("miax.viz.raw_correlation")
+    module_logger.addHandler(caplog.handler)
+    caplog.set_level(logging.WARNING, logger="miax.viz.raw_correlation")
+    yield caplog
+    module_logger.removeHandler(caplog.handler)
+
+
+def _read_summary(path: Path) -> pd.Series:
+    """Resumen CSV como texto tal cual (sin convertir ni perder los vacios)."""
+    table = pd.read_csv(path, dtype=str, keep_default_na=False, index_col="metric")
+    return table["value"]
+
+
+def test_report_with_a_coin_without_candles_runs_and_summarises_the_others(
+    tmp_path: Path, spy_plot: _SpyPlot, miax_warnings: pytest.LogCaptureFixture
+) -> None:
+    """Una moneda sin velas no hace fallar el informe; las cifras son las de las demas."""
+    universe, raw = _dead_world(tmp_path / "klines", dead=["NEWUSDT"])
+    paths = _build(tmp_path, universe)
+    for path in paths:
+        assert path.is_file() and path.stat().st_size > 0
+
+    summary = _read_summary(paths.summary_csv)
+    assert summary["n_symbols_in_universe"] == "6"
+    assert summary["n_symbols_without_data"] == "1"
+    assert summary["symbols_without_data"] == "NEWUSDT"
+    assert summary["n_symbols"] == "5"
+    assert summary["n_pairs"] == "10" and summary["n_missing_pairs"] == "0"
+
+    # Calculo manual sobre las cinco monedas con datos, sin miax.viz (el retorno de la vela k lleva
+    # la hora de su cierre, D-19: se descarta el primero y el ultimo).
+    manual = np.corrcoef(raw.to_numpy()[1:-1], rowvar=False)
+    upper = manual[np.triu_indices(5, k=1)]
+    eigenvalues = np.sort(np.linalg.eigvalsh(manual))[::-1]
+    assert float(summary["pair_mean"]) == pytest.approx(upper.mean(), abs=1e-6)
+    assert float(summary["pair_median"]) == pytest.approx(np.median(upper), abs=1e-6)
+    assert float(summary["pair_min"]) == pytest.approx(upper.min(), abs=1e-6)
+    assert float(summary["pair_max"]) == pytest.approx(upper.max(), abs=1e-6)
+    assert float(summary["first_eigenvalue"]) == pytest.approx(eigenvalues[0], abs=1e-6)
+    assert float(summary["second_eigenvalue"]) == pytest.approx(eigenvalues[1], abs=1e-6)
+    assert float(summary["first_eigenvalue_share"]) == pytest.approx(eigenvalues[0] / 5, abs=1e-6)
+
+    # La tabla por simbolo SI incluye la moneda sin datos, con 0 % valido y 100 % de NaN.
+    eda = pd.read_csv(paths.eda_csv, index_col="symbol")
+    assert list(eda.index) == ["BTCUSDT", "NEWUSDT", "AAVEUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"]
+    assert eda.loc["NEWUSDT", "valid_pct"] == 0.0 and eda.loc["NEWUSDT", "return_nan_pct"] == 100.0
+    assert np.isnan(eda.loc["NEWUSDT", "corr_BTCUSDT"])
+    assert (eda.drop(index="NEWUSDT")["valid_pct"] > 99).all()
+
+    # La figura recibe las monedas apartadas y se avisa una vez, con su nombre.
+    assert list(spy_plot.without_data) == ["NEWUSDT"]
+    warnings = [
+        r.getMessage() for r in miax_warnings.records if r.name == "miax.viz.raw_correlation"
+    ]
+    assert len(warnings) == 1 and "NEWUSDT" in warnings[0] and "fuera del resumen" in warnings[0]
+
+
+def test_report_with_a_short_history_coin_sets_it_aside(tmp_path: Path) -> None:
+    """Una moneda con menos de `min_periods` velas (50) tambien se aparta, como una sin velas."""
+    universe, _ = _dead_world(tmp_path / "klines", short=["SHORTUSDT"])
+    summary = _read_summary(_build(tmp_path, universe).summary_csv)
+    assert summary["symbols_without_data"] == "SHORTUSDT"
+    assert summary["n_symbols_without_data"] == "1" and summary["n_symbols"] == "5"
+    assert summary["n_missing_pairs"] == "0"
+
+
+def test_report_common_rows_equal_the_universe_without_the_dead_coin(tmp_path: Path) -> None:
+    """Con o sin la moneda muerta, las filas comunes del resumen son exactamente las mismas."""
+    alive_universe, raw = _dead_world(tmp_path / "alive" / "klines")
+    dead_universe, _ = _dead_world(tmp_path / "dead" / "klines", dead=["NEWUSDT"])
+    alive = _read_summary(_report(tmp_path, "alive", alive_universe).summary_csv)
+    dead = _read_summary(_report(tmp_path, "dead", dead_universe).summary_csv)
+
+    # Sin moneda muerta: las 3 filas nuevas valen 5, 0 y vacio.
+    assert alive["n_symbols_in_universe"] == "5"
+    assert alive["n_symbols_without_data"] == "0"
+    assert alive["symbols_without_data"] == ""
+
+    # Calculo directo con las funciones publicas sobre la matriz de las cinco monedas.
+    order = ["BTCUSDT", "AAVEUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT"]
+    corr = raw_correlation(raw.iloc[1:-1][order], min_periods=100)
+    for key, value in correlation_summary(corr).items():
+        if isinstance(value, str):
+            assert alive[key] == value, key
+        else:
+            assert float(alive[key]) == pytest.approx(value, abs=1e-8), key
+
+    # Con la moneda muerta, todas las filas salvo las 3 del universo son identicas, byte a byte.
+    own = {"n_symbols_in_universe", "n_symbols_without_data", "symbols_without_data"}
+    assert list(dead.index) == list(alive.index)
+    assert all(alive[k] == dead[k] for k in alive.index if k not in own)
+    # Las 3 filas nuevas van justo despues de min_periods.
+    assert list(alive.index)[3:7] == [
+        "min_periods",
+        "n_symbols_in_universe",
+        "n_symbols_without_data",
+        "symbols_without_data",
+    ]
+
+
+def test_report_joins_several_dead_coins_with_semicolon_in_matrix_order(tmp_path: Path) -> None:
+    """Varias monedas muertas se unen con `;` en el orden de la matriz, no el de entrada."""
+    dead = ["LASTUSDT", "OLDUSDT", "ZETAUSDT"]  # matriz: ZETA (ai), OLD (gaming), LAST (zk)
+    universe, _ = _dead_world(tmp_path / "klines", dead=dead)
+    summary = _read_summary(_build(tmp_path, universe).summary_csv)
+    assert summary["symbols_without_data"] == "ZETAUSDT;OLDUSDT;LASTUSDT"
+    assert summary["n_symbols_without_data"] == "3"
+    assert summary["n_symbols_in_universe"] == "8" and summary["n_symbols"] == "5"
+    assert summary["n_missing_pairs"] == "0"
+
+
+def test_report_title_counts_symbols_with_data_only_when_some_are_set_aside(
+    tmp_path: Path, spy_plot: _SpyPlot
+) -> None:
+    """El titulo general dice "N criptoactivos (M con datos)" solo si hay monedas apartadas."""
+    dead_universe, _ = _dead_world(tmp_path / "dead" / "klines", dead=["NEWUSDT"])
+    _report(tmp_path, "dead", dead_universe)
+    assert "entre 6 criptoactivos (5 con datos), trimestre desde 2024-01-01" in spy_plot.title
+
+    alive_universe, _ = _dead_world(tmp_path / "alive" / "klines")
+    _report(tmp_path, "alive", alive_universe)
+    assert "entre 5 criptoactivos, trimestre desde 2024-01-01" in spy_plot.title
+    assert "con datos" not in spy_plot.title and list(spy_plot.without_data) == []
+
+
+def test_report_factor_without_data_raises(tmp_path: Path) -> None:
+    """Si el factor (BTC) no tiene datos en el periodo, `ValueError` claro."""
+    universe, _ = _dead_world(tmp_path / "klines", drop=["BTCUSDT"])
+    with pytest.raises(ValueError, match="no tiene datos"):
+        _build(tmp_path, universe)
+
+
+def test_report_fewer_than_two_symbols_with_data_raises_before_warning(
+    tmp_path: Path, miax_warnings: pytest.LogCaptureFixture
+) -> None:
+    """Con menos de 2 monedas con datos, `ValueError` y sin el aviso de "fuera del resumen"."""
+    # Control positivo: el aviso si llega a `miax_warnings` cuando hay una moneda apartada.
+    ok_universe, _ = _dead_world(tmp_path / "ok" / "klines", dead=["NEWUSDT"])
+    _report(tmp_path, "ok", ok_universe)
+    assert any("fuera del resumen" in r.getMessage() for r in miax_warnings.records)
+    miax_warnings.clear()
+
+    drop = ["ETHUSDT", "SOLUSDT", "DOGEUSDT", "AAVEUSDT"]  # solo BTC tiene datos
+    universe, _ = _dead_world(tmp_path / "klines", drop=drop)
+    with pytest.raises(ValueError, match="menos de 2 simbolos con datos"):
+        _build(tmp_path, universe)
+    assert not any("fuera del resumen" in r.getMessage() for r in miax_warnings.records)
+
+
+def _late_world(base_dir: Path) -> pd.DataFrame:
+    """BTC y 4 monedas con velas solo desde el minuto 300; LATE, con 150 velas, solo antes."""
+    rng = np.random.default_rng(12)
+    categories = {s: c for s, (c, _) in SYMBOLS.items()}
+    factor = rng.standard_normal(MINUTES - 300)
+    for symbol in SYMBOLS:
+        r = 0.001 * (0.7 * factor + 0.7 * rng.standard_normal(MINUTES - 300))
+        _write_klines_from(base_dir, symbol, 100.0 * np.exp(np.cumsum(r)), 300)
+    late = 100.0 * np.exp(np.cumsum(0.001 * rng.standard_normal(150)))
+    _write_klines_from(base_dir, "LATEUSDT", late, 0)
+    categories["LATEUSDT"] = "ai"
+    return _universe_frame(categories)
+
+
+def test_report_still_fails_on_missing_pairs_between_coins_with_data(tmp_path: Path) -> None:
+    """Una moneda con datos propios y sin solape con nadie sigue haciendo saltar el 5 %."""
+    universe = _late_world(tmp_path / "klines")
+    with pytest.raises(ValueError, match="faltan"):
+        _build(tmp_path, universe)
+
+    # Con el limite subido pasa, y los 5 pares de LATE cuentan como ausentes (no se aparta).
+    summary = _read_summary(_build(tmp_path, universe, "wide", max_nan_share=0.4).summary_csv)
+    assert summary["n_symbols_without_data"] == "0" and summary["symbols_without_data"] == ""
+    assert summary["n_symbols"] == "6" and summary["n_missing_pairs"] == "5"
+
+
+# --- figura con monedas sin datos ---
+
+
+def _figure_with_dead(dead: Sequence[str]) -> tuple[Figure, pd.DataFrame]:
+    """Figura de 4 monedas con datos (BTC primero) y las de `dead` sin datos."""
+    live = ["BTCUSDT", "AAAUSDT", "BBBUSDT", "CCCUSDT"]
+    returns = _one_factor(33, 600, len(live) + len(dead), 0.6)
+    returns.columns = [*live, *dead]
+    for symbol in dead:
+        returns[symbol] = np.nan
+    categories = {s: "l1" if s == "BTCUSDT" else "ai" for s in returns.columns}
+    corr = raw_correlation(returns, min_periods=10)
+    without = symbols_without_data(corr)
+    kept = corr.drop(index=without, columns=without)
+    figure = plot_raw_correlation(
+        corr,
+        categories,
+        correlation_summary(kept),
+        explained_variance(kept),
+        title="prueba",
+        without_data=without,
+    )
+    return figure, corr
+
+
+def _title_c(figure: Figure) -> str:
+    """Titulo del panel (c)."""
+    return next(ax.get_title() for ax in figure.axes if ax.get_title().startswith("(c)"))
+
+
+def test_heatmap_does_not_paint_missing_cells_as_zero() -> None:
+    """Las casillas NaN van enmascaradas y con el color "bad" gris, no con el 0 (blanco)."""
+    before = tuple(matplotlib.colormaps["RdBu_r"].get_bad())
+    figure, corr = _figure_with_dead(["XXXUSDT", "YYYUSDT"])
+    image = figure.axes[0].images[0]
+    array = image.get_array()
+    bad = np.ma.getmaskarray(array) | np.isnan(np.ma.getdata(array))
+    np.testing.assert_array_equal(bad, corr.isna().to_numpy())
+    assert bad.sum() == 2 * 6 * 2 - 4  # 2 filas + 2 columnas de 6, sin contar dos veces el cruce
+    assert tuple(image.get_cmap().get_bad()) == matplotlib.colors.to_rgba("#d9d9d9")
+    assert tuple(matplotlib.colormaps["RdBu_r"].get_bad()) == before
+    assert image.get_cmap() is not matplotlib.colormaps["RdBu_r"]
+
+
+def test_heatmap_missing_cell_is_rendered_grey_not_white() -> None:
+    """En el render, una casilla sin dato sale gris y una con dato no."""
+    figure, corr = _figure_with_dead(["XXXUSDT"])
+    ax = figure.axes[0]
+    figure.canvas.draw()
+    pixels = np.asarray(figure.canvas.buffer_rgba())
+    height = pixels.shape[0]
+
+    def colour(row: int, col: int) -> tuple[int, int, int]:
+        x, y = ax.transData.transform((col, row))
+        r, g, b, _ = pixels[round(height - y), round(x)]
+        return int(r), int(g), int(b)
+
+    dead = list(corr.index).index("XXXUSDT")
+    assert colour(dead, 0) == GREY and colour(0, dead) == GREY and colour(dead, dead) == GREY
+    assert colour(1, 2) != GREY and colour(0, 0) != GREY
+
+
+def test_panel_c_title_lists_the_dropped_coins() -> None:
+    """Con 1 apartada: "(1): X"; con exactamente 6 las lista todas; con mas de 6, abrevia."""
+    title = _title_c(_figure_with_dead(["XXXUSDT"])[0])
+    assert title.startswith("(c) Varianza explicada") and "\n" in title
+    assert title.endswith("sin datos, fuera del calculo (1): XXX")
+
+    six = [f"D{i}USDT" for i in range(6)]
+    title = _title_c(_figure_with_dead(six)[0])
+    assert "(6): D0, D1, D2, D3, D4, D5" in title and "..." not in title
+
+    eight = [f"D{i}USDT" for i in range(8)]
+    title = _title_c(_figure_with_dead(eight)[0])
+    assert "(8): D0, D1, D2, D3, D4, D5, ..." in title
+    assert "D6" not in title and "D7" not in title
+
+
+def test_panel_c_title_has_no_extra_line_without_dropped_coins() -> None:
+    """Sin monedas apartadas el titulo de (c) es el de siempre, de una sola linea."""
+    title = _title_c(_figure_with_dead([])[0])
+    assert "\n" not in title and "sin datos" not in title
+
+
+def test_grey_note_only_appears_when_the_map_has_nan() -> None:
+    """La nota "Gris = sin dato" sale si el mapa tiene algun NaN, y solo entonces."""
+
+    def has_note(figure: Figure) -> bool:
+        return any("Gris = sin dato" in t.get_text() for t in figure.texts)
+
+    assert has_note(_figure_with_dead(["XXXUSDT"])[0])
+    assert not has_note(_figure_with_dead([])[0])
+
+    # Tambien con un NaN suelto entre monedas con datos (sin ninguna apartada).
+    nan = np.nan
+    corr = _matrix(
+        [[1, 0.5, 0.6, 0.7], [0.5, 1, nan, 0.4], [0.6, nan, 1, 0.3], [0.7, 0.4, 0.3, 1]],
+        ["BTCUSDT", "AAA", "BBB", "CCC"],
+    )
+    cats = {"BTCUSDT": "l1", "AAA": "ai", "BBB": "ai", "CCC": "defi"}
+    figure = plot_raw_correlation(
+        corr,
+        cats,
+        correlation_summary(corr, max_nan_share=0.2),
+        explained_variance(corr, max_nan_share=0.2),
+        title="t",
+    )
+    assert has_note(figure)

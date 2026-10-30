@@ -12,6 +12,7 @@ from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
+from matplotlib import colormaps
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
@@ -36,6 +37,8 @@ _METHOD_NOTE = (
     "solo observaciones comunes a cada par. Orden: BTC y luego categoria (alfabetico). "
     "Descriptivo del periodo completo: no es una feature ni un filtro."
 )
+_MISSING_COLOR = "#d9d9d9"
+_MISSING_NOTE = " Gris = sin dato."
 
 
 class ReportPaths(NamedTuple):
@@ -64,6 +67,17 @@ def raw_correlation(returns: pd.DataFrame, *, min_periods: int = 1000) -> pd.Dat
     diagonal = np.diag(values).copy()
     np.fill_diagonal(values, np.where(np.isnan(diagonal), np.nan, 1.0))
     return pd.DataFrame(values, index=corr.index, columns=corr.columns)
+
+
+def symbols_without_data(corr: pd.DataFrame) -> list[str]:
+    """Simbolos con la diagonal en `NaN` (sin datos, constantes o con menos de `min_periods`).
+
+    Mantiene el orden de la matriz; `raw_correlation` deja asi a esas series.
+    """
+    diagonal = np.diag(corr.to_numpy(dtype="float64"))
+    return [
+        str(symbol) for symbol, value in zip(corr.index, diagonal, strict=True) if np.isnan(value)
+    ]
 
 
 def _off_diagonal(corr: pd.DataFrame) -> np.ndarray:
@@ -189,8 +203,12 @@ def plot_raw_correlation(
     *,
     title: str,
     factor: str = "BTCUSDT",
+    without_data: Sequence[str] = (),
 ) -> Figure:
-    """Figura de tres paneles: mapa de calor, correlacion con el factor y varianza explicada."""
+    """Figura de tres paneles: mapa de calor, correlacion con el factor y varianza explicada.
+
+    `without_data` son las monedas apartadas del calculo: se anotan en el titulo de (c).
+    """
     order = list(corr.index)
     n = len(order)
     short = [s.removesuffix("USDT") for s in order]
@@ -217,8 +235,11 @@ def plot_raw_correlation(
 
     # (a) Mapa de calor con escala divergente fija en [-1, 1].
     ax = fig.add_subplot(grid[:, 0])
+    # Copia del colormap: en RdBu_r el blanco es correlacion 0, y una casilla sin dato no puede
+    # parecer un 0 (D-02). No se toca el colormap registrado.
+    cmap = colormaps["RdBu_r"].with_extremes(bad=_MISSING_COLOR)
     image = ax.imshow(
-        corr.to_numpy(dtype="float64"), cmap="RdBu_r", vmin=-1.0, vmax=1.0, interpolation="nearest"
+        corr.to_numpy(dtype="float64"), cmap=cmap, vmin=-1.0, vmax=1.0, interpolation="nearest"
     )
     ax.set_xticks(range(n), short, rotation=90, fontsize=6.5)
     ax.set_yticks(range(n), short, fontsize=6.5)
@@ -267,12 +288,16 @@ def plot_raw_correlation(
     ax_c.bar(range(1, len(eigenvalues) + 1), eigenvalues * 100, color="#4c78a8")
     ax_c.set_xlabel("componente principal")
     ax_c.set_ylabel("% de la varianza total")
-    ax_c.set_title(
-        f"(c) Varianza explicada: 1.o {eigenvalues[0]:.1%}, 2.o {eigenvalues[1]:.1%}", fontsize=11
-    )
+    title_c = f"(c) Varianza explicada: 1.o {eigenvalues[0]:.1%}, 2.o {eigenvalues[1]:.1%}"
+    if without_data:
+        dropped = [s.removesuffix("USDT") for s in without_data]
+        shown = ", ".join(dropped[:6]) + (", ..." if len(dropped) > 6 else "")
+        title_c += f"\nsin datos, fuera del calculo ({len(dropped)}): {shown}"
+    ax_c.set_title(title_c, fontsize=11)
     ax_c.set_xlim(0.3, len(eigenvalues) + 0.7)
 
-    fig.text(0.06, 0.02, _METHOD_NOTE, fontsize=8, wrap=True)
+    note = _METHOD_NOTE + (_MISSING_NOTE if corr.isna().to_numpy().any() else "")
+    fig.text(0.06, 0.02, note, fontsize=8, wrap=True)
     return fig
 
 
@@ -386,8 +411,25 @@ def build_raw_correlation_report(
     )
     returns = panel.features["return"][order]
     corr = raw_correlation(returns, min_periods=min_periods)
-    summary = correlation_summary(corr, factor=factor, high=high, max_nan_share=max_nan_share)
-    eigenvalues = explained_variance(corr, max_nan_share=max_nan_share)
+    without = symbols_without_data(corr)
+    if factor in without:
+        raise ValueError(f"{factor} no tiene datos en el periodo {start:%Y-%m-%d}")
+    if len(order) - len(without) < 2:
+        raise ValueError(
+            f"menos de 2 simbolos con datos en el periodo {start:%Y-%m-%d}; sin datos: {without}"
+        )
+    if without:
+        logger.warning(
+            "Periodo %s: %d simbolos sin datos, fuera del resumen y de los componentes: %s",
+            f"{start:%Y-%m-%d}",
+            len(without),
+            ", ".join(without),
+        )
+    # Un par deslistado dentro del periodo es legitimo (D-14): el 5 % solo cuenta pares que faltan
+    # entre monedas con datos. El mapa y la tabla por simbolo usan `corr` completo.
+    kept = corr.drop(index=without, columns=without)
+    summary = correlation_summary(kept, factor=factor, high=high, max_nan_share=max_nan_share)
+    eigenvalues = explained_variance(kept, max_nan_share=max_nan_share)
 
     label = f"{start:%Y-%m-%d}_{interval}"
     full_summary: dict[str, float | int | str] = {
@@ -395,18 +437,30 @@ def build_raw_correlation_report(
         "interval": interval,
         "n_rows": len(returns),
         "min_periods": min_periods,
+        "n_symbols_in_universe": len(order),
+        "n_symbols_without_data": len(without),
+        "symbols_without_data": ";".join(without),
         **summary,
     }
+    if without:
+        title = (
+            f"Correlacion cruda entre {len(order)} criptoactivos "
+            f"({len(order) - len(without)} con datos), "
+            f"trimestre desde {start:%Y-%m-%d} ({interval})"
+        )
+    else:
+        title = (
+            f"Correlacion cruda entre {len(order)} criptoactivos, "
+            f"trimestre desde {start:%Y-%m-%d} ({interval})"
+        )
     figure = plot_raw_correlation(
         corr,
         categories,
         summary,
         eigenvalues,
-        title=(
-            f"Correlacion cruda entre {len(order)} criptoactivos, "
-            f"trimestre desde {start:%Y-%m-%d} ({interval})"
-        ),
+        title=title,
         factor=factor,
+        without_data=without,
     )
     png, pdf = save_figure(figure, f"raw_correlation_{label}", out_dir=out_dir)
     tables = resolve_repo_path(tables_dir)
