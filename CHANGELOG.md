@@ -15,6 +15,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ## [Sin publicar]
 
+### Corregido · Épica 2 (panel y preprocesado)
+- La figura de correlación cruda ya funciona en periodos con una moneda sin datos, como TONUSDT en 2026T3 (deslistada por Binance el 30 de junio de 2026): esa moneda se aparta del resumen y de los componentes principales en vez de hacer fallar el informe, se nombra en la figura y en la tabla de resumen, y las casillas sin dato del mapa de calor se pintan en gris para no confundirlas con una correlación 0 (MIAX-213)
+
 ---
 
 ## [v0.3.0] — 2026-10-27
