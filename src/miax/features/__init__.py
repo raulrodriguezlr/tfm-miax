@@ -8,6 +8,7 @@ from miax.features.activity import (
 )
 from miax.features.alignment import align_frame, align_klines, build_time_grid, shift_to_close
 from miax.features.contract import FEATURE_SPECS, FeatureSpec, validate_panel
+from miax.features.factor import FactorModel, NoFactor, NotFittedError
 from miax.features.gaps import (
     GapCause,
     cause_counts,
@@ -46,8 +47,11 @@ __all__ = [
     "FEATURE_SPECS",
     "PANEL_DIR",
     "PANEL_FORMAT_VERSION",
+    "FactorModel",
     "FeatureSpec",
     "GapCause",
+    "NoFactor",
+    "NotFittedError",
     "Panel",
     "align_frame",
     "align_klines",
