@@ -9,6 +9,7 @@ from miax.viz.raw_correlation import (
     plot_raw_correlation,
     raw_correlation,
     save_figure,
+    symbols_without_data,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "plot_raw_correlation",
     "raw_correlation",
     "save_figure",
+    "symbols_without_data",
 ]
