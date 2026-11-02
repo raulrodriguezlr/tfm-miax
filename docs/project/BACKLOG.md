@@ -109,6 +109,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-045 | Tests de preprocesado, con foco en huecos y alineación | 035, 036 | Un hueco mal tratado hace fallar un test |
 | MIAX-046 | EDA del panel y figura de correlación cruda para la memoria | 041 | Figura en `reports/figures/` |
 | MIAX-213 | La EDA de correlación cruda admite periodos con una moneda sin datos (deslistada dentro del periodo, como TONUSDT en 2026T3) | 046 | `raw-correlation --period 2026-07-01` genera figura y tablas; las monedas sin datos quedan fuera de los componentes y se anotan; 2025T1 no cambia |
+| MIAX-214 | Notebook del panel: cómo han quedado los datos tras el preprocesado, con las técnicas de la Épica 2 explicadas e interpretadas | 046, 213 | `notebooks/01-eda/01-panel-epica-2.ipynb` se ejecuta de principio a fin sobre la caché local, cubre 033–046 y 213 con una interpretación tras cada tabla o figura, y su lógica reutilizable vive en `src/` con tests |
 | MIAX-210 | [EXPLORATORIO] Reloj event-time para series que no cotizan 24/7, sin rellenar huecos | 035, 041, 209 | Dos series con cobertura distinta se alinean sin `fillna`, con máscara, y queda documentado |
 
 ---

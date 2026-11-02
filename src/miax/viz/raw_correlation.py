@@ -169,6 +169,40 @@ def correlation_summary(
     }
 
 
+def summarize_correlation(
+    corr: pd.DataFrame,
+    *,
+    factor: str = "BTCUSDT",
+    high: float = 0.5,
+    max_nan_share: float = 0.05,
+    label: str = "",
+) -> tuple[dict[str, float | int | str], np.ndarray, list[str]]:
+    """Aparta las monedas sin datos (MIAX-213) y devuelve `(resumen, autovalores, apartadas)`.
+
+    Falla si `factor` no tiene datos o si quedan menos de 2 monedas; `label` nombra el periodo.
+    """
+    without = symbols_without_data(corr)
+    if factor in without:
+        raise ValueError(f"{factor} no tiene datos en el periodo {label}")
+    if len(corr) - len(without) < 2:
+        raise ValueError(
+            f"menos de 2 simbolos con datos en el periodo {label}; sin datos: {without}"
+        )
+    if without:
+        logger.warning(
+            "Periodo %s: %d simbolos sin datos, fuera del resumen y de los componentes: %s",
+            label,
+            len(without),
+            ", ".join(without),
+        )
+    # Un par deslistado dentro del periodo es legitimo (D-14): el 5 % solo cuenta pares que faltan
+    # entre monedas con datos. El mapa y la tabla por simbolo usan `corr` completo.
+    kept = corr.drop(index=without, columns=without)
+    summary = correlation_summary(kept, factor=factor, high=high, max_nan_share=max_nan_share)
+    eigenvalues = explained_variance(kept, max_nan_share=max_nan_share)
+    return summary, eigenvalues, without
+
+
 def order_by_category(
     symbols: Sequence[str], categories: Mapping[str, str], *, first: str = "BTCUSDT"
 ) -> list[str]:
@@ -411,25 +445,13 @@ def build_raw_correlation_report(
     )
     returns = panel.features["return"][order]
     corr = raw_correlation(returns, min_periods=min_periods)
-    without = symbols_without_data(corr)
-    if factor in without:
-        raise ValueError(f"{factor} no tiene datos en el periodo {start:%Y-%m-%d}")
-    if len(order) - len(without) < 2:
-        raise ValueError(
-            f"menos de 2 simbolos con datos en el periodo {start:%Y-%m-%d}; sin datos: {without}"
-        )
-    if without:
-        logger.warning(
-            "Periodo %s: %d simbolos sin datos, fuera del resumen y de los componentes: %s",
-            f"{start:%Y-%m-%d}",
-            len(without),
-            ", ".join(without),
-        )
-    # Un par deslistado dentro del periodo es legitimo (D-14): el 5 % solo cuenta pares que faltan
-    # entre monedas con datos. El mapa y la tabla por simbolo usan `corr` completo.
-    kept = corr.drop(index=without, columns=without)
-    summary = correlation_summary(kept, factor=factor, high=high, max_nan_share=max_nan_share)
-    eigenvalues = explained_variance(kept, max_nan_share=max_nan_share)
+    summary, eigenvalues, without = summarize_correlation(
+        corr,
+        factor=factor,
+        high=high,
+        max_nan_share=max_nan_share,
+        label=f"{start:%Y-%m-%d}",
+    )
 
     label = f"{start:%Y-%m-%d}_{interval}"
     full_summary: dict[str, float | int | str] = {

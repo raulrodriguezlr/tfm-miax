@@ -17,6 +17,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ### Añadido · Épica 3 (residualización)
 - Interfaz común `FactorModel` (`fit` solo con train, `transform` y `factors` sin reajustar, mismos símbolos, `NaN` propagado y estado ajustado vigilado contra fugas) y el modelo de referencia `NoFactor`, para intercambiar las definiciones de factor sin tocar el código que las usa (MIAX-047)
+### Añadido · Épica 2 (panel y preprocesado)
+- Notebook `notebooks/01-eda/01-panel-epica-2.ipynb` que enseña cómo han quedado los datos tras el preprocesado en los 35 trimestres del universo: explica cada técnica de la Épica 2 con un ejemplo real (rejilla, causas de hueco, validez, retornos al cierre, colas, volatilidad, actividad relativa, panel, barras de 5/15/60 min, caché, contrato y correlación cruda), mide la calidad de los datos, las features, los horizontes y el factor común trimestre a trimestre, y lo interpreta; las tablas salen de `miax.viz.panel_overview`, que carga cada panel una sola vez (MIAX-214)
+
 ### Corregido · Épica 2 (panel y preprocesado)
 - La figura de correlación cruda ya funciona en periodos con una moneda sin datos, como TONUSDT en 2026T3 (deslistada por Binance el 30 de junio de 2026): esa moneda se aparta del resumen y de los componentes principales en vez de hacer fallar el informe, se nombra en la figura y en la tabla de resumen, y las casillas sin dato del mapa de calor se pintan en gris para no confundirlas con una correlación 0 (MIAX-213)
 
