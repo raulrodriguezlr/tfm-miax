@@ -8,7 +8,8 @@ from miax.features.activity import (
 )
 from miax.features.alignment import align_frame, align_klines, build_time_grid, shift_to_close
 from miax.features.contract import FEATURE_SPECS, FeatureSpec, validate_panel
-from miax.features.factor import FactorModel, NoFactor, NotFittedError
+from miax.features.factor import FactorModel, NoFactor, NotFittedError, ols_betas
+from miax.features.factor_btc import BtcFactor
 from miax.features.gaps import (
     GapCause,
     cause_counts,
@@ -47,6 +48,7 @@ __all__ = [
     "FEATURE_SPECS",
     "PANEL_DIR",
     "PANEL_FORMAT_VERSION",
+    "BtcFactor",
     "FactorModel",
     "FeatureSpec",
     "GapCause",
@@ -74,6 +76,7 @@ __all__ = [
     "log_relative_to_past",
     "log_returns",
     "mask_invalid",
+    "ols_betas",
     "panel_path",
     "period_panels",
     "realized_volatility",

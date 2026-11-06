@@ -196,3 +196,34 @@ class NoFactor(FactorModel):
 
     def _residuals(self, returns: pd.DataFrame, factors: pd.DataFrame) -> pd.DataFrame:
         return returns.copy()
+
+
+def ols_betas(returns: pd.DataFrame, factor: pd.Series, *, min_periods: int = 1000) -> pd.Series:
+    """Pendiente OLS con constante (cov/var) de cada columna contra el factor, por filas comunes.
+
+    Da NaN si hay menos de `min_periods` filas comunes o si el factor no varia en ellas.
+    """
+    if min_periods < 2:
+        raise ValueError(f"min_periods debe ser >= 2, es {min_periods}")
+    if not returns.index.equals(factor.index):
+        raise ValueError("factor debe tener el mismo indice que returns")
+    # Solo se llama desde `_fit` (train): las betas se congelan y `transform` no las recalcula.
+    r = returns.to_numpy(dtype="float64")
+    f = factor.to_numpy(dtype="float64")[:, None]
+    common = ~np.isnan(r) & ~np.isnan(f)
+    n = common.sum(axis=0)
+    safe_n = np.maximum(n, 1)
+    f_mean = np.where(common, f, 0.0).sum(axis=0) / safe_n
+    r_mean = np.where(common, r, 0.0).sum(axis=0) / safe_n
+    f_c = np.where(common, f - f_mean, 0.0)
+    r_c = np.where(common, r - r_mean, 0.0)
+    cov = (r_c * f_c).sum(axis=0)
+    var = (f_c * f_c).sum(axis=0)
+    # Factor constante en las filas comunes: se detecta por exactitud (max == min), sin tolerancia.
+    f_max = np.where(common, f, -np.inf).max(axis=0)
+    f_min = np.where(common, f, np.inf).min(axis=0)
+    flat = f_max == f_min
+    betas = np.full(r.shape[1], np.nan)
+    ok = (n >= min_periods) & ~flat
+    betas[ok] = cov[ok] / var[ok]
+    return pd.Series(betas, index=returns.columns, dtype="float64")
