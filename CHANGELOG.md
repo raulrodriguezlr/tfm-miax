@@ -15,6 +15,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 
 ## [Sin publicar]
 
+### Añadido · Memoria
+- Plantilla oficial de la memoria del TFM del Instituto BME en `docs/memoria/` (documento principal, clase, un fichero por capítulo, declaración de uso de IA, figuras y bibliografía), sin rellenar, para ir escribiendo la memoria capítulo a capítulo (sin ticket)
+
 ### Añadido · Épica 3 (residualización)
 - Interfaz común `FactorModel` (`fit` solo con train, `transform` y `factors` sin reajustar, mismos símbolos, `NaN` propagado y estado ajustado vigilado contra fugas) y el modelo de referencia `NoFactor`, para intercambiar las definiciones de factor sin tocar el código que las usa (MIAX-047)
 - Factor común = retorno de BTC (`BtcFactor`): beta por OLS en train y residuo `r − β·f` sin alfa, con el residuo de BTC vacío y su retorno disponible como nodo mercado; incluye `ols_betas`, reutilizable por las otras definiciones de factor (MIAX-048)

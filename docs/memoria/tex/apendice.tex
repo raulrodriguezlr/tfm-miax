@@ -1,0 +1,65 @@
+\section{Ejemplos del lenguaje de marcado \LaTeX\ para finanzas cuantitativas}
+\label{cap:apendice}
+
+Este documento es un ejemplo de cómo usar BibTeX en la gestión de bibliografía sin perder la cordura. Aquí citamos tres elementos clave: el libro de cabecera de Machine Learning Financiero \cite{lopezdeprado}, el artículo fundacional de valoración de opciones \cite{blackscholes}, y las perspectivas de futuro cuántico \cite{quantumfinance}.
+Si vas a programar los modelos, seguramente necesites el manual de Hilpisch \cite{hilpisch}\footnote{Si el modelo pierde dinero en producción, la culpa no es de la bibliografía.}.
+
+  \textbf{Sobreajuste (Overfitting)}: el gran enemigo que acecha en el párrafo 1.
+
+  \textit{Backtesting out-of-sample}: la prueba de fuego del párrafo 2.
+
+  \texttt{import pandas as pd}: el inicio de todo en el párrafo 3.
+
+  \begin{itemize}
+  \item Limpieza de datos (manejo de NaNs y *outliers*).
+  \item Ingeniería de características (cálculo de retornos, momentum, volatilidad).
+  \end{itemize}
+
+  % Espacio vertical
+  \vspace{0.5cm}
+
+  \begin{enumerate}
+  \item Entrenamiento del modelo predictivo.
+  \item Optimización de hiperparámetros.
+  \item Despliegue en el entorno de trading.
+  \end{enumerate}
+
+A continuación se muestra una ecuación que asusta a los de letras pero que aquí es el pan de cada día (la ecuación diferencial parcial de Black-Scholes):
+
+  \[ \frac{\partial V}{\partial t} + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2} + rS \frac{\partial V}{\partial S} - rV = 0 \]
+
+  Podemos incluir imágenes en formato: png, pdf o jpg. Si usas Python o R para generar tus gráficas, lo ideal es guardarlas directamente en pdf para no perder resolución.
+
+  En la figura~\ref{fig:diagrama} se muestra un ejemplo de figura de ancho de página. En la figura figura~\ref{fig:diagrama2} se muestra como poner dos figuras en una misma fila.
+  
+
+  \begin{figure}[!htb]
+    \centering % Siempre queda mejor centrado
+    \includegraphics[width=0.8\textwidth]{logo_miax.png} % Recuerda poner esta imagen en la carpeta figs
+    \caption{Esta es una figura que \LaTeX\ decide dónde colocar (floating) para que el maquetado no explote como en otros procesadores de texto.}
+    \label{fig:diagrama}
+  \end{figure}
+
+  \begin{figure}[!htb]
+  \begin{tabular}{cc}
+    Curva ROC & Matriz de Confusión \\[2mm]
+    \includegraphics[width=0.4\textwidth]{logo_miax.png} &  \includegraphics[width=0.4\textwidth]{logo_miax.png}
+  \end{tabular}
+    \caption{Ejmplo de dos figuras en la misma fila.}
+    \label{fig:diagrama2}
+\end{figure}
+
+  \vspace*{1cm}
+  Este es un ejemplo de una tabla comparativa de métricas de rendimiento:
+
+  \begin{center}
+    \begin{tabular}{|l|c|c|}
+      \hline
+      \textbf{Modelo Algorítmico} & \textbf{Ratio Sharpe} & \textbf{Max Drawdown} \\ \hline
+      Regresión Logística & 1.20 & -15.4\% \\ \hline
+      Random Forest & 1.85 & -8.2\% \\ \hline
+      LSTM (Red Neuronal) & 2.10 & -6.1\% \\ \hline
+    \end{tabular}
+  \end{center}
+
+\end{lstlisting}

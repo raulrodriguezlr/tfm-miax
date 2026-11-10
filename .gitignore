@@ -29,3 +29,16 @@ dist/
 # Entorno local
 .env
 .DS_Store
+
+# Compilacion de la memoria (LaTeX)
+docs/memoria/*.aux
+docs/memoria/*.bbl
+docs/memoria/*.blg
+docs/memoria/*.fdb_latexmk
+docs/memoria/*.fls
+docs/memoria/*.log
+docs/memoria/*.out
+docs/memoria/*.synctex.gz
+docs/memoria/*.toc
+docs/memoria/tex/*.aux
+docs/memoria/memoria_TFM.pdf
