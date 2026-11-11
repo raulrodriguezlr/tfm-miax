@@ -1,0 +1,100 @@
+\documentclass[twoside,spanish,a4paper,12pt]{tfm}
+
+% Editar la titulación
+\titulacion{Máster en Inteligencia Artificial y Computación Cuántica \\ Aplicada a los Mercados Financieros, MIAX Edición 14}
+
+% Editar el título
+\title{Título del Trabajo de Fin de Máster (puede ocupar varias líneas de forma automática)}
+
+% Si es una alumna se debe usar
+% \authorlabel{Autora}
+\authorlabel{Autor}
+% Editar el nombre
+\author{Nombre del Alumno}
+
+% Si hay varios tutores:
+% \tutorlabel{Tutores}
+% \tutor{Nombre del tutor 1 \\[2mm] Nombre del tutor 2}
+% Si el tutor es masculino:
+\tutorlabel{Tutor}
+% Si la tutora es femenina:
+% \tutorlabel{Tutora}
+% Editar
+\tutor{Nombre del Tutor/a}
+
+% Editar: Poner mes y año de la convocatoria de lectura del TFM
+\convocatoria{Octubre 2026}
+
+\begin{document}
+
+% NO QUITAR ESTOS ELEMENTOS
+\portada
+\cleardoublepage
+
+
+% Editar: Resumen en Español (obligatorio)
+\begin{resumen}
+  Este es el resumen del TFM. Debe ser corto (máximo media página) y cubrir los aspectos principales del modelado, la aproximación analítica y los resultados obtenidos aplicados a los mercados financieros.
+\end{resumen}
+\cleardoublepage
+
+% Editar: Resumen en Inglés
+\begin{abstract}
+  This is the abstract of the TFM. It must be short and cover the main aspects of the application of AI and quantitative models to the financial problem.
+\end{abstract}
+\cleardoublepage
+
+% Editar: Agradecimientos (opcional)
+\begin{agradecimientos}
+  En primer lugar, quiero agradecer a la dirección académica y a mi tutor por guiarme en este proceso.
+
+  En segundo lugar, a la máquina de café por su inestimable contribución para que mi código llegara a compilar de madrugada.
+\end{agradecimientos}
+\cleardoublepage
+
+\tableofcontents
+
+\pagestyle{tfm}
+\justify
+
+% Las figuras se buscan en el directorio figs
+% Cada capítulo está en su propio fichero tex. Ver el directorio tex.
+% La bibliografía está dentro del directorio bib
+
+\chapter{Introducción}
+\input{tex/introduccion.tex}
+
+\chapter{Datos y Definición del Problema Financiero}
+\input{tex/datos.tex}
+
+\chapter{Estado del Arte}
+\input{tex/estado_arte.tex}
+
+\chapter{Metodología y Modelos Algorítmicos}
+\input{tex/metodologia.tex}
+
+\chapter{Experimentación, Validación y Resultados}
+\input{tex/resultados.tex}
+
+\chapter{Conclusiones y Trabajo Futuro}
+\input{tex/conclusiones.tex}
+
+% Editar el fichero tex/declaracion_ia.tex
+\cleardoublepage
+\ia
+\cleardoublepage
+
+\pagestyle{appendix}
+
+\appendix
+\chapter{Apéndice con ejemplos}
+\input{tex/apendice.tex}
+
+\addcontentsline{toc}{chapter}{Bibliografía}
+\bibliographystyle{unsrt}
+\bibliography{bib/bibliografia}
+
+\cleardoublepage
+\contraportada
+
+\end{document}
