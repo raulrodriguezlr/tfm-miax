@@ -10,6 +10,7 @@ from miax.features.alignment import align_frame, align_klines, build_time_grid, 
 from miax.features.contract import FEATURE_SPECS, FeatureSpec, validate_panel
 from miax.features.factor import FactorModel, NoFactor, NotFittedError, ols_betas
 from miax.features.factor_btc import BtcFactor
+from miax.features.factor_mean import MeanFactor
 from miax.features.gaps import (
     GapCause,
     cause_counts,
@@ -52,6 +53,7 @@ __all__ = [
     "FactorModel",
     "FeatureSpec",
     "GapCause",
+    "MeanFactor",
     "NoFactor",
     "NotFittedError",
     "Panel",
