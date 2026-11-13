@@ -1,4 +1,4 @@
-"""Suite reutilizable del contrato de `FactorModel` (garantias 1-7) para los modelos concretos."""
+"""Suite reutilizable del contrato de `FactorModel` (garantias 1-8) para los modelos concretos."""
 
 from __future__ import annotations
 
@@ -128,3 +128,40 @@ def check_factor_model(
     m2 = make_model().fit(returns_train)
     pd.testing.assert_frame_equal(m2.transform(returns_test), res)
     assert _same(m2.get_state(), m.get_state())
+
+    # 8. ninguna fila de test depende del resto de la muestra de test (D-03): con betas
+    # congeladas y solo el minuto t, el resultado de t no cambia con cuantas filas se pasen.
+    n = len(returns_test)
+    k = max(2, n // 3)
+    mid0 = (n - k) // 2
+    chunks = [slice(0, k), slice(mid0, mid0 + k), slice(n - k, n)]
+    for sl in chunks:
+        part = returns_test.iloc[sl]
+        pd.testing.assert_frame_equal(
+            m.transform(returns_test).iloc[sl],
+            m.transform(part),
+            obj="transform por trozos: depende de otras filas de test (D-03)",
+        )
+        pd.testing.assert_frame_equal(
+            m.factors(returns_test).iloc[sl],
+            m.factors(part),
+            obj="factors por trozos: depende de otras filas de test (D-03)",
+        )
+
+    # Datos distintos fuera del bloque central, con los mismos NaN: el bloque central no cambia.
+    rng = np.random.default_rng(12345)
+    other_values = rng.normal(0.0, 0.01, size=returns_test.shape)
+    other_values[returns_test.isna().to_numpy()] = np.nan
+    other = pd.DataFrame(other_values, index=returns_test.index, columns=returns_test.columns)
+    centre = chunks[1]
+    other.iloc[centre] = returns_test.iloc[centre]
+    pd.testing.assert_frame_equal(
+        m.transform(other).iloc[centre],
+        m.transform(returns_test).iloc[centre],
+        obj="transform con otras filas de test cambiadas: se recalcula algo con test? (D-03)",
+    )
+    pd.testing.assert_frame_equal(
+        m.factors(other).iloc[centre],
+        m.factors(returns_test).iloc[centre],
+        obj="factors con otras filas de test cambiadas: se recalcula algo con test? (D-03)",
+    )

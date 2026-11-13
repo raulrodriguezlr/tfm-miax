@@ -30,6 +30,14 @@ class MeanFactor(FactorModel):
             "betas": self._betas,
         }
 
+    @property
+    def betas(self) -> pd.Series:
+        """Betas de cada simbolo contra el factor, ajustadas en train y congeladas para test."""
+        self._require_fitted()
+        if self._betas is None:
+            raise NotFittedError("MeanFactor sin ajustar: falta llamar a fit")
+        return self._betas.copy()
+
     def _mean_factor(self, returns: pd.DataFrame) -> pd.Series:
         """Media de la fila sin NaN; NaN si la fraccion de validos queda bajo el minimo."""
         # El factor de t solo usa retornos del mismo minuto con pesos fijos 1/N: sin fuga.
