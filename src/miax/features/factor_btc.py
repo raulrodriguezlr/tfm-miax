@@ -25,6 +25,14 @@ class BtcFactor(FactorModel):
         """Simbolo del factor, minimo de filas y betas ajustadas en train."""
         return {"symbol": self.symbol, "min_periods": self.min_periods, "betas": self._betas}
 
+    @property
+    def betas(self) -> pd.Series:
+        """Betas de cada simbolo contra el factor, ajustadas en train y congeladas para test."""
+        self._require_fitted()
+        if self._betas is None:
+            raise NotFittedError("BtcFactor sin ajustar: falta llamar a fit")
+        return self._betas.copy()
+
     def _fit(self, returns: pd.DataFrame) -> None:
         if self.symbol not in returns.columns:
             raise ValueError(f"falta el simbolo del factor {self.symbol!r} en returns")

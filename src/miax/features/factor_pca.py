@@ -42,6 +42,11 @@ class PcaFactor(FactorModel):
         return self._loadings.copy()
 
     @property
+    def betas(self) -> pd.Series:
+        """Cargas del primer componente, que hacen de betas; igual que `loadings`."""
+        return self.loadings
+
+    @property
     def explained_share(self) -> float:
         """Fraccion de la correlacion explicada por el primer componente en train."""
         self._require_fitted()
