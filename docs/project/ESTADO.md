@@ -10,9 +10,9 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Alonso | MIAX-051 | `feature/MIAX-051` | 2026-11-13 | en review |
+| Alonso | MIAX-052 | `feature/MIAX-052` | 2026-11-13 | en review |
 
-**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.7` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6` y MIAX-050 `.7`; este PR será `.8`)
+**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.8` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7` y MIAX-051 `.8`; este PR será `.9`)
 
 ---
 
@@ -97,6 +97,13 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-11-13 · Alonso · MIAX-052
+- **Hecho:** el ticket se da por **cubierto por 048–051**, sin código nuevo. Lo que pedía («residuos por OLS con betas congeladas»; hecho cuando «los residuos de test usan betas de train») ya existe: las betas OLS son `ols_betas` (048), se ajustan solo en `fit` y se congelan en los tres modelos (048–050), el residuo de test es `r − β_train·f_test` en el `_residuals` de cada uno, la garantía 8 del contrato y los tramposos de `test_factor_leakage.py` fallan si se recalcula algo en test (051), y las betas se leen con `betas` (051). Marcado en `BACKLOG.md`.
+- **Decisión:** lo único que quedaba por hacer era una función que empaquete «copiar el modelo, ajustar con train, proyectar sobre test y comprobar que train acaba antes que test». Se deja para **MIAX-136** (residualizar dentro de cada fold), que es donde hay folds de verdad y se deciden orden, purga y embargo; anotado en su fila del backlog. No es una `D-??`: no cambia cómo se calcula nada.
+- **Ojo:** 053, 054, 059, 061 y 078 dependían de 052 y quedan desbloqueadas. Hasta la 136, quien necesite residuos hace `modelo.fit(train).transform(test)` con un train que acabe **antes** que el test y un modelo nuevo por cada tramo (`fit` reajusta, pero no reutilices uno ajustado con otro tramo sin saberlo). Hablado con Alonso; conviene que Raúl y Piettro lo vean (CLAUDE.md §7.5).
+- **Además:** §1: la fila de 051 (mergeado, PR #61) pasa a 052. Snapshot de `develop` en `.8`; este PR será `.9`.
+- **Pendiente:** test antifuga de inyectar el futuro (058); la función por fold (136).
 
 ### 2026-11-13 · Alonso · MIAX-051
 - **Hecho:** test que falla si alguien recalcula el factor en test (D-03). Antes **no existía**: un `MeanFactor` que recalculaba las betas con test y un `PcaFactor` que recalculaba el PCA con test pasaban el contrato entero, porque no tocan su estado y la vigilancia de `get_state()` no lo ve. **Garantía 8** nueva en `check_factor_model` (`tests/unit/factor_contract.py`), que heredan todos los modelos de factor: (a) por trozos, `transform(test).iloc[trozo]` y `factors(test).iloc[trozo]` son idénticos a transformar solo el trozo (principio, medio y final); (b) cambiar las demás filas de test por datos aleatorios distintos (no escalados: una beta recalculada no cambia al escalar todo) no altera el bloque central. Los mensajes citan D-03. Fichero nuevo `tests/unit/test_factor_leakage.py` (23 tests): cinco modelos tramposos (BTC y media que recalculan betas con test, media que divide por la volatilidad de test o resta su media, PCA que recalcula las cargas con test) hacen **fallar** el contrato, y los tres reales lo pasan. Además, propiedad pública `betas` en `BtcFactor`, `MeanFactor` y `PcaFactor` (copia; en el PCA, igual que `loadings`), para que 052 y 055 lean las betas igual sea cual sea el factor.

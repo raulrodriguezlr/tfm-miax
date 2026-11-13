@@ -125,7 +125,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-049 | Factor = media transversal de retornos | 047 | Devuelve residuos por activo |
 | MIAX-050 | Factor = primera componente principal | 047 | Devuelve residuos y cargas |
 | MIAX-051 | `fit` solo en train: guardar betas y cargas, y **proyectarlas** sobre test | 048–050 | Test existe un test que falla si se recalcula en test |
-| MIAX-052 | Residuos por OLS con betas congeladas | 051 | Los residuos de test usan betas de train |
+| MIAX-052 | Residuos por OLS con betas congeladas · **cubierto por 048–051** (ver ESTADO) | 051 | Los residuos de test usan betas de train |
 | MIAX-053 | Betas móviles frente a betas por fold: comparar y decidir | 052 | Decisión documentada con datos |
 | MIAX-054 | Métrica: caída de correlación media tras residualizar | 052 | Un número que dice cuánto factor se ha quitado |
 | MIAX-055 | Comparativa de las tres definiciones de factor | 048–050, 054 | Tabla con las tres columnas |
@@ -264,7 +264,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-133 | Embargo tras el train | 132 | La autocorrelación no cruza el corte |
 | MIAX-134 | Validación combinatoria purgada (CPCV) | 133 | Varias combinaciones train/test |
 | MIAX-135 | Ajustar escalados y normalizaciones **solo** en train | 134 | Ninguna estadística ve el test |
-| MIAX-136 | Ejecutar la residualización dentro de cada fold | 051, 134 | El factor se estima por fold |
+| MIAX-136 | Ejecutar la residualización dentro de cada fold (incluye la función única `fit` en train → residuos de test, que iba a ser de 052) | 051, 134 | El factor se estima por fold |
 | MIAX-137 | Construir el grafo dentro de cada fold | 087, 134 | El grafo se estima por fold |
 | MIAX-138 | **Test antifuga:** inyectar futuro y verificar que se detecta | 135–137 | El test falla si alguien introduce fuga |
 | MIAX-139 | Métricas MAE y RMSE | 134 | Comparables entre modelos |
