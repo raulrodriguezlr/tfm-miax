@@ -11,6 +11,7 @@ from miax.features.contract import FEATURE_SPECS, FeatureSpec, validate_panel
 from miax.features.factor import FactorModel, NoFactor, NotFittedError, ols_betas
 from miax.features.factor_btc import BtcFactor
 from miax.features.factor_mean import MeanFactor
+from miax.features.factor_pca import PcaFactor
 from miax.features.gaps import (
     GapCause,
     cause_counts,
@@ -57,6 +58,7 @@ __all__ = [
     "NoFactor",
     "NotFittedError",
     "Panel",
+    "PcaFactor",
     "align_frame",
     "align_klines",
     "bar_factor",
