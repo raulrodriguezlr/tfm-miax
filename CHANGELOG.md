@@ -31,6 +31,9 @@ Cada línea explica **qué hace**, en castellano, y acaba con su ticket.
 ### Corregido · Épica 2 (panel y preprocesado)
 - La figura de correlación cruda ya funciona en periodos con una moneda sin datos, como TONUSDT en 2026T3 (deslistada por Binance el 30 de junio de 2026): esa moneda se aparta del resumen y de los componentes principales en vez de hacer fallar el informe, se nombra en la figura y en la tabla de resumen, y las casillas sin dato del mapa de calor se pintan en gris para no confundirlas con una correlación 0 (MIAX-213)
 
+### Cambiado
+- Revisión de decisiones del 2026-11-16: diseño de la validación (D-37), objetivo de predicción (D-38), controles de robustez del lead-lag (D-39) y Épica 14 de extensiones (oro, plata, euro, futuros y anuncios macro) en lugar de Polymarket (D-40); tickets nuevos MIAX-215 a 226
+
 ---
 
 ## [v0.3.0] — 2026-10-27

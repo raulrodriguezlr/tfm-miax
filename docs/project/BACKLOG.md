@@ -30,6 +30,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | [11. Dashboard](#épica-11--dashboard) | 159–172 | Todos | Interfaz de resultados |
 | [12. Reproducibilidad](#épica-12--reproducibilidad) | 173–182 | A | Que se pueda replicar |
 | [13. Memoria y defensa](#épica-13--memoria-y-defensa) | 183–196 (+200 exploratorio) | Todos | El documento y el pitch |
+| [14. Extensiones](#épica-14--extensiones-y-valor-añadido) | 219–226 | Todos | Externos (oro, plata, euro), futuros y macro |
 
 ---
 
@@ -83,7 +84,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-197 | Guardar la cache de klines en data/raw/klines | 020 | Descarga, validación y cobertura usan data/raw/klines por defecto |
 | MIAX-198 | Universos trimestral (principal), semestral y anual (robustez) | 028 | Tres universos congelados; el trimestral es configs/universe.yaml |
 | MIAX-211 | Descargar las velas 1m de los pares nuevos de los tres universos (trimestral, semestral y anual), con su calentamiento | 198 | `coverage --universe` no muestra ningún par del universo sin caché; el zip compartido se regenera |
-| MIAX-209 | [EXPLORATORIO] Adaptador de ingesta de una fuente externa no cripto (p. ej. Polymarket 5m), con el mismo contrato que las klines | 016, 020 | Una serie externa se descarga, se cachea en Parquet y se relee como un símbolo de Binance |
+| MIAX-209 | [APARCADO, ver Épica 14] [EXPLORATORIO] Adaptador de ingesta de una fuente externa no cripto (p. ej. Polymarket 5m), con el mismo contrato que las klines | 016, 020 | Una serie externa se descarga, se cachea en Parquet y se relee como un símbolo de Binance |
 | MIAX-212 | Excluir del universo los pares que no cotizan al cierre de su ventana de volumen | 198, 211 | Los tres universos regenerados no tienen ningún par-periodo sin velas salvo los que dejan de cotizar ya dentro del periodo |
 
 ---
@@ -110,7 +111,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-046 | EDA del panel y figura de correlación cruda para la memoria | 041 | Figura en `reports/figures/` |
 | MIAX-213 | La EDA de correlación cruda admite periodos con una moneda sin datos (deslistada dentro del periodo, como TONUSDT en 2026T3) | 046 | `raw-correlation --period 2026-07-01` genera figura y tablas; las monedas sin datos quedan fuera de los componentes y se anotan; 2025T1 no cambia |
 | MIAX-214 | Notebook del panel: cómo han quedado los datos tras el preprocesado, con las técnicas de la Épica 2 explicadas e interpretadas | 046, 213 | `notebooks/01-eda/01-panel-epica-2.ipynb` se ejecuta de principio a fin sobre la caché local, cubre 033–046 y 213 con una interpretación tras cada tabla o figura, y su lógica reutilizable vive en `src/` con tests |
-| MIAX-210 | [EXPLORATORIO] Reloj event-time para series que no cotizan 24/7, sin rellenar huecos | 035, 041, 209 | Dos series con cobertura distinta se alinean sin `fillna`, con máscara, y queda documentado |
+| MIAX-210 | [APARCADO, ver Épica 14] [EXPLORATORIO] Reloj event-time para series que no cotizan 24/7, sin rellenar huecos | 035, 041, 209 | Dos series con cobertura distinta se alinean sin `fillna`, con máscara, y queda documentado |
 
 ---
 
@@ -126,7 +127,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-050 | Factor = primera componente principal | 047 | Devuelve residuos y cargas |
 | MIAX-051 | `fit` solo en train: guardar betas y cargas, y **proyectarlas** sobre test | 048–050 | Test existe un test que falla si se recalcula en test |
 | MIAX-052 | Residuos por OLS con betas congeladas · **cubierto por 048–051** (ver ESTADO) | 051 | Los residuos de test usan betas de train |
-| MIAX-053 | Betas móviles frente a betas por fold: comparar y decidir | 052 | Decisión documentada con datos |
+| MIAX-053 | Betas móviles frente a betas por fold, y betas estimadas a 1 minuto frente a 5 y 15 minutos (sesgo por iliquidez): comparar y decidir | 052 | Decisión documentada con datos |
 | MIAX-054 | Métrica: caída de correlación media tras residualizar | 052 | Un número que dice cuánto factor se ha quitado |
 | MIAX-055 | Comparativa de las tres definiciones de factor | 048–050, 054 | Tabla con las tres columnas |
 | MIAX-056 | Análisis de sensibilidad del resultado al factor elegido | 055 | Se sabe si la conclusión depende de la elección |
@@ -134,6 +135,8 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-058 | Test antifuga específico de la residualización | 051 | Inyectar futuro hace fallar el test |
 | MIAX-059 | Tests unitarios de residualización | 052 | Cobertura de casos borde |
 | MIAX-060 | Figura de memoria: correlación antes y después de residualizar | 054 | Figura en `reports/figures/` |
+| MIAX-215 | Factor media y PCA **sin la propia moneda** (*leave-one-out*): el factor de cada activo se calcula con los demás | 049, 050 | Los residuos dejan de sumar cero por construcción; se compara con D-35 y D-36 |
+| MIAX-216 | Variante de residualización que quita también el factor de los minutos anteriores (betas con retardos) | 051 | Se reportan las dos versiones del residuo: con y sin el retraso respecto al mercado |
 
 ---
 
@@ -159,7 +162,8 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-074 | Contrato de la interfaz `B → C`: formato de adyacencia por fold | 067 | C puede consumirla sin preguntar |
 | MIAX-075 | Tests del estimador de lead-lag con series de retardo conocido | 061, 063 | Detecta un retardo inyectado a propósito |
 | MIAX-076 | Figura de memoria: grafo de lead-lag | 068, 073 | Figura en `reports/figures/` |
-| MIAX-199 | [EXPLORATORIO] Lead-lag entre series asíncronas solo en ventanas de solape (Hayashi-Yoshida + FDR) | 069, 065, 210 | Lead-lag cripto ↔ serie externa sin sesgo por huecos, con p-valores corregidos y figura |
+| MIAX-217 | Control de liquidez: ¿la dirección de las aristas se explica por el volumen o por la frecuencia de operaciones? | 066 | Queda medido cuánto lead-lag es solo «el líquido adelanta al ilíquido» |
+| MIAX-199 | [APARCADO, ver Épica 14] [EXPLORATORIO] Lead-lag entre series asíncronas solo en ventanas de solape (Hayashi-Yoshida + FDR) | 069, 065, 210 | Lead-lag cripto ↔ serie externa sin sesgo por huecos, con p-valores corregidos y figura |
 
 ---
 
@@ -257,6 +261,8 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 
 **Release objetivo:** `v0.10.0` · **Área:** C · **Riesgo cubierto:** fuga de datos
 
+**Diseño acordado (D-37 y D-38, ver ESTADO):** *walk-forward* trimestral, se prueba en cada trimestre de 2023T1 a 2025T4 entrenando con los 12 meses anteriores y con las monedas del trimestre de prueba; 2026 queda reservado como comprobación final (MIAX-218). Se predice el residuo, no el retorno crudo.
+
 | ID | Tarea | Dep. | Hecho cuando |
 |---|---|---|---|
 | MIAX-131 | Walk-forward básico por bloques temporales | 109 | Genera pares train/test ordenados |
@@ -271,6 +277,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-140 | Information Coefficient (Spearman previsto vs realizado) | 134 | Métrica de sección cruzada |
 | MIAX-141 | Diebold-Mariano con errores agrupados por activo | 139 | Significatividad sin inflar por panel |
 | MIAX-142 | Tests de la validación | 132, 133 | Purga y embargo comprobados en sintético |
+| MIAX-218 | Reserva final: evaluar una sola vez en 2026, con todo lo demás ya cerrado | 138, 156 | 2026 no se ha usado para decidir nada; el resultado se reporta salga lo que salga |
 
 ---
 
@@ -361,7 +368,26 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-194 | Figuras y tablas finales unificadas de estilo | 158, 099 | Mismo estilo en todas |
 | MIAX-195 | Revisión cruzada entre los tres integrantes | 192, 193, 194 | Cada uno ha leído el capítulo de los otros |
 | MIAX-196 | Presentación de defensa y ensayo con preguntas previsibles | 195 | Ensayo cronometrado hecho |
-| MIAX-200 | [EXPLORATORIO] Experimento y sección de extensiones de la memoria: lead-lag cripto frente a no cripto | 199, 076 | Figura y párrafo de extensión, con las limitaciones declaradas y separado del resultado central |
+| MIAX-200 | [APARCADO, ver Épica 14] [EXPLORATORIO] Experimento y sección de extensiones de la memoria: lead-lag cripto frente a no cripto | 199, 076 | Figura y párrafo de extensión, con las limitaciones declaradas y separado del resultado central |
+
+---
+
+## Épica 14 — Extensiones y valor añadido
+
+**Release objetivo:** `v0.14.0` (antes de cerrar la memoria) · **Área:** todos · **Sustituye a la línea exploratoria de Polymarket**
+
+El tutor pidió probar el método con variables que no sean cripto. Polymarket está bloqueado en España desde mayo de 2026, así que la idea se cubre con datos que ya da Binance, con el mismo formato y sin huecos de horario. Ninguna de estas extensiones toca el resultado central: van aparte en la memoria. El modo señal y el *paper trading* (MIAX-207 y 208) siguen condicionados a un resultado A o B. Crisis frente a calma ya es MIAX-096.
+
+| ID | Tarea | Dep. | Hecho cuando |
+|---|---|---|---|
+| MIAX-219 | Descargar los activos externos al contado: oro tokenizado (`PAXGUSDT`, `XAUTUSDT`) y euro (`EURUSDT`), fuera del universo | 211 | Sus velas de 1m están en la caché con su cobertura medida |
+| MIAX-220 | Panel con nodos externos: entran como columnas aparte, no cuentan para el factor ni para el universo | 219, 044 | El panel de un trimestre lleva las criptos y los externos sin mezclarlos |
+| MIAX-221 | Lead-lag entre criptos y externos (oro, euro y, si hay datos, plata), con FDR | 220, 066 | Tabla y figura: quién adelanta a quién, con p-valores corregidos |
+| MIAX-222 | Ingesta de velas de futuros perpetuos de Binance (API pública `fapi`), incluida la plata (`XAGUSDT`) y el oro (`XAUUSDT`) | 021 | Los perpetuos se descargan y cachean como el contado, en carpeta aparte |
+| MIAX-223 | Contado frente a futuro: base y lead-lag entre el perpetuo y el contado de cada moneda | 222, 061 | Se sabe quién descubre antes el precio y cuándo se separan |
+| MIAX-224 | Calendario de anuncios macro de EE. UU. (IPC, tipos de la Fed, empleo), versionado en `configs/` con su fuente | — | Fichero con fecha y hora UTC de cada anuncio |
+| MIAX-225 | Estudio de eventos: lead-lag y correlación alrededor de los anuncios macro | 224, 066 | Se compara la ventana del anuncio con minutos normales |
+| MIAX-226 | Sección de extensiones de la memoria | 221, 223, 225 | Figuras y texto, con las limitaciones declaradas y separadas del resultado central |
 
 ---
 
