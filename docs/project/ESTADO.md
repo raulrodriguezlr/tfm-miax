@@ -10,9 +10,9 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Alonso | MIAX-052 | `feature/MIAX-052` | 2026-11-13 | en review |
+| Alonso | MIAX-054 | `feature/MIAX-054` | 2026-11-22 | en review |
 
-**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.8` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7` y MIAX-051 `.8`; este PR será `.9`)
+**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.9` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7`, MIAX-051 `.8` y MIAX-052 `.9`; este PR será `.10`)
 
 ---
 
@@ -64,6 +64,7 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-38 | **Qué se predice (para MIAX-101):** el **residuo** del periodo siguiente (lo propio de cada moneda, quitado el factor), no el retorno crudo; métrica principal el *Information Coefficient* (correlación de Spearman entre el orden previsto y el real). | Predecir el retorno crudo es, sobre todo, predecir a BTC. | Revisión 2026-11-16 |
 | D-39 | **Controles de robustez del lead-lag, obligatorios antes de dar por bueno un grafo:** (a) control de liquidez, medir si la dirección de las aristas se explica por el volumen (MIAX-217); (b) reportar el residuo en dos versiones, con y sin el retraso respecto al mercado (MIAX-216, matiza D-34); (c) factor media y PCA sin la propia moneda (MIAX-215, matiza D-35 y D-36); (d) betas a 1 minuto frente a 5 y 15 minutos (MIAX-053). A 1 minuto se espera que el test económico no cubra comisiones: la comparación relevante es a 15 y 60 minutos y con banda de no negociación. | La amenaza principal a la conclusión es que el lead-lag sea solo iliquidez (el activo que opera menos «reacciona tarde») o un artefacto de cómo se quita el factor (residuos que suman cero). | Revisión 2026-11-16 |
 | D-40 | **La Épica 14 (extensiones) sustituye a la línea de Polymarket:** oro y euro al contado (`PAXGUSDT`, `XAUTUSDT`, `EURUSDT`), plata y oro vía perpetuos (`XAGUSDT`, `XAUUSDT`), contado frente a futuro, y estudio de anuncios macro. Los tickets de Polymarket (199, 200, 209 y 210) quedan aparcados. Las extensiones no tocan el resultado central. | Polymarket está bloqueado en España; Binance da variables no cripto con el mismo formato y sin huecos de horario. | Revisión 2026-11-16 |
+| D-?? | **Cuánto factor quita una residualización (MIAX-054):** `correlation_drop = 1 − media\|ρ_residuos\| / media\|ρ_crudos\|`, con correlaciones de Pearson por pares (`min_periods=1000`) en la **misma muestra** (cuentan solo las celdas con retorno y residuo, y solo los pares con valor en las dos matrices). El primer autovalor residual se calcula sin exigir matriz semidefinida positiva. | Con el factor media o el PCA la media con signo de los residuos cae a −1/(N−1) por construcción (D-35, D-36) y daría una caída casi perfecta; el valor absoluto lo evita. Los residuos casi dependientes dejan el autovalor mínimo ligeramente negativo, y el mayor sigue bien definido. | MIAX-054 |
 
 ---
 
@@ -101,6 +102,24 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-11-22 · Alonso · MIAX-054
+- **Hecho:** `correlation_drop(returns, residuals)` en `miax.features.factor_metrics`. Devuelve un `dict` (una fila por modelo, lista para la tabla de 055) cuya clave principal es `correlation_drop = 1 − media|ρ_residuos| / media|ρ_crudos|`. Lleva también la media con signo, la media en valor absoluto y el peso del primer autovalor, antes y después. Compara la misma muestra: donde el residuo o el retorno es `NaN` no cuenta ninguno de los dos, y solo cuentan los pares con valor en las dos matrices. Las monedas sin datos se apartan con un warning. Sin CLI; la usarán 055, 057 y 060 como función.
+- **Refactor (§6.5, comportamiento idéntico):** `raw_correlation`, `symbols_without_data`, `count_missing_pairs`, `explained_variance` y `_off_diagonal` (ahora público, `off_diagonal`) pasan de `miax.viz.raw_correlation` a `miax.features.correlation`. `miax.viz` los sigue exportando, y los tests de 046 y 213 pasan sin tocarlos. `explained_variance` gana `require_psd: bool = True`; con `False` no comprueba el autovalor negativo, y por defecto no cambia nada.
+- **Decisión (D-??):** la caída se mide sobre **|ρ|**, no sobre la media con signo. Con el factor media o el PCA, la media con signo de los residuos cae sola a −1/(N−1) (D-35, D-36) y daría una caída casi perfecta por construcción. El primer autovalor de los residuos se calcula **sin exigir matriz semidefinida positiva**: con esos dos factores los residuos son casi linealmente dependientes, el autovalor mínimo es ≈ 0 y el ruido de la estimación por pares lo deja negativo (−0,0004 en 2024T1, −0,12 en 2022T4). La comprobación dejaba el campo siempre en `NaN`, y el autovalor mayor está bien definido de todos modos.
+- **Prueba de humo (datos reales, ajuste en los dos primeros meses del trimestre, medida en el tercero):**
+
+  | | 2022T4 BTC | media | PCA | 2024T1 BTC | media | PCA |
+  |---|---|---|---|---|---|---|
+  | \|ρ\| medio crudo | 0,424 | 0,427 | 0,427 | 0,542 | 0,545 | 0,545 |
+  | \|ρ\| medio residual | 0,248 | 0,047 | 0,048 | 0,301 | 0,051 | 0,052 |
+  | **caída** | **0,42** | **0,89** | **0,89** | **0,44** | **0,91** | **0,90** |
+  | 1.er autovalor / N, residual | 0,28 | 0,073 | 0,073 | 0,33 | 0,065 | 0,065 |
+
+  El crudo con BTC es algo distinto porque BTC queda fuera (su residuo es `NaN`). FTTUSDT no tiene datos en diciembre de 2022 y se aparta.
+- **Ojo (055, 057):** el factor BTC solo quita **algo menos de la mitad** de la correlación y deja un primer autovalor del 28–33 %, frente al 2,5 % (1/N) que quedaría sin estructura común. La media y el PCA quitan casi el 90 %, pero parte de su |ρ| residual es el −1/(N−1) mecánico: la media con signo es −0,025 con N = 40. La comparación limpia entre los tres necesita 215 (factor sin la propia moneda).
+- **Además:** §1: la fila de 052 (mergeado, PR #62) pasa a 054. Snapshot de `develop` en `.9`; este PR será `.10`.
+- **Pendiente:** la tabla de los tres factores en todos los trimestres (055), el criterio de pivote (057), la figura (060) y el factor sin la propia moneda (215).
 
 ### 2026-11-16 · Raúl · Revisión de decisiones y Épica 14
 - **Hecho:** revisión de las 36 decisiones y del backlog pendiente. Sin recortes de alcance: la entrega es en febrero o marzo de 2027. Decisiones nuevas D-37 a D-40 (ver §2) y tickets nuevos en `BACKLOG.md`: MIAX-215 y 216 (Épica 3), 217 (Épica 4), 218 (Épica 9) y la **Épica 14** (219 a 226). MIAX-053 amplía su alcance (betas a 5 y 15 minutos). Los cuatro tickets de Polymarket quedan aparcados.
