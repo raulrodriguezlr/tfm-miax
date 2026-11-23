@@ -1,4 +1,4 @@
-"""CLI de la evaluacion: `python -m miax.eval beta-study`."""
+"""CLI de la evaluacion: `python -m miax.eval beta-study` y `python -m miax.eval idio-signal`."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from miax.eval.beta_study import (
     fold_windows,
     write_tables,
 )
+from miax.eval.idiosyncratic_signal import study_signal, write_signal_tables
 from miax.features.resample import bar_factor
 from miax.utils import get_logger
 from miax.utils.config import ConfigError
@@ -65,6 +66,27 @@ def _build_parser() -> argparse.ArgumentParser:
     study.add_argument(
         "--rebuild", action="store_true", help="Reconstruye los paneles de la cache."
     )
+    signal = subparsers.add_parser(
+        "idio-signal",
+        description="Contraste de senal idiosincratica: queda algo que modelar tras el factor.",
+    )
+    signal.add_argument(
+        "--tests",
+        nargs="+",
+        default=list(DEFAULT_TESTS),
+        help="Inicios de trimestre de prueba, YYYY-MM-DD en UTC (por defecto 2023T1 a 2025T4).",
+    )
+    signal.add_argument(
+        "--horizons",
+        nargs="+",
+        default=list(DEFAULT_HORIZONS),
+        help="Horizontes de los retornos (por defecto 1m 5m 15m); solo 1m decide.",
+    )
+    signal.add_argument("--max-lag", type=int, default=5, help="Retardos 1..L en barras.")
+    signal.add_argument("--n-shifts", type=int, default=99, help="Desplazamientos del nulo.")
+    signal.add_argument(
+        "--rebuild", action="store_true", help="Reconstruye los paneles de la cache."
+    )
     return parser
 
 
@@ -103,8 +125,49 @@ def _run_beta_study(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_idio_signal(args: argparse.Namespace) -> int:
+    """Subcomando `idio-signal`: 2 si los argumentos no valen, 1 si falla el trabajo."""
+    try:
+        starts = [pd.Timestamp(text, tz="UTC") for text in args.tests]
+        for start in starts:
+            fold_windows(start)
+    except ValueError as exc:
+        logger.error(
+            "Trimestre no valido (%s); se espera el inicio de un trimestre YYYY-MM-DD", exc
+        )
+        return 2
+    if not args.tests or args.max_lag < 1 or args.n_shifts < 1:
+        logger.error("Hacen falta trimestres, --max-lag >= 1 y --n-shifts >= 1")
+        return 2
+    try:
+        for horizon in args.horizons:
+            bar_factor("1m", horizon)
+    except ValueError as exc:
+        logger.error("Horizonte no valido: %s", exc)
+        return 2
+    try:
+        result = study_signal(
+            starts,
+            factors=FACTOR_MAKERS,
+            horizons=args.horizons,
+            max_lag=args.max_lag,
+            n_shifts=args.n_shifts,
+            rebuild=args.rebuild,
+        )
+        write_signal_tables(result)
+    except (ValueError, RuntimeError, OSError, ConfigError) as exc:
+        logger.error("Fallo el estudio de senal idiosincratica: %s", exc)
+        return 1
+    verdict = result.decision.iloc[-1]["verdict"]
+    logger.info("Veredicto de senal idiosincratica: %s", verdict)
+    return 0
+
+
 # Registro de subcomandos: uno nuevo es una entrada mas (y su parser en `_build_parser`).
-_COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {"beta-study": _run_beta_study}
+_COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
+    "beta-study": _run_beta_study,
+    "idio-signal": _run_idio_signal,
+}
 
 
 def main(argv: list[str] | None = None) -> int:

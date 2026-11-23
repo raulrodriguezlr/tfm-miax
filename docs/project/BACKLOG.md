@@ -130,7 +130,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-053 | Betas móviles frente a betas por fold, y betas estimadas a 1 minuto frente a 5 y 15 minutos (sesgo por iliquidez): comparar y decidir | 052 | Decisión documentada con datos |
 | MIAX-054 | Métrica: caída de correlación media tras residualizar | 052 | Un número que dice cuánto factor se ha quitado |
 | MIAX-055 | Comparativa de las tres definiciones de factor | 048–050, 054 | Tabla con las tres columnas |
-| MIAX-056 | Análisis de sensibilidad del resultado al factor elegido | 055 | Se sabe si la conclusión depende de la elección |
+| MIAX-056 | Análisis de sensibilidad del resultado al factor elegido | 055, 066 | Se sabe si la conclusión depende de la elección |
 | MIAX-057 | Comprobar que queda señal idiosincrática tras residualizar | 054 | Si no queda, se activa el pivote del README §7.1 |
 | MIAX-058 | Test antifuga específico de la residualización | 051 | Inyectar futuro hace fallar el test |
 | MIAX-059 | Tests unitarios de residualización | 052 | Cobertura de casos borde |
