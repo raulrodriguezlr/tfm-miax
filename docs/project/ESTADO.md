@@ -10,10 +10,10 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Alonso | MIAX-052 | `feature/MIAX-052` | 2026-11-13 | en review |
+| Alonso | MIAX-055 | `feature/MIAX-055` | 2026-11-22 | en review |
 | Piettro | MIAX-053 | `feature/MIAX-053` | 2026-11-18 | listo para PR (suite, auditoría y prueba de humo real hechas) |
 
-**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.8` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7` y MIAX-051 `.8`; este PR será `.9`)
+**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.10` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7`, MIAX-051 `.8`, MIAX-052 `.9` y MIAX-054 `.10`; este PR será `.11`)
 
 ---
 
@@ -65,6 +65,8 @@ Decisiones tomadas que afectan a todos. Si vas a contradecir una, hablas con el 
 | D-38 | **Qué se predice (para MIAX-101):** el **residuo** del periodo siguiente (lo propio de cada moneda, quitado el factor), no el retorno crudo; métrica principal el *Information Coefficient* (correlación de Spearman entre el orden previsto y el real). | Predecir el retorno crudo es, sobre todo, predecir a BTC. | Revisión 2026-11-16 |
 | D-39 | **Controles de robustez del lead-lag, obligatorios antes de dar por bueno un grafo:** (a) control de liquidez, medir si la dirección de las aristas se explica por el volumen (MIAX-217); (b) reportar el residuo en dos versiones, con y sin el retraso respecto al mercado (MIAX-216, matiza D-34); (c) factor media y PCA sin la propia moneda (MIAX-215, matiza D-35 y D-36); (d) betas a 1 minuto frente a 5 y 15 minutos (MIAX-053). A 1 minuto se espera que el test económico no cubra comisiones: la comparación relevante es a 15 y 60 minutos y con banda de no negociación. | La amenaza principal a la conclusión es que el lead-lag sea solo iliquidez (el activo que opera menos «reacciona tarde») o un artefacto de cómo se quita el factor (residuos que suman cero). | Revisión 2026-11-16 |
 | D-40 | **La Épica 14 (extensiones) sustituye a la línea de Polymarket:** oro y euro al contado (`PAXGUSDT`, `XAUTUSDT`, `EURUSDT`), plata y oro vía perpetuos (`XAGUSDT`, `XAUUSDT`), contado frente a futuro, y estudio de anuncios macro. Los tickets de Polymarket (199, 200, 209 y 210) quedan aparcados. Las extensiones no tocan el resultado central. | Polymarket está bloqueado en España; Binance da variables no cripto con el mismo formato y sin huecos de horario. | Revisión 2026-11-16 |
+| D-41 | **Cuánto factor quita una residualización (MIAX-054):** `correlation_drop = 1 − media\|ρ_residuos\| / media\|ρ_crudos\|`, con correlaciones de Pearson por pares (`min_periods=1000`) en la **misma muestra** (cuentan solo las celdas con retorno y residuo, y solo los pares con valor en las dos matrices). El primer autovalor residual se calcula sin exigir matriz semidefinida positiva. | Con el factor media o el PCA la media con signo de los residuos cae a −1/(N−1) por construcción (D-35, D-36) y daría una caída casi perfecta; el valor absoluto lo evita. Los residuos casi dependientes dejan el autovalor mínimo ligeramente negativo, y el mayor sigue bien definido. | MIAX-054 |
+| D-?? | **Cómo se comparan las tres definiciones de factor (MIAX-055):** en cada trimestre del universo, cada factor se ajusta con un modelo nuevo en los **2 primeros meses** y se mide con `correlation_drop` (D-41) en el **tercero**. La tabla resumen usa la mediana entre trimestres, y solo entran los trimestres en los que **los tres** factores funcionan con **al menos 30 monedas** con datos (`min_symbols=30`), para que los tres se comparen sobre los mismos trimestres. **2026 queda fuera** (D-37). Resultado, 19 trimestres de 2021T2 a 2025T4: caída mediana **BTC 0,41, media 0,91 y PCA 0,91**. | Los paneles se guardan por trimestre y con las monedas de ese trimestre: los folds de 12 meses de D-37 son trabajo de MIAX-136, y para comparar factores basta con que los tres usen la misma partición sin fuga. Con menos de 30 monedas (2018–2020: de 2 a 21) el suelo −1/(N−1) pesa demasiado (−0,125 con 9 monedas) y la comparación no es justa. Elegir factor es una decisión, y por eso no puede ver 2026. | MIAX-055 |
 | D-?? | **Betas móviles y betas por horizonte (MIAX-053), estudio descriptivo que no cambia el pipeline:** la beta móvil es reajustar el propio `FactorModel` cada 7 días con los 30 o 90 días anteriores (`fit(ventana previa).transform(bloque)`), sin OLS móvil aparte; la beta por horizonte es `fit(retornos de 5 o 15 min de train).transform(retornos de 1 min de test)`. Se mide en los 12 folds de D-37 y con los tres factores, solo en test y por moneda (mediana entre monedas): varianza quitada, `|corr(residuo, f)|` y `corr(residuo, f(t-1))`, más el cociente `β_5m/β_1m` frente a la iliquidez. **Regla fijada antes de ver los datos:** se mantienen las betas por fold a 1 min salvo que una alternativa mejore la métrica primaria en **≥ 9 de 12 folds para cada uno de los tres factores** (A: más `var_removed` y menos `corr_lag0`; B: menos `|corr_lag1|`). La magnitud de la mejora es de criterio y se comenta con el tutor. **Resultado medido (12 folds, 2023T1 a 2025T4): se mantienen las betas por fold a 1 min.** Ninguna alternativa llega a 9 de 12 en los tres factores; la más cercana es la beta móvil de 30 días (8, 9 y 10 con BTC, media y PCA), que baja `corr_lag0` en los 12 folds pero casi no cambia `var_removed`. El cociente `β_5m/β_1m` crece con la iliquidez en 10 a 11 de 12 folds, y con BTC es mayor que 1 incluso en monedas líquidas. Ver `docs/datos/betas-moviles-y-horizonte.md`. | Dos dudas abiertas (R4 de D-39): una beta fija de 12 meses puede ser rígida, y la beta a 1 min de una moneda poco líquida sale sesgada a la baja (Epps). Fijar la regla antes de mirar evita elegir el esquema a posteriori. | MIAX-053 |
 
 ---
@@ -104,6 +106,47 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 
 ---
 
+### 2026-11-22 · Alonso · MIAX-055
+- **Hecho:** `miax.viz.factor_comparison`, con `split_period`, `compare_factors`, `factor_comparison_table` y `build_factor_comparison_report`, y el subcomando `python -m miax.viz factor-comparison` (`--train-months`, `--min-symbols`, `--interval`). Recorre los paneles en caché hasta 2025T4 y escribe `reports/tables/factor_comparison_by_period.csv` (una fila por trimestre y factor) y `reports/tables/factor_comparison.csv` (la tabla de tres columnas). Si un trimestre o un factor falla, queda como fila con `error` y el informe sigue: le pasa a 2018T1, con 2 monedas y BTC.
+- **Decisión (D-??):** partición de 2 meses de train y 1 de test dentro de cada trimestre, al menos 30 monedas, mismos trimestres para los tres factores y sin 2026; ver §2.
+- **Resultado (19 trimestres, 2021T2–2025T4; tarda unos 40 s):**
+
+  | | BTC | media | PCA |
+  |---|---|---|---|
+  | caída mediana | **0,41** | **0,91** | **0,91** |
+  | caída mín – máx | 0,26 – 0,60 | 0,87 – 0,93 | 0,87 – 0,93 |
+  | \|ρ\| medio crudo (mediana) | 0,58 | 0,58 | 0,58 |
+  | \|ρ\| medio residual (mediana) | 0,31 | 0,050 | 0,050 |
+  | media con signo residual (mediana) | +0,31 | −0,020 | −0,016 |
+  | suelo −1/(N−1) | −0,026 | −0,026 | −0,026 |
+  | 1.er autovalor / N, residual (mediana) | 0,35 | 0,068 | 0,072 |
+
+- **Ojo (056, 057, 060 y la memoria):**
+  - (a) En la práctica hay **dos** definiciones, no tres: la media y el PCA son indistinguibles en todos los trimestres (diferencia ≤ 0,012 en la caída).
+  - (b) **BTC solo no es el mercado:** quita menos de la mitad de la correlación y deja un primer autovalor del 26–52 %, frente al 2,5 % (1/N) que quedaría sin estructura común. Con BTC como factor, el grafo de la Épica 4 vería sobre todo «todo se mueve junto».
+  - (c) La media con signo de la media y el PCA queda **por encima** del suelo mecánico (−0,020 frente a −0,026). Queda una pizca de correlación positiva y un primer autovalor ~2,7 veces el de 1/N: posibles sectores o un segundo factor, que es materia de 057.
+  - (d) 2025T4 es el trimestre en que la media y el PCA quitan menos (0,87) y dejan más primer autovalor (0,13). Merece una mirada en 057.
+  - (e) Monedas apartadas por no tener datos en el mes de test: FTTUSDT en 2022T4 (el colapso de FTX) y RNDRUSDT y AGIXUSDT en 2024T3 (en julio de 2024 RNDR pasó a ser RENDER y AGIX se fusionó con FET).
+- **Además:** la `D-??` de MIAX-054 (ya mergeada, PR #63) pasa a D-41; solo cambia el número. §1: la fila de 054 (mergeado) pasa a 055. Snapshot de `develop` en `.10`; este PR será `.11`. Se actualiza una aserción de `test_viz_raw_correlation.py` (el registro de la CLI tiene ahora dos subcomandos): no es un refactor, es el subcomando nuevo.
+- **Pendiente:** elegir el factor con el que sigue la Épica 4 (la tabla apunta a media o PCA, pero la decisión es del equipo y conviene hablarla con el tutor); sensibilidad del resultado al factor (056); factor sin la propia moneda (215); repetir la comparación con los folds de D-37 cuando exista MIAX-136.
+
+### 2026-11-22 · Alonso · MIAX-054
+- **Hecho:** `correlation_drop(returns, residuals)` en `miax.features.factor_metrics`. Devuelve un `dict` (una fila por modelo, lista para la tabla de 055) cuya clave principal es `correlation_drop = 1 − media|ρ_residuos| / media|ρ_crudos|`. Lleva también la media con signo, la media en valor absoluto y el peso del primer autovalor, antes y después. Compara la misma muestra: donde el residuo o el retorno es `NaN` no cuenta ninguno de los dos, y solo cuentan los pares con valor en las dos matrices. Las monedas sin datos se apartan con un warning. Sin CLI; la usarán 055, 057 y 060 como función.
+- **Refactor (§6.5, comportamiento idéntico):** `raw_correlation`, `symbols_without_data`, `count_missing_pairs`, `explained_variance` y `_off_diagonal` (ahora público, `off_diagonal`) pasan de `miax.viz.raw_correlation` a `miax.features.correlation`. `miax.viz` los sigue exportando, y los tests de 046 y 213 pasan sin tocarlos. `explained_variance` gana `require_psd: bool = True`; con `False` no comprueba el autovalor negativo, y por defecto no cambia nada.
+- **Decisión (D-??):** la caída se mide sobre **|ρ|**, no sobre la media con signo. Con el factor media o el PCA, la media con signo de los residuos cae sola a −1/(N−1) (D-35, D-36) y daría una caída casi perfecta por construcción. El primer autovalor de los residuos se calcula **sin exigir matriz semidefinida positiva**: con esos dos factores los residuos son casi linealmente dependientes, el autovalor mínimo es ≈ 0 y el ruido de la estimación por pares lo deja negativo (−0,0004 en 2024T1, −0,12 en 2022T4). La comprobación dejaba el campo siempre en `NaN`, y el autovalor mayor está bien definido de todos modos.
+- **Prueba de humo (datos reales, ajuste en los dos primeros meses del trimestre, medida en el tercero):**
+
+  | | 2022T4 BTC | media | PCA | 2024T1 BTC | media | PCA |
+  |---|---|---|---|---|---|---|
+  | \|ρ\| medio crudo | 0,424 | 0,427 | 0,427 | 0,542 | 0,545 | 0,545 |
+  | \|ρ\| medio residual | 0,248 | 0,047 | 0,048 | 0,301 | 0,051 | 0,052 |
+  | **caída** | **0,42** | **0,89** | **0,89** | **0,44** | **0,91** | **0,90** |
+  | 1.er autovalor / N, residual | 0,28 | 0,073 | 0,073 | 0,33 | 0,065 | 0,065 |
+
+  El crudo con BTC es algo distinto porque BTC queda fuera (su residuo es `NaN`). FTTUSDT no tiene datos en diciembre de 2022 y se aparta.
+- **Ojo (055, 057):** el factor BTC solo quita **algo menos de la mitad** de la correlación y deja un primer autovalor del 28–33 %, frente al 2,5 % (1/N) que quedaría sin estructura común. La media y el PCA quitan casi el 90 %, pero parte de su |ρ| residual es el −1/(N−1) mecánico: la media con signo es −0,025 con N = 40. La comparación limpia entre los tres necesita 215 (factor sin la propia moneda).
+- **Además:** §1: la fila de 052 (mergeado, PR #62) pasa a 054. Snapshot de `develop` en `.9`; este PR será `.10`.
+- **Pendiente:** la tabla de los tres factores en todos los trimestres (055), el criterio de pivote (057), la figura (060) y el factor sin la propia moneda (215).
 ### 2026-11-18 · Piettro · MIAX-053
 - **Hecho:** estudio de betas móviles frente a betas por fold, y betas a 1 min frente a 5 y 15 min (`src/miax/eval/beta_study.py`, CLI `python -m miax.eval beta-study`). Usa los tres modelos de factor tal cual (no se tocan): la beta móvil reajusta un modelo nuevo cada 7 días con los 30 o 90 días anteriores; el horizonte ajusta con retornos de 5 o 15 min de train (`horizon_returns_from_cache`) y proyecta sobre los de 1 min de test. Tablas CSV deterministas en `reports/tables/beta_study_*.csv` y documento `docs/datos/betas-moviles-y-horizonte.md` con la regla de decisión escrita antes de ver datos.
 - **Decisión:** ver la `D-??` de §2 (método y regla de decisión). El esquema `h1m` es el de beta por fold (`fold`): no se calcula dos veces. Un ajuste que falla (PCA sin pares con solape, ventana sin datos) deja el residuo en `NaN` y se cuenta en `n_failed`; una beta `NaN` se ve en `n_coins`. La beta móvil excluye de cada ventana las monedas con menos del 50 % de datos válidos.

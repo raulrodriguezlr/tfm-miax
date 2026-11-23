@@ -1,4 +1,4 @@
-"""CLI de las figuras: `python -m miax.viz raw-correlation`."""
+"""CLI de las figuras y tablas: `python -m miax.viz raw-correlation` y `factor-comparison`."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import pandas as pd
 from miax.ingest.klines import interval_ms
 from miax.utils import get_logger
 from miax.utils.config import ConfigError
+from miax.viz.factor_comparison import build_factor_comparison_report
 from miax.viz.raw_correlation import build_raw_correlation_report
 
 logger = get_logger(__name__)
@@ -36,6 +37,25 @@ def _build_parser() -> argparse.ArgumentParser:
         "--interval", default=DEFAULT_INTERVAL, help="Intervalo de las velas (por defecto 1m)."
     )
     raw.add_argument("--rebuild", action="store_true", help="Reconstruye el panel de la cache.")
+    comparison = subparsers.add_parser(
+        "factor-comparison",
+        description="Tabla comparativa de los factores BTC, media y PCA antes de 2026.",
+    )
+    comparison.add_argument(
+        "--train-months",
+        type=int,
+        default=2,
+        help="Meses de cada periodo para ajustar el factor (por defecto 2).",
+    )
+    comparison.add_argument(
+        "--min-symbols",
+        type=int,
+        default=30,
+        help="Monedas minimas con datos para que un periodo entre en la tabla (por defecto 30).",
+    )
+    comparison.add_argument(
+        "--interval", default=DEFAULT_INTERVAL, help="Intervalo de las velas (por defecto 1m)."
+    )
     return parser
 
 
@@ -60,9 +80,31 @@ def _run_raw_correlation(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_factor_comparison(args: argparse.Namespace) -> int:
+    """Subcomando `factor-comparison`: 2 si los argumentos no valen, 1 si falla el trabajo."""
+    if args.train_months < 1 or args.min_symbols < 2:
+        logger.error("--train-months debe ser >= 1 y --min-symbols >= 2")
+        return 2
+    if interval_ms(args.interval) is None or args.interval != DEFAULT_INTERVAL:
+        logger.error(
+            "Intervalo no valido: %r; el panel solo admite %s", args.interval, DEFAULT_INTERVAL
+        )
+        return 2
+    try:
+        paths = build_factor_comparison_report(
+            interval=args.interval, train_months=args.train_months, min_symbols=args.min_symbols
+        )
+    except (ValueError, RuntimeError, OSError, ConfigError) as exc:
+        logger.error("Fallo la comparativa de factores: %s", exc)
+        return 1
+    logger.info("Tablas: %s y %s", paths.by_period_csv, paths.summary_csv)
+    return 0
+
+
 # Registro de subcomandos: uno nuevo es una entrada mas (y su parser en `_build_parser`).
 _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
-    "raw-correlation": _run_raw_correlation
+    "raw-correlation": _run_raw_correlation,
+    "factor-comparison": _run_factor_comparison,
 }
 
 

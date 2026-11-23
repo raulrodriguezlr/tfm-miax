@@ -8,9 +8,17 @@ from miax.features.activity import (
 )
 from miax.features.alignment import align_frame, align_klines, build_time_grid, shift_to_close
 from miax.features.contract import FEATURE_SPECS, FeatureSpec, validate_panel
+from miax.features.correlation import (
+    count_missing_pairs,
+    explained_variance,
+    off_diagonal,
+    raw_correlation,
+    symbols_without_data,
+)
 from miax.features.factor import FactorModel, NoFactor, NotFittedError, ols_betas
 from miax.features.factor_btc import BtcFactor
 from miax.features.factor_mean import MeanFactor
+from miax.features.factor_metrics import correlation_drop
 from miax.features.factor_pca import PcaFactor
 from miax.features.gaps import (
     GapCause,
@@ -71,7 +79,10 @@ __all__ = [
     "classify_klines",
     "classify_slots",
     "clip_returns",
+    "correlation_drop",
+    "count_missing_pairs",
     "download_ends_from_universe",
+    "explained_variance",
     "fit_clip_bounds",
     "gap_runs",
     "horizon_returns_from_cache",
@@ -80,9 +91,11 @@ __all__ = [
     "log_relative_to_past",
     "log_returns",
     "mask_invalid",
+    "off_diagonal",
     "ols_betas",
     "panel_path",
     "period_panels",
+    "raw_correlation",
     "realized_volatility",
     "realized_volatility_from_cache",
     "relative_activity_from_cache",
@@ -95,6 +108,7 @@ __all__ = [
     "returns_from_cache",
     "save_panel",
     "shift_to_close",
+    "symbols_without_data",
     "tail_report",
     "validate_panel",
     "validity_mask",
