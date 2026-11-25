@@ -42,3 +42,5 @@ docs/memoria/*.synctex.gz
 docs/memoria/*.toc
 docs/memoria/tex/*.aux
 docs/memoria/memoria_TFM.pdf
+
+presentacion/*
