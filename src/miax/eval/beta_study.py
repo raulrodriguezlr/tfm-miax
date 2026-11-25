@@ -322,7 +322,7 @@ def _summarize(
     return medians, int(table["var_removed"].notna().sum())
 
 
-def _fold_symbols(
+def fold_symbols(
     universe: pd.DataFrame, test_start: pd.Timestamp, test_end: pd.Timestamp
 ) -> list[str]:
     """Monedas del trimestre de test en el universo; `ValueError` si no esta o acaba en otro dia."""
@@ -335,6 +335,68 @@ def _fold_symbols(
     if ends != {to_ms(test_end)}:
         raise ValueError(f"el trimestre {test_start:%Y-%m-%d} no acaba en {test_end:%Y-%m-%d}")
     return list(dict.fromkeys(rows["symbol"]))
+
+
+class FoldData(NamedTuple):
+    """Datos de un fold: monedas, validez en train y retornos de 1 min de train y de test."""
+
+    label: str
+    symbols: list[str]
+    kept: list[str]
+    train_valid: pd.Series
+    returns_train: pd.DataFrame
+    returns_test: pd.DataFrame
+    train_start: pd.Timestamp
+    test_start: pd.Timestamp
+    test_end: pd.Timestamp
+
+
+def load_fold(
+    test_start: pd.Timestamp,
+    *,
+    universe: pd.DataFrame,
+    train_months: int = 12,
+    test_months: int = 3,
+    min_train_valid_share: float = 0.5,
+    rebuild: bool = False,
+    base_dir: str | Path = DEFAULT_BASE_DIR,
+    cache_dir: str | Path = PANEL_DIR,
+) -> FoldData:
+    """Carga los retornos de 1 min de train y test de un fold, solo con monedas validas en train."""
+    train_start, start, test_end = fold_windows(
+        test_start, train_months=train_months, test_months=test_months
+    )
+    symbols = fold_symbols(universe, start, test_end)
+    label = f"{start:%Y-%m-%d}"
+    logger.info("Fold %s: %d monedas en el universo", label, len(symbols))
+    panel = cached_panel(
+        symbols,
+        "1m",
+        to_ms(train_start),
+        to_ms(test_end),
+        base_dir=base_dir,
+        cache_dir=cache_dir,
+        rebuild=rebuild,
+    )
+    index = panel.features["return"].index
+    in_train = (index >= train_start) & (index < start)
+    in_test = (index >= start) & (index < test_end)
+    # Train = [train_start, test_start) y test = [test_start, test_end): disjuntos y contiguos.
+    train_valid = panel.valid[in_train].mean()
+    kept = [s for s in symbols if train_valid[s] >= min_train_valid_share]
+    logger.info("Fold %s: %d monedas con datos suficientes en train", label, len(kept))
+    returns = panel.features["return"][kept]
+    return FoldData(
+        label,
+        symbols,
+        kept,
+        train_valid,
+        returns[in_train],
+        returns[in_test],
+        train_start,
+        start,
+        test_end,
+    )
 
 
 def _check_horizons(horizons: Sequence[str]) -> list[str]:
@@ -502,46 +564,37 @@ def compare_schemes(
     diagnostics: list[dict[str, object]] = []
     bias: list[dict[str, object]] = []
     for test_start in sorted(dict.fromkeys(test_starts)):
-        train_start, start, test_end = fold_windows(
-            test_start, train_months=train_months, test_months=test_months
-        )
-        symbols = _fold_symbols(frame, start, test_end)
-        label = f"{start:%Y-%m-%d}"
-        logger.info("Fold %s: %d monedas en el universo", label, len(symbols))
-        panel = cached_panel(
-            symbols,
-            "1m",
-            to_ms(train_start),
-            to_ms(test_end),
+        fold = load_fold(
+            test_start,
+            universe=frame,
+            train_months=train_months,
+            test_months=test_months,
+            min_train_valid_share=min_train_valid_share,
+            rebuild=rebuild,
             base_dir=base_dir,
             cache_dir=cache_dir,
-            rebuild=rebuild,
         )
-        index = panel.features["return"].index
-        in_train = (index >= train_start) & (index < start)
-        in_test = (index >= start) & (index < test_end)
-        # Train = [train_start, test_start) y test = [test_start, test_end): disjuntos y contiguos.
-        train_valid = panel.valid[in_train].mean()
-        kept = [s for s in symbols if train_valid[s] >= min_train_valid_share]
-        logger.info("Fold %s: %d monedas con datos suficientes en train", label, len(kept))
-        returns = panel.features["return"][kept]
         # Los retornos de 5/15 min de train cierran antes de test_start (barra completa, D-19).
         horizon_train = {
             h: horizon_returns_from_cache(
-                kept, h, to_ms(train_start), to_ms(start), base_dir=base_dir
+                fold.kept,
+                h,
+                to_ms(fold.train_start),
+                to_ms(fold.test_start),
+                base_dir=base_dir,
             )
             for h in other_horizons
         }
         fold_diag, fold_bias = _fold_rows(
-            label,
-            symbols,
-            train_valid[kept],
-            returns[in_train],
-            returns[in_test],
+            fold.label,
+            fold.symbols,
+            fold.train_valid[fold.kept],
+            fold.returns_train,
+            fold.returns_test,
             horizon_train,
             makers,
             windows,
-            (start, test_end),
+            (fold.test_start, fold.test_end),
             step_days=step_days,
             min_valid_share=min_valid_share,
             min_obs=min_obs,
