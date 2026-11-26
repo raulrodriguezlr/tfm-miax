@@ -133,7 +133,7 @@ Proceso en [WORKFLOW.md](WORKFLOW.md) · Reglas en [CLAUDE.md](../../CLAUDE.md) 
 | MIAX-056 | Análisis de sensibilidad del resultado al factor elegido | 055, 066 | Se sabe si la conclusión depende de la elección |
 | MIAX-057 | Comprobar que queda señal idiosincrática tras residualizar | 054 | Si no queda, se activa el pivote del README §7.1 |
 | MIAX-058 | Test antifuga específico de la residualización | 051 | Inyectar futuro hace fallar el test |
-| MIAX-059 | Tests unitarios de residualización | 052 | Cobertura de casos borde |
+| MIAX-059 | Tests unitarios de residualización | 052 | Cobertura de casos borde: serie constante, un solo activo y activos sin solape temporal (`tests/unit/test_residualization_edge_cases.py`) |
 | MIAX-060 | Figura de memoria: correlación antes y después de residualizar | 054 | Figura en `reports/figures/` |
 | MIAX-215 | Factor media y PCA **sin la propia moneda** (*leave-one-out*): el factor de cada activo se calcula con los demás | 049, 050 | Los residuos dejan de sumar cero por construcción; se compara con D-35 y D-36 |
 | MIAX-216 | Variante de residualización que quita también el factor de los minutos anteriores (betas con retardos) | 051 | Se reportan las dos versiones del residuo: con y sin el retraso respecto al mercado |
