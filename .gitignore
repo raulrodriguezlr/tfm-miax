@@ -44,3 +44,4 @@ docs/memoria/tex/*.aux
 docs/memoria/memoria_TFM.pdf
 
 presentacion/*
+.log/
