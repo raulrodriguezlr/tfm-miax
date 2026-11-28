@@ -198,18 +198,8 @@ class NoFactor(FactorModel):
         return returns.copy()
 
 
-def ols_betas(returns: pd.DataFrame, factor: pd.Series, *, min_periods: int = 1000) -> pd.Series:
-    """Pendiente OLS con constante (cov/var) de cada columna contra el factor, por filas comunes.
-
-    Da NaN si hay menos de `min_periods` filas comunes o si el factor no varia en ellas.
-    """
-    if min_periods < 2:
-        raise ValueError(f"min_periods debe ser >= 2, es {min_periods}")
-    if not returns.index.equals(factor.index):
-        raise ValueError("factor debe tener el mismo indice que returns")
-    # Solo se llama desde `_fit` (train): las betas se congelan y `transform` no las recalcula.
-    r = returns.to_numpy(dtype="float64")
-    f = factor.to_numpy(dtype="float64")[:, None]
+def _ols_core(r: np.ndarray, f: np.ndarray, min_periods: int) -> np.ndarray:
+    """Pendiente OLS por columna; `f` es (T, 1) con un factor comun o (T, N) con uno por columna."""
     common = ~np.isnan(r) & ~np.isnan(f)
     n = common.sum(axis=0)
     safe_n = np.maximum(n, 1)
@@ -226,4 +216,35 @@ def ols_betas(returns: pd.DataFrame, factor: pd.Series, *, min_periods: int = 10
     betas = np.full(r.shape[1], np.nan)
     ok = (n >= min_periods) & ~flat
     betas[ok] = cov[ok] / var[ok]
-    return pd.Series(betas, index=returns.columns, dtype="float64")
+    return betas
+
+
+def ols_betas(returns: pd.DataFrame, factor: pd.Series, *, min_periods: int = 1000) -> pd.Series:
+    """Pendiente OLS con constante (cov/var) de cada columna contra el factor, por filas comunes.
+
+    Da NaN si hay menos de `min_periods` filas comunes o si el factor no varia en ellas.
+    """
+    if min_periods < 2:
+        raise ValueError(f"min_periods debe ser >= 2, es {min_periods}")
+    if not returns.index.equals(factor.index):
+        raise ValueError("factor debe tener el mismo indice que returns")
+    # Solo se llama desde `_fit` (train): las betas se congelan y `transform` no las recalcula.
+    r = returns.to_numpy(dtype="float64")
+    f = factor.to_numpy(dtype="float64")[:, None]
+    return pd.Series(_ols_core(r, f, min_periods), index=returns.columns, dtype="float64")
+
+
+def ols_betas_paired(
+    returns: pd.DataFrame, factors: pd.DataFrame, *, min_periods: int = 1000
+) -> pd.Series:
+    """Como `ols_betas` pero con un factor propio por columna (mismo indice y columnas)."""
+    if min_periods < 2:
+        raise ValueError(f"min_periods debe ser >= 2, es {min_periods}")
+    if not returns.index.equals(factors.index):
+        raise ValueError("factors debe tener el mismo indice que returns")
+    if list(returns.columns) != list(factors.columns):
+        raise ValueError("factors debe tener las mismas columnas que returns, en el mismo orden")
+    # Solo se llama desde `_fit` (train): las betas se congelan y `transform` no las recalcula.
+    r = returns.to_numpy(dtype="float64")
+    f = factors.to_numpy(dtype="float64")
+    return pd.Series(_ols_core(r, f, min_periods), index=returns.columns, dtype="float64")
