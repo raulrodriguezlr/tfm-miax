@@ -570,10 +570,8 @@ def _fake_result() -> SignalResult:
 
 
 def test_registry_has_all_subcommands() -> None:
-    """El registro de subcomandos incluye `beta-study`, `idio-signal` y `market-lag`."""
-    assert set(cli._COMMANDS) == {"beta-study", "idio-signal", "market-lag"}
-    """El registro de subcomandos incluye `beta-study`, `idio-signal` y `loo-factor`."""
-    assert set(cli._COMMANDS) == {"beta-study", "idio-signal", "loo-factor"}
+    """El registro incluye `beta-study`, `idio-signal`, `loo-factor` y `market-lag`."""
+    assert set(cli._COMMANDS) == {"beta-study", "idio-signal", "loo-factor", "market-lag"}
 
 
 def test_cli_idio_signal_is_a_thin_layer(monkeypatch: pytest.MonkeyPatch) -> None:
