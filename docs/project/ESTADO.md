@@ -10,9 +10,9 @@
 
 | Persona | Ticket en curso | Rama | Desde | Estado |
 |---|---|---|---|---|
-| Raúl | MIAX-059 | `feature/MIAX-059` | 2026-11-26 | en review |
+| Alonso | MIAX-058 | `feature/MIAX-058` | 2026-11-25 | en review |
 
-**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.13` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7`, MIAX-051 `.8`, MIAX-052 `.9`, MIAX-054 `.10`, MIAX-055 `.11`, MIAX-053 `.12` y MIAX-057 `.13`; este PR será `.14`)
+**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.14` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7`, MIAX-051 `.8`, MIAX-052 `.9`, MIAX-054 `.10`, MIAX-055 `.11`, MIAX-053 `.12`, MIAX-057 `.13` y MIAX-059 `.14`; este PR será `.15`)
 
 ---
 
@@ -105,6 +105,22 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
 ```
 
 ---
+
+### 2026-11-28 · Alonso · MIAX-058
+- **Hecho:** red antifuga de «inyectar el futuro» para toda la residualización.
+  - `tests/unit/leakage.py` es un ayudante reutilizable, como `factor_contract.py`. `perturb_after` cambia todo lo posterior a un corte: valores nuevos, +50 desviaciones en una moneda y, con `move_nans=True`, otros huecos. `assert_no_lookahead` falla, citando D-03, si cambia algo anterior al corte o el estado ajustado. La comparación es **exacta**, y la función no pasa en vacío: lanza `ValueError` si no hay nada antes del corte o si todo es `NaN`.
+  - `tests/unit/test_residualization_leakage.py` tiene 98 tests:
+    - **Caminos reales**, que pasan: BTC, media y PCA (`transform`, `factors` y estado ajustado), `project_fixed`, `rolling_residuals`, `split_period` / `compare_factors` y `load_fold`.
+    - **Ocho tramposos**, que el test caza: mirar la fila t+1; suavizado centrado; ajustar con train + test; PCA estandarizado con todo el panel; corte desplazado una fila; ventana móvil que incluye el propio bloque; factor que depende de cuántas celdas del futuro tienen dato; fuga de 1e-9.
+- **Comprobado con mutaciones:** se metió una fuga en el código **real** (ventana de `rolling_residuals` hasta el fin del bloque, `MeanFactor` con `shift(-1)` y `split_period` con `<=`). Cada una pone en rojo los tests de su camino real. Después se restauró `src/`.
+- **Decisión:** ninguna `D-??`; no cambia cómo se calcula nada. Sin cambios en `src/` ni en tests existentes (los de 059 están intactos).
+- **Ojo:**
+  - (a) Con `move_nans=True`, un bloque **posterior** al corte de `rolling_residuals` puede quedarse sin ajuste por falta de datos. No es fuga; por eso «ningún bloque falló» se comprueba con los datos sin perturbar.
+  - (b) El tramposo de la ventana móvil solo se detecta con cortes a mitad de bloque: con la ventana hasta `block_end`, un corte justo al inicio de un bloque no altera nada anterior.
+  - (c) El ayudante importa `_same`, privado, de `miax.features.factor`, igual que `factor_contract.py`.
+  - (d) **Para quien residualice por fold (MIAX-136) o añada un factor:** pasar el camino nuevo por `assert_no_lookahead` con varios cortes y `move_nans` en los dos valores.
+- **Además:** §1: la fila de Raúl (059, mergeado, PR #67) pasa a la mía de 058. Snapshot de `develop` en `.14`; este PR será `.15`.
+- **Pendiente:** la fuga **entre folds** (purga y embargo) es de la Épica 9 (131–136).
 
 ### 2026-11-26 · Raúl · MIAX-059
 - **Hecho:** tests de casos borde de la residualización en `tests/unit/test_residualization_edge_cases.py` (23 tests, los tres factores). Cubren lo que faltaba de cada caso del ticket:
