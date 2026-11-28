@@ -51,8 +51,12 @@ def check_factor_model(
     make_model: Callable[[], FactorModel],
     returns_train: pd.DataFrame,
     returns_test: pd.DataFrame,
+    lookback: int = 0,
 ) -> None:
-    """Comprueba el contrato de `FactorModel`; `make_model` debe dar un modelo nuevo cada vez."""
+    """Comprueba el contrato de `FactorModel`; `make_model` debe dar un modelo nuevo cada vez.
+
+    `lookback` > 0 es para modelos cuya fila t usa las `lookback` anteriores de la propia muestra.
+    """
     cols = list(returns_train.columns)
     assert list(returns_test.columns) == cols
 
@@ -137,9 +141,10 @@ def check_factor_model(
     chunks = [slice(0, k), slice(mid0, mid0 + k), slice(n - k, n)]
     for sl in chunks:
         part = returns_test.iloc[sl]
+        # Con lookback, las primeras filas del trozo no tienen pasado dentro del trozo (son NaN).
         pd.testing.assert_frame_equal(
-            m.transform(returns_test).iloc[sl],
-            m.transform(part),
+            m.transform(returns_test).iloc[sl].iloc[lookback:],
+            m.transform(part).iloc[lookback:],
             obj="transform por trozos: depende de otras filas de test (D-03)",
         )
         pd.testing.assert_frame_equal(
@@ -154,7 +159,9 @@ def check_factor_model(
     other_values[returns_test.isna().to_numpy()] = np.nan
     other = pd.DataFrame(other_values, index=returns_test.index, columns=returns_test.columns)
     centre = chunks[1]
-    other.iloc[centre] = returns_test.iloc[centre]
+    # Las `lookback` filas anteriores al bloque son su pasado y se dejan intactas.
+    keep = slice(max(0, centre.start - lookback), centre.stop)
+    other.iloc[keep] = returns_test.iloc[keep]
     pd.testing.assert_frame_equal(
         m.transform(other).iloc[centre],
         m.transform(returns_test).iloc[centre],
