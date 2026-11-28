@@ -131,18 +131,23 @@ def compare_factors(
     return table
 
 
-def factor_comparison_table(by_period: pd.DataFrame, *, min_symbols: int = 30) -> pd.DataFrame:
-    """Resume el formato largo en una tabla con una columna por factor, lista para la memoria.
-
-    Un trimestre solo entra si todos sus factores son validos, para comparar sobre los mismos.
-    """
+def usable_quarters(by_period: pd.DataFrame, *, min_symbols: int = 30) -> pd.DataFrame:
+    """Filas de los trimestres con todos los factores validos y al menos `min_symbols` monedas."""
     errors = by_period["error"].fillna("").astype(str)
     usable = by_period["n_symbols"] - by_period["n_symbols_without_data"]
     # Con pocas monedas el suelo -1/(N-1) domina y la comparacion entre periodos no es justa.
     # El filtro es por trimestre y no por fila: asi las columnas usan los mismos trimestres.
     row_ok = (errors == "") & (usable >= min_symbols)
     quarter_ok = row_ok.groupby(by_period["period_start"]).transform("all")
-    kept = by_period[quarter_ok]
+    return by_period[quarter_ok]
+
+
+def factor_comparison_table(by_period: pd.DataFrame, *, min_symbols: int = 30) -> pd.DataFrame:
+    """Resume el formato largo en una tabla con una columna por factor, lista para la memoria.
+
+    Un trimestre solo entra si todos sus factores son validos, para comparar sobre los mismos.
+    """
+    kept = usable_quarters(by_period, min_symbols=min_symbols)
     if kept.empty:
         raise ValueError(f"ningun periodo valido con al menos {min_symbols} monedas")
     order = [name for name in FACTOR_MODELS if name in set(kept["factor"])]
@@ -170,18 +175,16 @@ def factor_comparison_table(by_period: pd.DataFrame, *, min_symbols: int = 30) -
     return pd.DataFrame(summary)
 
 
-def build_factor_comparison_report(
-    *,
+def factor_comparison_by_period(
     universe: pd.DataFrame | None = None,
+    *,
     interval: str = "1m",
     train_months: int = 2,
-    min_symbols: int = 30,
     reserved_from: pd.Timestamp = RESERVED_FROM,
     base_dir: str | Path = DEFAULT_BASE_DIR,
     cache_dir: str | Path = PANEL_DIR,
-    tables_dir: str | Path = TABLES_DIR,
-) -> FactorComparisonPaths:
-    """Compara los tres factores en cada periodo previo a 2026 y escribe las dos tablas en CSV."""
+) -> pd.DataFrame:
+    """Compara los tres factores en cada periodo previo a `reserved_from`; formato largo."""
     if reserved_from.tzinfo is None:
         raise ValueError(f"reserved_from debe estar en UTC: {reserved_from}")
     full = load_universe() if universe is None else universe
@@ -198,7 +201,29 @@ def build_factor_comparison_report(
         part.insert(0, "period_start", f"{period_start:%Y-%m-%d}")
         frames.append(part.reset_index())
         del panel
-    by_period = pd.concat(frames, ignore_index=True)
+    return pd.concat(frames, ignore_index=True)
+
+
+def build_factor_comparison_report(
+    *,
+    universe: pd.DataFrame | None = None,
+    interval: str = "1m",
+    train_months: int = 2,
+    min_symbols: int = 30,
+    reserved_from: pd.Timestamp = RESERVED_FROM,
+    base_dir: str | Path = DEFAULT_BASE_DIR,
+    cache_dir: str | Path = PANEL_DIR,
+    tables_dir: str | Path = TABLES_DIR,
+) -> FactorComparisonPaths:
+    """Compara los tres factores en cada periodo previo a 2026 y escribe las dos tablas en CSV."""
+    by_period = factor_comparison_by_period(
+        universe,
+        interval=interval,
+        train_months=train_months,
+        reserved_from=reserved_from,
+        base_dir=base_dir,
+        cache_dir=cache_dir,
+    )
     summary = factor_comparison_table(by_period, min_symbols=min_symbols)
 
     out = resolve_repo_path(tables_dir)

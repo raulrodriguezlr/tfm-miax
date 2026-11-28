@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | Alonso | MIAX-215 | `feature/MIAX-215` | 2026-11-28 | en review |
 
-**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.15` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7`, MIAX-051 `.8`, MIAX-052 `.9`, MIAX-054 `.10`, MIAX-055 `.11`, MIAX-053 `.12`, MIAX-057 `.13`, MIAX-059 `.14` y MIAX-058 `.15`; MIAX-060 está en review (PR #69) y será `.16`; este PR será `.17` si entra después)
+**Versión actual:** `v0.3.0` (2026-10-27, en `main` con tag; `v0.2.0` etiquetada en el merge del PR #45) · **Snapshot de `develop`:** `v0.4.0-snapshot.16` (MIAX-213 fue `.1`, MIAX-047 `.2`, MIAX-214 `.3`, MIAX-048 `.4`, la plantilla de la memoria `.5`, MIAX-049 `.6`, MIAX-050 `.7`, MIAX-051 `.8`, MIAX-052 `.9`, MIAX-054 `.10`, MIAX-055 `.11`, MIAX-053 `.12`, MIAX-057 `.13`, MIAX-059 `.14`, MIAX-058 `.15` y MIAX-060 `.16`; este PR será `.17`)
 
 ---
 
@@ -119,6 +119,25 @@ Lo más reciente arriba. Una entrada por sesión de trabajo.
   - (b) El autovalor mínimo se mide en los minutos con todas las monedas: la correlación por pares con huecos no es una matriz válida y da negativos (columna aparte `min_eigenvalue_pairwise`).
   - (c) Cambia un test existente: el registro de subcomandos de `eval` (`test_idiosyncratic_signal.py`) pasa a tener `loo-factor`.
 - **Pendiente:** MIAX-216 (retraso respecto al mercado). Repetir el contraste de señal de 057 con el LOO, si se quiere, no tiene ticket.
+
+### 2026-11-28 · Alonso · MIAX-060
+- **Hecho:** figura de la memoria con la correlación antes y después de residualizar, para explicar de un vistazo el espejismo de factor. La genera `python -m miax.viz correlation-before-after --period 2025-01-01` (`src/miax/viz/correlation_before_after.py`) y escribe `reports/figures/correlation_before_after_{fecha}_1m.{png,pdf}` más un CSV con las cifras en `reports/tables/`; las dos carpetas las ignora git.
+  - **Fila 1:** cuatro mapas de calor con las mismas monedas, el mismo orden por categoría y la misma escala [−1, 1]: crudo, residuo BTC, residuo media y residuo PCA.
+  - **(e):** distribución de las correlaciones por pares, con el suelo −1/(N−1).
+  - **(f):** |ρ| medio crudo y de cada factor trimestre a trimestre (2021T2–2025T4), con el trimestre de la figura marcado, para que se vea que no es un trimestre escogido.
+- **Método:** igual que MIAX-055 (D-42). Cada factor se ajusta en los 2 primeros meses y todo lo pintado es del tercero, fuera de muestra. 2026 queda fuera (D-37). La línea «Crudo» de (f) sale de la fila del factor media, que no aparta ninguna moneda y coincide con el mapa (a) y con el CSV.
+- **Refactor (código cerrado de 046 y 055; mismo comportamiento):**
+  - en `raw_correlation`, `_groups` y `_MISSING_COLOR` pasan a públicos (`category_groups`, `MISSING_COLOR`);
+  - en `factor_comparison`, el bucle por trimestres sale a `factor_comparison_by_period` y el filtro de trimestres a `usable_quarters`; el informe de 055 los usa.
+  - Se actualiza la aserción del registro de la CLI de `viz` en `test_viz_raw_correlation.py`, que ahora tiene tres subcomandos: no es un refactor, es el subcomando nuevo.
+- **Resultado (2025T1):** |ρ| medio 0,58 en crudo, 0,34 con BTC (39 monedas), 0,055 con la media y 0,057 con el PCA; caída del 41,0 %, 90,5 % y 90,2 %.
+- **Decisión:** ninguna `D-??`: es una figura descriptiva que reutiliza el método de D-42.
+- **Ojo:**
+  - (a) Para la memoria (MIAX-187), el PDF se copia a `docs/memoria/figs/`.
+  - (b) La tarjeta decía que la 060 cierra la Épica 3 y la release v0.4.0, pero la revisión del 16-nov añadió la 215 y la 216 a la épica. Hay que decidir en equipo si la v0.4.0 espera a esas dos (propuesta de Alonso: sí).
+  - (c) Cuando cierre la épica, propuesta de un notebook de narrativa de la Épica 3 (como MIAX-214 en la Épica 2) que llame a estas funciones. No tiene ticket todavía.
+- **Además:** §1: la fila de 058 (mergeado, PR #68) pasa a 060. Snapshot de `develop` en `.15`; este PR será `.16`.
+- **Pendiente:** 215 y 216; decidir la release v0.4.0.
 
 ### 2026-11-28 · Alonso · MIAX-058
 - **Hecho:** red antifuga de «inyectar el futuro» para toda la residualización.

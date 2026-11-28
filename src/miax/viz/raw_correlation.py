@@ -43,7 +43,7 @@ _METHOD_NOTE = (
     "solo observaciones comunes a cada par. Orden: BTC y luego categoria (alfabetico). "
     "Descriptivo del periodo completo: no es una feature ni un filtro."
 )
-_MISSING_COLOR = "#d9d9d9"
+MISSING_COLOR = "#d9d9d9"
 _MISSING_NOTE = " Gris = sin dato."
 
 
@@ -146,7 +146,7 @@ def order_by_category(
     return [first, *rest] if first in names else rest
 
 
-def _groups(
+def category_groups(
     order: Sequence[str], categories: Mapping[str, str], factor: str
 ) -> list[tuple[str, int, int]]:
     """Tramos consecutivos `(etiqueta, inicio, fin)` del orden; el factor va en el suyo."""
@@ -177,7 +177,7 @@ def plot_raw_correlation(
     order = list(corr.index)
     n = len(order)
     short = [s.removesuffix("USDT") for s in order]
-    groups = _groups(order, categories, factor)
+    groups = category_groups(order, categories, factor)
     palette = [
         "#4c78a8",
         "#f58518",
@@ -202,7 +202,7 @@ def plot_raw_correlation(
     ax = fig.add_subplot(grid[:, 0])
     # Copia del colormap: en RdBu_r el blanco es correlacion 0, y una casilla sin dato no puede
     # parecer un 0 (D-02). No se toca el colormap registrado.
-    cmap = colormaps["RdBu_r"].with_extremes(bad=_MISSING_COLOR)
+    cmap = colormaps["RdBu_r"].with_extremes(bad=MISSING_COLOR)
     image = ax.imshow(
         corr.to_numpy(dtype="float64"), cmap=cmap, vmin=-1.0, vmax=1.0, interpolation="nearest"
     )
