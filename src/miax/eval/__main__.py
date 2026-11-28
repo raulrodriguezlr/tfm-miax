@@ -1,4 +1,5 @@
 """CLI de la evaluacion: subcomandos `beta-study`, `idio-signal` y `market-lag` de `miax.eval`."""
+"""CLI de la evaluacion: subcomandos `beta-study`, `idio-signal` y `loo-factor` de `miax.eval`."""
 
 from __future__ import annotations
 
@@ -16,16 +17,13 @@ from miax.eval.beta_study import (
 )
 from miax.eval.idiosyncratic_signal import study_signal, write_signal_tables
 from miax.eval.market_lag import compare_market_lag, write_market_lag_tables
+from miax.eval.loo_factor import DEFAULT_TESTS, compare_loo, write_loo_tables
 from miax.features.resample import bar_factor
 from miax.utils import get_logger
 from miax.utils.config import ConfigError
 
 logger = get_logger(__name__)
 
-# Los 12 trimestres de prueba de D-37 (2023T1 a 2025T4).
-DEFAULT_TESTS = tuple(
-    f"{year}-{month:02d}-01" for year in (2023, 2024, 2025) for month in (1, 4, 7, 10)
-)
 DEFAULT_WINDOWS = (30, 90)
 DEFAULT_HORIZONS = ("1m", "5m", "15m")
 
@@ -93,6 +91,11 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Residuo con y sin el retraso respecto al mercado, y si sigue la senal.",
     )
     lag.add_argument(
+    loo = subparsers.add_parser(
+        "loo-factor",
+        description="Factor media y PCA sin la propia moneda (leave-one-out) frente a D-35 y D-36.",
+    )
+    loo.add_argument(
         "--tests",
         nargs="+",
         default=list(DEFAULT_TESTS),
@@ -103,6 +106,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--skip-signal", action="store_true", help="Solo el diagnostico, sin el contraste de senal."
     )
     lag.add_argument("--rebuild", action="store_true", help="Reconstruye los paneles de la cache.")
+    loo.add_argument("--rebuild", action="store_true", help="Reconstruye los paneles de la cache.")
     return parser
 
 
@@ -181,6 +185,8 @@ def _run_idio_signal(args: argparse.Namespace) -> int:
 
 def _run_market_lag(args: argparse.Namespace) -> int:
     """Subcomando `market-lag`: 2 si los argumentos no valen, 1 si falla el trabajo."""
+def _run_loo_factor(args: argparse.Namespace) -> int:
+    """Subcomando `loo-factor`: 2 si los argumentos no valen, 1 si falla el trabajo."""
     try:
         starts = [pd.Timestamp(text, tz="UTC") for text in args.tests]
         for start in starts:
@@ -211,6 +217,13 @@ def _run_market_lag(args: argparse.Namespace) -> int:
             result.signal_decision["factor"].str.startswith("verdict")
         ]
         logger.info("Decision de senal:\n%s", verdicts.to_string(index=False))
+    try:
+        result = compare_loo(args.tests, rebuild=args.rebuild)
+        write_loo_tables(result)
+    except (ValueError, RuntimeError, OSError, ConfigError) as exc:
+        logger.error("Fallo el estudio del factor leave-one-out: %s", exc)
+        return 1
+    logger.info("Resumen leave-one-out (mediana entre folds):\n%s", result.summary.to_string())
     return 0
 
 
@@ -219,6 +232,7 @@ _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "beta-study": _run_beta_study,
     "idio-signal": _run_idio_signal,
     "market-lag": _run_market_lag,
+    "loo-factor": _run_loo_factor,
 }
 
 
