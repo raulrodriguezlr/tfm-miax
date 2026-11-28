@@ -17,6 +17,7 @@ from miax.features.correlation import (
 )
 from miax.features.factor import FactorModel, NoFactor, NotFittedError, ols_betas
 from miax.features.factor_btc import BtcFactor
+from miax.features.factor_lagged import LaggedFactor
 from miax.features.factor_mean import MeanFactor
 from miax.features.factor_metrics import correlation_drop
 from miax.features.factor_pca import PcaFactor
@@ -62,6 +63,7 @@ __all__ = [
     "FactorModel",
     "FeatureSpec",
     "GapCause",
+    "LaggedFactor",
     "MeanFactor",
     "NoFactor",
     "NotFittedError",

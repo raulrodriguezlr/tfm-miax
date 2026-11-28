@@ -1,4 +1,4 @@
-"""CLI de la evaluacion: `python -m miax.eval beta-study` y `python -m miax.eval idio-signal`."""
+"""CLI de la evaluacion: subcomandos `beta-study`, `idio-signal` y `market-lag` de `miax.eval`."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from miax.eval.beta_study import (
     write_tables,
 )
 from miax.eval.idiosyncratic_signal import study_signal, write_signal_tables
+from miax.eval.market_lag import compare_market_lag, write_market_lag_tables
 from miax.features.resample import bar_factor
 from miax.utils import get_logger
 from miax.utils.config import ConfigError
@@ -87,6 +88,21 @@ def _build_parser() -> argparse.ArgumentParser:
     signal.add_argument(
         "--rebuild", action="store_true", help="Reconstruye los paneles de la cache."
     )
+    lag = subparsers.add_parser(
+        "market-lag",
+        description="Residuo con y sin el retraso respecto al mercado, y si sigue la senal.",
+    )
+    lag.add_argument(
+        "--tests",
+        nargs="+",
+        default=list(DEFAULT_TESTS),
+        help="Inicios de trimestre de prueba, YYYY-MM-DD en UTC (por defecto 2023T1 a 2025T4).",
+    )
+    lag.add_argument("--lags", type=int, default=5, help="Retardos 1..L en minutos.")
+    lag.add_argument(
+        "--skip-signal", action="store_true", help="Solo el diagnostico, sin el contraste de senal."
+    )
+    lag.add_argument("--rebuild", action="store_true", help="Reconstruye los paneles de la cache.")
     return parser
 
 
@@ -163,10 +179,46 @@ def _run_idio_signal(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_market_lag(args: argparse.Namespace) -> int:
+    """Subcomando `market-lag`: 2 si los argumentos no valen, 1 si falla el trabajo."""
+    try:
+        starts = [pd.Timestamp(text, tz="UTC") for text in args.tests]
+        for start in starts:
+            fold_windows(start)
+    except ValueError as exc:
+        logger.error(
+            "Trimestre no valido (%s); se espera el inicio de un trimestre YYYY-MM-DD", exc
+        )
+        return 2
+    if not args.tests or args.lags < 1:
+        logger.error("Hacen falta trimestres y --lags >= 1")
+        return 2
+    try:
+        result = compare_market_lag(
+            args.tests,
+            lags=args.lags,
+            run_signal=not args.skip_signal,
+            rebuild=args.rebuild,
+        )
+        write_market_lag_tables(result)
+    except (ValueError, RuntimeError, OSError, ConfigError) as exc:
+        logger.error("Fallo el estudio del retraso respecto al mercado: %s", exc)
+        return 1
+    summary = result.diagnostics.groupby("model", sort=False)["abs_corr_lag1"].median()
+    logger.info("Mediana entre folds de abs_corr_lag1 por modelo:\n%s", summary.to_string())
+    if result.signal_decision is not None:
+        verdicts = result.signal_decision[
+            result.signal_decision["factor"].str.startswith("verdict")
+        ]
+        logger.info("Decision de senal:\n%s", verdicts.to_string(index=False))
+    return 0
+
+
 # Registro de subcomandos: uno nuevo es una entrada mas (y su parser en `_build_parser`).
 _COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "beta-study": _run_beta_study,
     "idio-signal": _run_idio_signal,
+    "market-lag": _run_market_lag,
 }
 
 
