@@ -1,10 +1,17 @@
 """Figuras para la memoria."""
 
+from miax.viz.correlation_before_after import (
+    CorrelationFigurePaths,
+    build_correlation_before_after_report,
+    plot_correlation_before_after,
+    residual_correlations,
+)
 from miax.viz.factor_comparison import (
     FACTOR_MODELS,
     FactorComparisonPaths,
     build_factor_comparison_report,
     compare_factors,
+    factor_comparison_by_period,
     factor_comparison_table,
     split_period,
 )
@@ -32,10 +39,12 @@ from miax.viz.raw_correlation import (
 
 __all__ = [
     "FACTOR_MODELS",
+    "CorrelationFigurePaths",
     "FactorComparisonPaths",
     "PanelOverview",
     "ReportPaths",
     "bar_validity_pct",
+    "build_correlation_before_after_report",
     "build_factor_comparison_report",
     "build_panel_overview",
     "build_raw_correlation_report",
@@ -43,12 +52,15 @@ __all__ = [
     "correlation_by_liquidity",
     "correlation_summary",
     "explained_variance",
+    "factor_comparison_by_period",
     "factor_comparison_table",
     "feature_quantiles",
     "order_by_category",
     "period_gap_causes",
+    "plot_correlation_before_after",
     "plot_raw_correlation",
     "raw_correlation",
+    "residual_correlations",
     "save_figure",
     "split_period",
     "summarize_correlation",

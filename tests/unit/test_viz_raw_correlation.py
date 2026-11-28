@@ -515,8 +515,12 @@ def test_cli_period_not_in_universe_exits_1(capsys: pytest.CaptureFixture[str]) 
 
 
 def test_cli_registry_maps_names_to_functions() -> None:
-    """El registro de subcomandos tiene `raw-correlation` y `factor-comparison`."""
-    assert set(cli._COMMANDS) == {"raw-correlation", "factor-comparison"}
+    """El registro de subcomandos tiene `raw-correlation`, `factor-comparison` y el de MIAX-060."""
+    assert set(cli._COMMANDS) == {
+        "raw-correlation",
+        "factor-comparison",
+        "correlation-before-after",
+    }
 
 
 # --- monedas sin datos en el periodo (MIAX-213) ---
